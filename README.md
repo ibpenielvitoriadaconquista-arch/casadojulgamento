@@ -9,7 +9,7 @@ Bem-vindo! Este material foi preparado para que liderança, marketing, financeir
 
 | Documento ou demonstração | Para que serve |
 | --- | --- |
-| [Apresentação navegável do andamento](apresentacao/index.html) | Mostrar em reunião o que está pronto, o que falta, riscos e próximos marcos. |
+| [Apresentação do andamento (10 tópicos)](apresentacao/ANDAMENTO_E_PROXIMOS_PASSOS.md) | Mostrar em reunião o que está pronto, o que falta, riscos e próximos marcos. |
 | [Variação A — design estratégico](prototipos/variacao-a/index.html) | Prévia independente, simples e focada em clareza de compra. |
 | [Variação B — design cinematográfico](prototipos/variacao-b/index.html) | Prévia independente com atmosfera de fogo, luz e dois caminhos. |
 | [Versão atual — referência](design/ORIGINAL.md) | Identificar o site original sem substituí-lo. |
