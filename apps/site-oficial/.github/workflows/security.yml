@@ -1,0 +1,26 @@
+name: Security gates (sem deploy)
+on:
+  pull_request:
+  push:
+    branches: [main]
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '22', cache: 'npm' }
+      - name: Instalar dependencias com lockfile revisado
+        run: npm ci
+      - name: Testar
+        run: npm test
+      - name: Auditoria de dependencias
+        run: npm audit --audit-level=high
+      - name: Build
+        run: npm run build
+      - name: Impedir strings secretas triviais
+        shell: bash
+        run: |
+          if grep -rInE '(sk_live_|ghp_[A-Za-z0-9]{30,}|-----BEGIN PRIVATE KEY-----)' --exclude-dir=node_modules --exclude-dir=.git .; then exit 1; fi

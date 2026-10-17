@@ -1,0 +1,6 @@
+import { useRouter } from "next/router";
+import { useState } from "react";
+import rules from "../lib/rules.cjs";
+export default function Quantidade(){const router=useRouter();const [q,setQ]=useState(2);const sessao=rules.SESSIONS.find(s=>s.id===router.query.sessao);
+ return <main className="container narrow"><h1>Quantos ingressos?</h1>{!sessao?<p className="error">Selecione uma sessão válida.</p>:<><article className="card"><h2>{sessao.data}</h2><p><strong>Portões abertos às {sessao.portoes}</strong></p><p className="caption">Seu grupo e o horário de entrada serão definidos após a chegada e o check-in.</p></article><div className="card"><div className="row"><button aria-label="Diminuir" className="stepbtn" disabled={q===1} onClick={()=>setQ(q-1)}>−</button><span className="count">{q}</span><button aria-label="Aumentar" className="stepbtn" disabled={q===6} onClick={()=>setQ(q+1)}>+</button></div><hr/><div className="row"><span>Total</span><strong>{rules.formatBRL(q*rules.PRICE_CENTS)}</strong></div><p className="caption">+ {q} kg de alimento não perecível na entrada.</p><p className="caption">Máximo de 6 ingressos por pedido.</p></div><button className="btn" onClick={()=>router.push('/dados?sessao='+sessao.id+'&qtd='+q)}>CONTINUAR</button></>}</main>
+}
