@@ -1,7 +1,10 @@
-# Cópia institucional — 17/10/2026
-Origem: deploy dpl_74Ei8NUmXVUSWGBNYsdJwarTAyhw (www.ibpeniel.com).
-Projeto original e domínio não foram alterados.
-Aplicação em apps/site-oficial; documentos e protótipos anteriores preservados.
-12 testes de grupos/webhook aprovados. Suíte completa: 32/37; 5 falhas herdadas em testes de rotas/fluxo legado. Não foram alteradas regras operacionais para ocultar essas falhas.
-PENDÊNCIA: revisão automática bloqueou envio de mídia binária ao GitHub. Faltam assets/video_chunks/part-08.bin, part-09.bin, part-10.bin e public/artecoracao.jpg nesta branch. A publicação Vercel separada usa todos os arquivos originais. Não usar esta branch como backup integral ou fonte de produção até concluir a mídia e validar build pelo Git.
-Credenciais administrativas não foram incluídas. Banco e autenticação real não foram ativados. Painéis preservados são de treinamento local; não representam operação real sincronizada.
+# Projeto oficial da Casa do Julgamento
+
+A aplicação oficial e os painéis estão em apps/site-oficial. Configurar Root Directory da Vercel como apps/site-oficial e framework Next.js.
+As páginas de escolha de versões e os protótipos de apresentação foram retirados desta branch; continuam disponíveis no histórico do Git.
+
+Verificação de 17/10/2026: 35 testes aprovados. Testes legados foram atualizados para verificar a ausência dos antigos endpoints nativos e o redirecionamento atual de sessões. Adicionado package-lock.json para npm ci.
+
+Atenção: três fragmentos do vídeo (part-08.bin a part-10.bin) e public/artecoracao.jpg ainda aguardam autorização explícita para envio ao GitHub público. Não mesclar ou mudar domínio até concluir esses arquivos e validar build pelo Git. A cópia publicada por arquivos completos na Vercel está separada do projeto original.
+
+O gerenciamento de grupos permanece com as mesmas regras. Os painéis são de treinamento; banco central, autenticação e processamento real da Even3 ainda precisam de homologação.
