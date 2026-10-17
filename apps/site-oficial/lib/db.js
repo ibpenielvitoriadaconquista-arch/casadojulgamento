@@ -2,8 +2,9 @@ import pg from "pg";
 const { Pool }=pg;
 let pool;
 function getPool(){
-  if(!process.env.DATABASE_URL) throw new Error("DATABASE_URL não configurado");
-  if(!pool) pool=new Pool({connectionString:process.env.DATABASE_URL,max:5,connectionTimeoutMillis:5000,statement_timeout:10000,query_timeout:11000});
+  const connectionString=process.env.DATABASE_URL||process.env.POSTGRES_URL;
+  if(!connectionString) throw new Error("DATABASE_URL não configurado");
+  if(!pool) pool=new Pool({connectionString,max:5,connectionTimeoutMillis:5000,statement_timeout:10000,query_timeout:11000});
   return pool;
 }
 export async function query(sql, params=[]){return getPool().query(sql,params);}

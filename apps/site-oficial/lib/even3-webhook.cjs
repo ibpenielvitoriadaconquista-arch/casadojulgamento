@@ -34,7 +34,7 @@ function createWebhookHandler({ save, env = process.env }) {
     if (!authenticated(req.headers[header], env.EVEN3_WEBHOOK_TOKEN)) return res.status(401).json({ error: 'unauthorized' });
     const contentType = String(req.headers['content-type'] || '').split(';')[0].trim().toLowerCase();
     if (contentType !== 'application/json') return res.status(415).json({ error: 'json_required' });
-    if (!env.DATABASE_URL || !env.EVEN3_EVENT_ID) return res.status(503).json({ error: 'storage_not_configured' });
+    if (!(env.DATABASE_URL || env.POSTGRES_URL) || !env.EVEN3_EVENT_ID) return res.status(503).json({ error: 'storage_not_configured' });
     const event = validateEnvelope(req.body, env.EVEN3_EVENT_ID);
     if (!event) return res.status(422).json({ error: 'unrecognized_envelope' });
     try {

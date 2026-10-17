@@ -1,0 +1,8 @@
+import {useState} from 'react';
+import Head from 'next/head';
+export default function Login(){
+ const[error,setError]=useState(''),[busy,setBusy]=useState(false);
+ async function submit(e){e.preventDefault();setBusy(true);setError('');const f=new FormData(e.currentTarget);
+ try{const r=await fetch('/api/operacao/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:f.get('email'),password:f.get('password')})});const d=await r.json();if(!r.ok)throw Error(d.error);window.location.href='/operacao/'+d.role;}catch(e){setError(e.message);}finally{setBusy(false);}}
+ return <><Head><title>Acesso da equipe · Peniel</title><meta name="robots" content="noindex,nofollow"/></Head><main style={{minHeight:'100vh',background:'#0a1018',color:'#edf3f8',padding:'8vh 20px',fontFamily:'system-ui'}}><form onSubmit={submit} style={{maxWidth:420,margin:'auto',padding:28,border:'1px solid #77603e',borderRadius:16,display:'grid',gap:18}}><small>PENIEL · CASA DO JULGAMENTO</small><h1>Acesso da equipe</h1><p>Entre com a conta habilitada pela administração. O treinamento continua separado dos dados reais.</p><label>E-mail<input style={{width:'100%',padding:12}} name="email" type="email" autoComplete="username" required/></label><label>Senha<input style={{width:'100%',padding:12}} name="password" type="password" autoComplete="current-password" required/></label>{error&&<p role="alert">{error}</p>}<button disabled={busy} style={{padding:14,background:'#edc58b',border:0,borderRadius:8}}>{busy?'Entrando…':'Entrar'}</button><a href="/treinamento" style={{color:'#edc58b'}}>Abrir treinamento com dados fictícios</a></form></main></>;
+}
