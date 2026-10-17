@@ -37,7 +37,7 @@ Login via Supabase Auth, cookie HttpOnly/SameSite=Strict/Secure em produção, v
 - Vercel: POSTGRES_URL (ou DATABASE_URL), NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY.
 - Even3: EVEN3_EVENT_ID, EVEN3_API_TOKEN, EVEN3_WEBHOOK_TOKEN, e cabeçalho de autenticação verificado. Secrets somente no servidor.
 - Cadastrar e habilitar primeiro colaborador, depois testar contas dos diferentes postos.
-- Concluir os quatro arquivos de mídia pendentes no Git, publicar o commit completo no projeto da igreja e validar conexão hospedada. Bloqueio anterior de aprovação automática exige autorização específica para publicá-los no repositório público.
+- Publicação dos quatro arquivos de mídia autorizada explicitamente pelo usuário em 17/10/2026; incluídos nesta entrega. Publicar o commit completo no projeto da igreja e validar conexão hospedada. A conexão Vercel retornou 403 para a equipe peniel-casadojulgamento; revisar autorização de acesso antes do deploy.
 - Antes de dados reais: substituir as credenciais privadas compartilhadas anteriormente na conversa.
 - Somente após validar o destino, mover domínio/apex e www, preservando o redirecionamento e o projeto pessoal para retorno.
 

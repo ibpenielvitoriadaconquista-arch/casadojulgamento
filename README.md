@@ -1,10 +1,12 @@
 # Projeto oficial da Casa do Julgamento
 
 A aplicação oficial e os painéis estão em apps/site-oficial. Configurar Root Directory da Vercel como apps/site-oficial e framework Next.js.
-As páginas de escolha de versões e os protótipos de apresentação foram retirados desta branch; continuam disponíveis no histórico do Git.
+As páginas de escolha de versões e os protótipos foram retirados desta branch; permanecem no histórico do Git.
 
-Verificação de 17/10/2026: 35 testes aprovados. Testes legados foram atualizados para verificar a ausência dos antigos endpoints nativos e o redirecionamento atual de sessões. Adicionado package-lock.json para npm ci.
+Os quatro arquivos de mídia pendentes foram autorizados explicitamente em 17/10/2026 e incluídos nesta entrega. O vídeo é reconstruído pelos fragmentos durante npm run build. Instalar dependências com npm ci.
 
-Atenção: três fragmentos do vídeo (part-08.bin a part-10.bin) e public/artecoracao.jpg ainda aguardam autorização explícita para envio ao GitHub público. Não mesclar ou mudar domínio até concluir esses arquivos e validar build pelo Git. A cópia publicada por arquivos completos na Vercel está separada do projeto original.
+Validação da entrega operacional: 46 testes aprovados e build local concluído. Banco da igreja preparado com seis sessões. O código inclui painéis autenticados em /operacao/{posto}; o treinamento permanece separado nas rotas existentes.
 
-O gerenciamento de grupos permanece com as mesmas regras. Os painéis são de treinamento; banco central, autenticação e processamento real da Even3 ainda precisam de homologação.
+Pendências para operação real: publicar e validar o commit completo na Vercel da igreja, cadastrar o primeiro colaborador, testar em dois dispositivos, mapear as atividades e homologar os webhooks/QR da Even3. A conexão Vercel retornou 403 para a equipe peniel-casadojulgamento na última verificação. O domínio só deve ser transferido após validar o destino.
+
+Consulte apps/site-oficial/docs/OPERACAO_CENTRAL.md para arquitetura, validações e limites atuais. O projeto pessoal permanece preservado.
