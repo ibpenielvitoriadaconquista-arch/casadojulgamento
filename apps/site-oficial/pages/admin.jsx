@@ -1,0 +1,1 @@
+export default function Admin(){return <main className="container narrow"><h1>Painel operacional</h1><p className="notice">Acesso indisponível até aprovação e configuração de identidade individual, autenticação multifator, perfis e trilha de auditoria.</p></main>}
