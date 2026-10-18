@@ -3,9 +3,9 @@ const assert = require('node:assert/strict');
 const { createWebhookHandler, validateEnvelope } = require('../lib/even3-webhook.cjs');
 const env = { EVEN3_WEBHOOK_TOKEN: 'test-only-secret', EVEN3_EVENT_ID: '798621', DATABASE_URL: 'test-only' };
 const body = { id: 'fixture-123', created: 1792250000, type: { name: 'Participante realizou checkin na atividade' }, evento: { id: 798621 } };
-async function call({ save = async () => ({ duplicate: false }), overrides = {}, config = env } = {}) {
+async function call({ save = async () => ({ duplicate: false }), overrides = {}, config = env, quarantine } = {}) {
   const res = { headers: {}, setHeader(k,v) { this.headers[k]=v; }, status(code) { this.code=code; return this; }, json(value) { this.body=value; return this; } };
-  await createWebhookHandler({ save, env: config })({ method: 'POST', headers: { 'authorization-token': env.EVEN3_WEBHOOK_TOKEN, 'content-type': 'application/json' }, body, ...overrides }, res);
+  await createWebhookHandler({ save, quarantine, env: config })({ method: 'POST', headers: { 'authorization-token': env.EVEN3_WEBHOOK_TOKEN, 'content-type': 'application/json' }, body, ...overrides }, res);
   return res;
 }
 test('rejects forged credentials without writing', async () => {
@@ -41,3 +41,12 @@ test('token variants require exact secret and never accept payload credentials',
  assert.equal((await call({overrides:{headers:{authorization:'Bearer wrong','content-type':'application/json'},body:{...body,token:env.EVEN3_WEBHOOK_TOKEN}}})).code,401);
  assert.equal((await call({config:{...env,EVEN3_WEBHOOK_HEADER:'custom-token'}})).code,401);
 });
+
+ test('unknown authenticated payload is quarantined without operational processing',async()=>{
+  let captures=0,writes=0;
+  const options={overrides:{body:{...body,evento:undefined}},quarantine:async()=>{captures++;},save:async()=>{writes++;}};
+  assert.equal((await call(options)).code,202);assert.equal(captures,1);assert.equal(writes,0);
+  assert.equal((await call({...options,quarantine:async()=>{throw Error('offline');}})).code,503);
+  assert.equal((await call({...options,overrides:{...options.overrides,headers:{'x-token-even3':'wrong','content-type':'application/json'}}})).code,401);
+  assert.equal(captures,1);
+ });

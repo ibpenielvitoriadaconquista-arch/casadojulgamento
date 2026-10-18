@@ -21,7 +21,7 @@ function validateEnvelope(body, expectedEventId) {
   };
 }
 
-function createWebhookHandler({ save, env = process.env }) {
+function createWebhookHandler({ save, quarantine, env = process.env }) {
   return async function handler(req, res) {
     res.setHeader('Cache-Control', 'no-store');
     if (req.method === 'GET') return res.status(200).json({ service: 'even3-webhook', phase: 'registration-intake' });
@@ -51,7 +51,15 @@ function createWebhookHandler({ save, env = process.env }) {
         hasEventId: req.body?.evento?.id !== undefined,
         eventMatches: String(req.body?.evento?.id) === String(env.EVEN3_EVENT_ID)
       });
-      return res.status(422).json({ error: 'unrecognized_envelope' });
+      if (!quarantine) return res.status(422).json({ error: 'unrecognized_envelope' });
+      try {
+        await quarantine(req.body);
+        // Acknowledges storage only. Unverified event never reaches operational tables.
+        return res.status(202).json({received:true,processing:'quarantined_unrecognized_envelope'});
+      } catch {
+        res.setHeader('Retry-After','60');
+        return res.status(503).json({error:'diagnostic_storage_unavailable'});
+      }
     }
     try {
       const result = await save(event, req.body);
