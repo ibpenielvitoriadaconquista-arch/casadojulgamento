@@ -30,8 +30,15 @@ function createWebhookHandler({ save, env = process.env }) {
       return res.status(405).json({ error: 'method_not_allowed' });
     }
     if (!env.EVEN3_WEBHOOK_TOKEN) return res.status(503).json({ error: 'integration_not_configured' });
-    const header = (env.EVEN3_WEBHOOK_HEADER || 'authorization-token').toLowerCase();
-    if (!authenticated(req.headers[header], env.EVEN3_WEBHOOK_TOKEN)) return res.status(401).json({ error: 'unauthorized' });
+    const names = env.EVEN3_WEBHOOK_HEADER ? [env.EVEN3_WEBHOOK_HEADER.toLowerCase()] : ['authorization-token', 'authorization', 'token'];
+    const valid = names.some(name => {
+      const value = req.headers[name];
+      return authenticated(value, env.EVEN3_WEBHOOK_TOKEN) || (name === 'authorization' && typeof value === 'string' && /^Bearer /i.test(value) && authenticated(value.slice(7), env.EVEN3_WEBHOOK_TOKEN));
+    });
+    if (!valid) {
+      console.warn('even3_webhook_auth_rejected', {headerNames: Object.keys(req.headers).filter(n=>/^[a-z0-9-]{1,64}$/.test(n)).slice(0,40)});
+      return res.status(401).json({ error: 'unauthorized' });
+    }
     const contentType = String(req.headers['content-type'] || '').split(';')[0].trim().toLowerCase();
     if (contentType !== 'application/json') return res.status(415).json({ error: 'json_required' });
     if (!(env.DATABASE_URL || env.POSTGRES_URL) || !env.EVEN3_EVENT_ID) return res.status(503).json({ error: 'storage_not_configured' });

@@ -33,3 +33,11 @@ test('rejects non-json and unsupported methods', async () => {
   assert.equal((await call({overrides:{headers:{'authorization-token':env.EVEN3_WEBHOOK_TOKEN,'content-type':'text/plain'}}})).code,415);
   assert.equal((await call({overrides:{method:'DELETE'}})).code,405);
 });
+
+test('token variants require exact secret and never accept payload credentials', async()=>{
+ for(const [name,value] of [['token',env.EVEN3_WEBHOOK_TOKEN],['authorization',env.EVEN3_WEBHOOK_TOKEN],['authorization','Bearer '+env.EVEN3_WEBHOOK_TOKEN]]){
+  assert.equal((await call({overrides:{headers:{[name]:value,'content-type':'application/json'}}})).code,200);
+ }
+ assert.equal((await call({overrides:{headers:{authorization:'Bearer wrong','content-type':'application/json'},body:{...body,token:env.EVEN3_WEBHOOK_TOKEN}}})).code,401);
+ assert.equal((await call({config:{...env,EVEN3_WEBHOOK_HEADER:'custom-token'}})).code,401);
+});
