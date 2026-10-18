@@ -15,7 +15,7 @@ function admit(state, session, arrival, now=new Date().toISOString()) {
 }
 function project(state, role) {
   const next=structuredClone(state);
-  if(['guias','telao'].includes(role)) for(const s of Object.values(next.sessions)) {
+  if(['guias','telao','apoio'].includes(role)) for(const s of Object.values(next.sessions)) {
     // No names or ticket identifiers sent to these roles, including hidden history.
     s.people=s.people.map(p=>({group:p.group,paperAt:p.paperAt}));
     s.groups=s.groups.map(g=>({...g,members:g.members.map(()=>null)}));

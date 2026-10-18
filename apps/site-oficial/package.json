@@ -14,10 +14,11 @@
     "audit:deps": "npm audit --audit-level=high"
   },
   "dependencies": {
+    "@supabase/supabase-js": "2.118.0",
     "next": "16.4.0",
-    "react": "19.3.0",
-    "react-dom": "19.3.0",
     "pg": "^8.13.0",
-    "qrcode": "^1.5.4"
+    "qrcode": "^1.5.4",
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
   }
 }

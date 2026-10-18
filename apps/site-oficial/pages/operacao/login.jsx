@@ -15,7 +15,7 @@ export default function Login(){
   <section className="story" aria-label="Casa do Julgamento — Cilada do Coração">
    <img className="poster" src="/artecoracao.jpg" alt=""/>
    <div className="shade"/><div className="story-content"><a href="/" className="brand">PENIEL <span>CASA DO JULGAMENTO · 2026</span></a>
-   <div><span className="eyebrow">UMA EQUIPE. UM PROPÓSITO.</span><h1>Cada pessoa merece<br/>uma boa acolhida.</h1><p>Da chegada ao último grupo, o cuidado começa com a nossa equipe.</p></div>
+   <div><span className="eyebrow">UMA EQUIPE. UM PROPÓSITO.</span><h1>Cada pessoa merece<br/>ser bem acolhida.</h1><p>Da chegada ao último grupo, o cuidado começa com a nossa equipe.</p></div>
    <span className="signature">CILADA DO CORAÇÃO</span></div>
   </section>
   <section className="entry" aria-labelledby="login-title"><div className="form-wrap">
@@ -26,8 +26,8 @@ export default function Login(){
     {error&&<div className="error" role="alert">{error}</div>}
     <button className="submit" type="submit" disabled={busy}>{busy?'Abrindo seu painel…':'Entrar no meu painel'} <span aria-hidden="true">→</span></button>
    </form>
-   <div className="help"><strong>Primeiro acesso ou esqueceu a senha?</strong><p>Fale com a coordenação para cadastrar seu e-mail, definir sua função ou recuperar seu acesso.</p></div>
-   <div className="roles" aria-label="Funções da equipe"><span>Portaria</span><span>Coordenação</span><span>Guias</span><span>Gestão geral</span></div>
+   <div className="help"><strong>Primeiro acesso ou esqueceu a senha?</strong><p>Peça seu convite à coordenação. Você define sua senha e entra no painel da sua função. Para recuperar o acesso, solicite um novo link.</p></div>
+   <div className="roles" aria-label="Funções da equipe"><span>Portaria</span><span>Coordenação</span><span>Guias</span><span>Apoio</span><span>Gestão geral</span></div>
    <a className="training" href="/treinamento">Conhecer os painéis no treinamento <span aria-hidden="true">↗</span><small>Ambiente de prática com dados fictícios</small></a>
   </div><footer>IGREJA BATISTA PENIEL · VITÓRIA DA CONQUISTA</footer></section>
  </div></main>
