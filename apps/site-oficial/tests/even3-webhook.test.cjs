@@ -27,7 +27,7 @@ test('duplicates acknowledge but conflicting IDs reject', async () => {
 });
 test('missing storage refuses delivery and health does not imply readiness', async () => {
   assert.equal((await call({config:{...env,DATABASE_URL:''}})).code,503);
-  const health=await call({overrides:{method:'GET'}}); assert.equal(health.body.phase,'inbox-only');
+  const health=await call({overrides:{method:'GET'}}); assert.equal(health.body.phase,'registration-intake');
 });
 test('rejects non-json and unsupported methods', async () => {
   assert.equal((await call({overrides:{headers:{'authorization-token':env.EVEN3_WEBHOOK_TOKEN,'content-type':'text/plain'}}})).code,415);

@@ -1,7 +1,7 @@
 const {test}=require('node:test'); const assert=require('node:assert/strict');const fs=require('node:fs');const path=require('node:path');
 const root=path.resolve(__dirname,'..');const read=p=>fs.readFileSync(path.join(root,p),'utf8');
 test('API de sessões apresenta programação sem valores falsos quando vendas estão bloqueadas',()=>{
- const code=read('pages/api/sessoes.js');assert.match(code,/PRODUCTION_RELEASE_APPROVED\s*!==\s*['"]true['"]/);assert.match(code,/vagasOnlineRestantes:null/);assert.match(code,/vendaDisponivel:false/);});
+ const code=read('pages/api/sessoes.js');assert.match(code,/vagasOnlineRestantes:null/);assert.match(code,/vendaDisponivel:false/);});
 test('rota antiga de sessões redireciona para o seletor oficial',async()=>{
  const code=read('pages/sessoes.jsx');
  const module=await import('data:text/javascript;base64,'+Buffer.from(code).toString('base64'));

@@ -24,7 +24,7 @@ function validateEnvelope(body, expectedEventId) {
 function createWebhookHandler({ save, env = process.env }) {
   return async function handler(req, res) {
     res.setHeader('Cache-Control', 'no-store');
-    if (req.method === 'GET') return res.status(200).json({ service: 'even3-webhook', phase: 'inbox-only' });
+    if (req.method === 'GET') return res.status(200).json({ service: 'even3-webhook', phase: 'registration-intake' });
     if (req.method !== 'POST') {
       res.setHeader('Allow', 'GET, POST');
       return res.status(405).json({ error: 'method_not_allowed' });
@@ -43,11 +43,20 @@ function createWebhookHandler({ save, env = process.env }) {
     if (contentType !== 'application/json') return res.status(415).json({ error: 'json_required' });
     if (!(env.DATABASE_URL || env.POSTGRES_URL) || !env.EVEN3_EVENT_ID) return res.status(503).json({ error: 'storage_not_configured' });
     const event = validateEnvelope(req.body, env.EVEN3_EVENT_ID);
-    if (!event) return res.status(422).json({ error: 'unrecognized_envelope' });
+    if (!event) {
+      // Types and expected-field presence only: no personal data or secret values.
+      console.warn('even3_webhook_envelope_rejected', {
+        idType: typeof req.body?.id, createdType: typeof req.body?.created,
+        hasTypeName: typeof req.body?.type?.name === 'string',
+        hasEventId: req.body?.evento?.id !== undefined,
+        eventMatches: String(req.body?.evento?.id) === String(env.EVEN3_EVENT_ID)
+      });
+      return res.status(422).json({ error: 'unrecognized_envelope' });
+    }
     try {
       const result = await save(event, req.body);
       if (result.conflict) return res.status(409).json({ error: 'notification_conflict' });
-      return res.status(200).json({ received: true, duplicate: result.duplicate, processing: 'pending_review' });
+      return res.status(200).json({ received: true, duplicate: result.duplicate, processing: result.processing || 'pending_review' });
     } catch (error) {
       console.error("even3_inbox_storage_error", {code: String(error?.code || "unknown").replace(/[^a-zA-Z0-9_]/g, "").slice(0,64), name: error?.name || "Error"});
       // Never acknowledge a delivery that was not saved durably. Never log PII or secrets.
