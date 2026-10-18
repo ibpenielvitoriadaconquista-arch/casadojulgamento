@@ -10,8 +10,10 @@ function identifier(value) {
 }
 function registrationFrom(body) {
  const status=statuses.get(body?.type?.name);
- const registrationId=identifier(body?.inscricao?.id), participantId=identifier(body?.pessoa?.id);
- const name=typeof body?.pessoa?.nome==='string'?body.pessoa.nome.trim():'';
+ const data=body?.data===undefined?body:body.data;
+ // codigo is the individual ticket printed in the confirmation. id is not used as ticket identity.
+ const registrationId=identifier(data?.inscricao?.codigo), participantId=identifier(data?.pessoa?.id);
+ const name=typeof data?.pessoa?.nome==='string'?data.pessoa.nome.trim():'';
  if(!status||!registrationId||!participantId||!name||name.length>300)return null;
  return {registrationId,participantId,name,status};
 }
@@ -30,7 +32,7 @@ async function saveNotification(client,event,body) {
  // Serialize deliveries of the same registration; do not let late confirmations undo cancellation.
  await client.query('SELECT pg_advisory_xact_lock(hashtext($1),hashtext($2))',[event.eventId,current.registrationId]);
  const history=await client.query(`SELECT payload FROM even3_integration.webhook_inbox
- WHERE event_id=$1 AND payload->'inscricao'->>'id'=$2 AND trigger_name=ANY($3::text[])
+ WHERE event_id=$1 AND (CASE WHEN payload ? 'data' THEN payload->'data'->'inscricao'->>'codigo' ELSE payload->'inscricao'->>'codigo' END)=$2 AND trigger_name=ANY($3::text[])
  ORDER BY occurred_at DESC, CASE WHEN trigger_name=$4 THEN 0 ELSE 1 END, notification_id DESC`,
  [event.eventId,current.registrationId,[...statuses.keys()],'Participante com inscrição cancelada no evento']);
  const latest=history.rows.map(row=>registrationFrom(row.payload)).find(Boolean);

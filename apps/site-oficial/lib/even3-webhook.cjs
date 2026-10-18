@@ -11,7 +11,9 @@ function validateEnvelope(body, expectedEventId) {
   const id = body.id;
   if (typeof id !== 'string' || !/^[A-Za-z0-9_-]{1,128}$/.test(id)) return null;
   if (!body.type || typeof body.type.name !== 'string' || body.type.name.length > 300) return null;
-  const eventId = body.evento?.id;
+  const data = body.data === undefined ? body : body.data;
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return null;
+  const eventId = data.evento?.id;
   if (!Number.isSafeInteger(Number(eventId)) || String(eventId) !== String(expectedEventId)) return null;
   if (!Number.isSafeInteger(body.created) || body.created <= 0 || body.created > 8640000000000) return null;
   return {

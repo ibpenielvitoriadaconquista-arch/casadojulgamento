@@ -50,3 +50,10 @@ test('token variants require exact secret and never accept payload credentials',
   assert.equal((await call({...options,overrides:{...options.overrides,headers:{'x-token-even3':'wrong','content-type':'application/json'}}})).code,401);
   assert.equal(captures,1);
  });
+
+test('validates observed Even3 data envelope without trusting an unrelated event',()=>{
+ const real={id:'00000000-0000-4000-8000-000000000001',created:1792349011,type:{name:'Participante com inscrição confirmada no evento'},data:{evento:{id:798621},inscricao:{id:10101,codigo:'123001'}}};
+ assert.equal(validateEnvelope(real,'798621').eventId,'798621');
+ assert.equal(validateEnvelope({...real,data:{evento:{id:9}},evento:{id:798621}},'798621'),null);
+ assert.equal(validateEnvelope({...real,data:[]},'798621'),null);
+});

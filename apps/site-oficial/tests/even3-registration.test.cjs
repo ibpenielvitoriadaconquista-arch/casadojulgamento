@@ -1,11 +1,11 @@
 const {test}=require('node:test');const assert=require('node:assert/strict');
 const {registrationFrom,saveNotification}=require('../lib/even3-registration.cjs');
-const confirmed={type:{name:'Participante com inscrição confirmada no evento'},inscricao:{id:123},pessoa:{id:456,nome:'Pessoa de teste'}};
+const confirmed={type:{name:'Participante com inscrição confirmada no evento'},inscricao:{id:10101,codigo:'123'},pessoa:{id:456,nome:'Pessoa de teste'}};
 const event={eventId:'798621',notificationId:'test',trigger:confirmed.type.name,occurredAt:'2026-10-18T18:00:00Z',payloadHash:'hash'};
 test('confirmed registration does not infer money, date or admission from category',()=>{
- const r=registrationFrom({...confirmed,inscricao:{id:123,titulo:'Pago 09/11'}});
+ const r=registrationFrom({...confirmed,inscricao:{id:10101,codigo:'123',titulo:'Pago 09/11'}});
  assert.deepEqual(r,{registrationId:'123',participantId:'456',name:'Pessoa de teste',status:'confirmed'});
- for(const body of [{...confirmed,pessoa:{id:456}}, {...confirmed,inscricao:{codigo:'123'}}, {...confirmed,type:{name:'Venda aprovada'}}])assert.equal(registrationFrom(body),null);
+ for(const body of [{...confirmed,pessoa:{id:456}}, {...confirmed,inscricao:{id:10101}}, {...confirmed,type:{name:'Venda aprovada'}}])assert.equal(registrationFrom(body),null);
 });
 test('intake persists lifecycle without granting entitlement; late delivery uses newest stored lifecycle',async()=>{
  const calls=[];const cancelled={...confirmed,type:{name:'Participante com inscrição cancelada no evento'}};
@@ -22,4 +22,10 @@ test('duplicate conflict cannot update a registration; unknown triggers remain r
  assert.equal((await saveNotification(client,event,confirmed)).conflict,true);assert.equal(writes,0);
  const saved=[];await saveNotification({async query(sql){saved.push(sql);return {rowCount:1};}},event,{...confirmed,type:{name:'Participante realizou checkin no evento'}});
  assert.equal(saved.length,1);
+});
+
+test('real Even3 wrapper and individual codes preserve separate tickets sharing an inscription id',()=>{
+ const a={id:'notification',created:1792349011,type:confirmed.type,data:{pessoa:confirmed.pessoa,inscricao:{id:10101,codigo:'123001'}}};
+ const b={...a,data:{...a.data,inscricao:{id:10101,codigo:'123002'}}};
+ assert.equal(registrationFrom(a).registrationId,'123001');assert.equal(registrationFrom(b).registrationId,'123002');
 });
