@@ -1,0 +1,24 @@
+{
+  "name": "ibpeniel-casa-do-julgamento-v3",
+  "version": "3.0.0-preview",
+  "private": true,
+  "engines": {
+    "node": ">=20.11"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "node scripts/ensure-video.cjs && next build",
+    "start": "next start",
+    "test": "node --test tests/*.test.cjs",
+    "check": "npm run test && npm run build",
+    "audit:deps": "npm audit --audit-level=high"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "2.118.0",
+    "next": "16.4.0",
+    "pg": "^8.13.0",
+    "qrcode": "^1.5.4",
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  }
+}
