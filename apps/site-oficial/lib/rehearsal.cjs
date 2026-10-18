@@ -17,6 +17,9 @@ function apply(state,action,input={},actor,now=Date.now()){
   run.elapsedMs=elapsed(run,now);run.startedAt=null;
  }else if(action==='resume'){
   if(!run||run.startedAt!==null)throw Error('Não há medição pausada.');run.startedAt=now;
+ }else if(action==='reset'){
+  if(!run)throw Error('O contador já está zerado.');
+  next.current=null;
  }else if(action==='finish'){
   if(!run)throw Error('Não há etapa para concluir.');
   if(next.history.length>=500)throw Error('Limite de 500 etapas neste posto. Exporte o histórico e procure a gestão.');
