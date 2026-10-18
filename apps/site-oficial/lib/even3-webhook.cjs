@@ -41,7 +41,8 @@ function createWebhookHandler({ save, env = process.env }) {
       const result = await save(event, req.body);
       if (result.conflict) return res.status(409).json({ error: 'notification_conflict' });
       return res.status(200).json({ received: true, duplicate: result.duplicate, processing: 'pending_review' });
-    } catch {
+    } catch (error) {
+      console.error("even3_inbox_storage_error", {code: String(error?.code || "unknown").replace(/[^a-zA-Z0-9_]/g, "").slice(0,64), name: error?.name || "Error"});
       // Never acknowledge a delivery that was not saved durably. Never log PII or secrets.
       res.setHeader('Retry-After', '60');
       return res.status(503).json({ error: 'storage_unavailable' });
