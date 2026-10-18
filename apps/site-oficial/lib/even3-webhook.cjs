@@ -30,7 +30,7 @@ function createWebhookHandler({ save, env = process.env }) {
       return res.status(405).json({ error: 'method_not_allowed' });
     }
     if (!env.EVEN3_WEBHOOK_TOKEN) return res.status(503).json({ error: 'integration_not_configured' });
-    const names = env.EVEN3_WEBHOOK_HEADER ? [env.EVEN3_WEBHOOK_HEADER.toLowerCase()] : ['authorization-token', 'authorization', 'token'];
+    const names = env.EVEN3_WEBHOOK_HEADER ? [env.EVEN3_WEBHOOK_HEADER.toLowerCase()] : ['x-token-even3', 'authorization-token', 'authorization', 'token'];
     const valid = names.some(name => {
       const value = req.headers[name];
       return authenticated(value, env.EVEN3_WEBHOOK_TOKEN) || (name === 'authorization' && typeof value === 'string' && /^Bearer /i.test(value) && authenticated(value.slice(7), env.EVEN3_WEBHOOK_TOKEN));
