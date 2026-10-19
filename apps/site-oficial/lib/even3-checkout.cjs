@@ -1,5 +1,5 @@
 'use strict';
-// Checkout por entrada da Even3. IDs recuperados do projeto Vercel pessoal anterior;
+// Checkout por entrada da Even3. IDs oficiais fornecidos pelo organizador em 19/10/2026;
 // exigem confirmação comercial na conta Even3 antes de ativação em produção.
 // ATENÇÃO: idIngresso (tipo de entrada) não é data.inscricao.id nem inscricao.codigo.
 const EVENT_SLUG='casa-do-julgamento-2026-798621';
@@ -10,42 +10,42 @@ const ENTRIES=Object.freeze([
     "date": "09/11/2026",
     "iso": "2026-11-09",
     "time": "17h",
-    "ticket": "967700"
+    "ticket": "968577"
   },
   {
     "dia": "13-11",
     "date": "13/11/2026",
     "iso": "2026-11-13",
     "time": "20h",
-    "ticket": "967703"
+    "ticket": "968578"
   },
   {
     "dia": "14-11",
     "date": "14/11/2026",
     "iso": "2026-11-14",
     "time": "18h",
-    "ticket": "967747"
+    "ticket": "968579"
   },
   {
     "dia": "19-11",
     "date": "19/11/2026",
     "iso": "2026-11-19",
     "time": "20h",
-    "ticket": "967748"
+    "ticket": "968580"
   },
   {
     "dia": "20-11",
     "date": "20/11/2026",
     "iso": "2026-11-20",
     "time": "17h",
-    "ticket": "967750"
+    "ticket": "968581"
   },
   {
     "dia": "21-11",
     "date": "21/11/2026",
     "iso": "2026-11-21",
     "time": "18h",
-    "ticket": "967751"
+    "ticket": "968582"
   }
 ].map(s=>Object.freeze(s)));
 function buildCheckoutUrl(ticket){
