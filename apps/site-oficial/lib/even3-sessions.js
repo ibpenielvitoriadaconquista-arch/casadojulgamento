@@ -1,1 +1,9 @@
-export const SESSION_TICKETS=[{"dia":"09-11","date":"09/11/2026","time":"17h","open":true},{"dia":"13-11","date":"13/11/2026","time":"20h","open":true},{"dia":"14-11","date":"14/11/2026","time":"18h","open":true},{"dia":"19-11","date":"19/11/2026","time":"20h","open":true},{"dia":"20-11","date":"20/11/2026","time":"17h","open":true},{"dia":"21-11","date":"21/11/2026","time":"18h","open":true}].map(s=>({...s,even3:'https://www.even3.com.br/casa-do-julgamento-2026-798621/'}));export const byDay=day=>SESSION_TICKETS.find(s=>s.dia===day);export const TICKET_RELEASE_APPROVED=true;export const EVEN3_EVENT='https://www.even3.com.br/casa-do-julgamento-2026-798621';
+import checkout from './even3-checkout.cjs';
+export const SESSION_TICKETS=checkout.ENTRIES.map(s=>({
+  ...s,
+  open:true, // Indica existência do link; estoque e pagamento são verificados pela Even3.
+  even3:checkout.buildCheckoutUrl(s.ticket)
+}));
+export const byDay=day=>SESSION_TICKETS.find(s=>s.dia===day);
+export const TICKET_RELEASE_APPROVED=true;
+export const EVEN3_EVENT='https://www.even3.com.br/casa-do-julgamento-2026-798621';
