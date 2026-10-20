@@ -48,3 +48,10 @@ test('recovery informa limite de e-mails sem declarar sucesso',()=>{
  assert.match(api,/status\(429\)/);
  assert.match(api,/status\(503\)/);
 });
+
+test('recuperação não depende de PostgreSQL e mantém limites do Supabase Auth',()=>{
+ const api=read('pages/api/operacao/recuperar.js');
+ assert.doesNotMatch(api,/await throttle\(/);
+ assert.match(api,/resetPasswordForEmail/);
+ assert.match(api,/rateLimited/);
+});
