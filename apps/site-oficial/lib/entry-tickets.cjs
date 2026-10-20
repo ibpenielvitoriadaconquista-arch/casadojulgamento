@@ -38,11 +38,19 @@ function bahiaDay(date=new Date()){
 function assessAdmission(raw,authorized,{today=bahiaDay(),enabled=false}={}){
   if(!raw)return {ok:false,reason:'Ingresso ainda não encontrado na base Pluga.'};
   if(String(raw.event_id)!==EVENT_ID)return {ok:false,reason:'Este ingresso não pertence ao evento.'};
-  const entry=findEntry(raw.entry_candidate_id);
-  if(!entry)return {ok:false,reason:'Entrada sem data oficial comprovada. Encaminhe à Gestão Geral.'};
-  if(raw.source_action!=='registration_confirmed')return {ok:false,reason:'Inscrição não confirmada ou cancelada. Encaminhe à conferência.'};
+  // An Even3 registration ID is NOT a category ID. A date cannot be inferred from
+  // data.inscricao.id, a ticket title, or the purchase date.
+  // Only the separately reconciled authorization may identify the official entry.
+  const category=String(raw.ticket_category||'').trim();
+  if(/^(teste|ingresso\\s+geral)\\b/i.test(category))
+    return {ok:false,reason:'Categoria de teste ou ingresso geral sem data oficial. Não autorizar entrada.'};
+  if(raw.source_action!=='registration_confirmed')
+    return {ok:false,reason:'Inscrição não confirmada ou cancelada. Encaminhe à conferência.'};
   if(raw.conflict)return {ok:false,reason:'Dados divergentes para este código. Encaminhe à conferência.'};
-  if(!authorized)return {ok:false,entry,reason:'Inscrição localizada. Pagamento e vínculo individual ainda não conciliados.'};
+  if(!authorized)
+    return {ok:false,reason:'Inscrição localizada. A data individual e o pagamento ainda não foram conciliados.'};
+  const entry=findEntry(authorized.entry_id);
+  if(!entry)return {ok:false,reason:'Ingresso sem categoria oficial comprovada (seis entradas por data).'};
   if(String(authorized.event_id)!==EVENT_ID||
      String(authorized.ticket_code)!==String(raw.ticket_code)||
      String(authorized.entry_id)!==entry.entryId||
