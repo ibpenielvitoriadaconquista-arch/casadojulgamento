@@ -12,6 +12,13 @@ export default {
       { key: 'X-Frame-Options', value: 'DENY' },
       { key: 'Content-Security-Policy', value: "frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'self'; upgrade-insecure-requests" }
     ];
-    return [{ source: '/:path*', headers: common }];
+    // Camera is allowed only on the authenticated staff entrance route.
+    const scannerHeaders=common.map(h=>h.key==='Permissions-Policy'?
+      {...h,value:'camera=(self), microphone=(), geolocation=()'}:h);
+    return [
+      {source:'/:path*',headers:common},
+      {source:'/operacao/portaria',headers:scannerHeaders},
+      {source:'/operacao/geral',headers:scannerHeaders}
+    ];
   }
 };
