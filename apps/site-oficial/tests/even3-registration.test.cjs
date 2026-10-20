@@ -29,3 +29,8 @@ test('real Even3 wrapper and individual codes preserve separate tickets sharing 
  const b={...a,data:{...a.data,inscricao:{id:10101,codigo:'123002'}}};
  assert.equal(registrationFrom(a).registrationId,'123001');assert.equal(registrationFrom(b).registrationId,'123002');
 });
+
+test('preserves numeric individual ticket codes with leading zeroes',()=>{
+ const a={...confirmed,inscricao:{id:10101,codigo:'000123'},pessoa:{id:456,nome:'Pessoa de teste'}};
+ assert.equal(registrationFrom(a).registrationId,'000123');
+});
