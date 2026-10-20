@@ -12,7 +12,12 @@ export default async function handler(req,res){
   const {error}=await authClient().auth.resetPasswordForEmail(email,{
    redirectTo:'https://www.ibpeniel.com/operacao/redefinir'
   });
-  if(error)console.error('peniel_password_request_error',{kind:String(error.name||'unknown').slice(0,40)});
+  if(error){
+   const rateLimited=error.status===429||/rate limit|too many/i.test(String(error.message||''));
+   if(rateLimited)return res.status(429).json({error:'Limite temporário de envio de e-mails do Supabase atingido. Aguarde antes de solicitar outro link ou peça ajuda à Gestão Geral.'});
+   console.error('peniel_password_request_error',{kind:String(error.name||'unknown').slice(0,40),status:Number(error.status)||0});
+   return res.status(503).json({error:'Não foi possível enviar o e-mail agora. Tente novamente mais tarde.'});
+  }
   return res.json({ok:true,message:'Se a conta existir, você receberá instruções de recuperação no e-mail.'});
  }catch(e){
   if(!e.status)console.error('peniel_password_request_error',{kind:String(e?.code||e?.name||'unknown').slice(0,40)});
