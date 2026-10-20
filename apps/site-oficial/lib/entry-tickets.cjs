@@ -42,7 +42,7 @@ function assessAdmission(raw,authorized,{today=bahiaDay(),enabled=false}={}){
   // data.inscricao.id, a ticket title, or the purchase date.
   // Only the separately reconciled authorization may identify the official entry.
   const category=String(raw.ticket_category||'').trim();
-  if(/^(teste|ingresso\\s+geral)\\b/i.test(category))
+  if(/^(teste|ingresso\s+geral)\b/i.test(category))
     return {ok:false,reason:'Categoria de teste ou ingresso geral sem data oficial. Não autorizar entrada.'};
   if(raw.source_action!=='registration_confirmed')
     return {ok:false,reason:'Inscrição não confirmada ou cancelada. Encaminhe à conferência.'};
