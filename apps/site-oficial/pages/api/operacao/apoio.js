@@ -8,7 +8,7 @@ export default async function handler(req,res){
  try{
   if(!['GET','POST'].includes(req.method))throw fail(405,'Método não permitido.');
   if(req.method==='POST')sameOrigin(req);
-  const user=await actor(req);if(!['apoio','geral','guias','coordenacao'].includes(user.role))throw fail(403,'Posto sem acesso aos tempos.');
+  const user=await actor(req);if(!['apoio','geral'].includes(user.role))throw fail(403,'Posto sem acesso aos tempos.');
   const input=req.method==='GET'?req.query:req.body,station=Number(input.station);
   if(!Number.isInteger(station)||station<1||station>6)throw fail(400,'Posto inválido.');
   if(req.method==='GET'){const r=await query('SELECT state FROM peniel_ops.rehearsal WHERE station=$1',[station]);if(!r.rows[0])throw fail(503,'Cronômetro não preparado.');return res.json({state:r.rows[0].state,serverNow:Date.now(),actor:user});}

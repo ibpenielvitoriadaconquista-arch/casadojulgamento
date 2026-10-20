@@ -1,2 +1,5 @@
-import OperationTraining from '../components/OperationTraining';
-export default function Panel(){return <OperationTraining role="geral"/>;}
+export async function getServerSideProps({res}) {
+ res.setHeader('Cache-Control','private, no-store');
+ return {redirect:{destination:'/operacao/geral',permanent:false}};
+}
+export default function Panel(){return null;}

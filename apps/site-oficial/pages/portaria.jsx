@@ -1,2 +1,5 @@
-import OperationTraining from '../components/OperationTraining';
-export default function Panel(){return <OperationTraining role="portaria"/>;}
+export async function getServerSideProps({res}) {
+ res.setHeader('Cache-Control','private, no-store');
+ return {redirect:{destination:'/operacao/portaria',permanent:false}};
+}
+export default function Panel(){return null;}

@@ -28,7 +28,6 @@ export default function Login(){
    </form>
    <div className="help"><strong>Primeiro acesso ou esqueceu a senha?</strong><p>Peça seu convite à coordenação. Você define sua senha e entra no painel da sua função. Para recuperar o acesso, solicite um novo link.</p></div>
    <div className="roles" aria-label="Funções da equipe"><span>Portaria</span><span>Coordenação</span><span>Guias</span><span>Apoio</span><span>Gestão geral</span></div>
-   <a className="training" href="/treinamento">Conhecer os painéis no treinamento <span aria-hidden="true">↗</span><small>Ambiente de prática com dados fictícios</small></a>
   </div><footer>IGREJA BATISTA PENIEL · VITÓRIA DA CONQUISTA</footer></section>
  </div></main>
  <style jsx>{`
