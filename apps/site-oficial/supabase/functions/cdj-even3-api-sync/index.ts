@@ -73,8 +73,8 @@ Deno.serve(async(req)=>{
    }
    const paymentId=value(p?.id_payment,70);
    return paymentId?{event_id:EVENT_ID,payment_id:paymentId,
-    reference:value(p?.reference_payment,160),payment_status:value(p?.status??p?.payment_status,60),
-    amount_raw:value(p?.amount,80),upstream_version:"v1",retrieved_at:new Date().toISOString()}:null;
+    reference:value(p?.reference_payment,160),payment_status:value(p?.status_payment??p?.status??p?.payment_status,60),
+    amount_raw:value(p?.amount_payment??p?.amount,80),upstream_version:"v1",retrieved_at:new Date().toISOString()}:null;
   }).filter(Boolean);
   counts[kind+"_matched"]=rows.length;
   if(parsed.length>0&&rows.length===0){errors.push(kind+"_event_id_or_field_mapping_unverified");return;}
