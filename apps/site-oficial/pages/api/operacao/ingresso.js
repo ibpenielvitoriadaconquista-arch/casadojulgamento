@@ -23,17 +23,17 @@ function registration(rows){
 }
 async function getTicket(client,code){
  const r=await client.query(
-  \`SELECT event_id,ticket_code,participant_id,participant_name,even3_registration_id,source_action
+  `SELECT event_id,ticket_code,participant_id,participant_name,even3_registration_id,source_action
     FROM public.cdj_pluga_inscricoes_inbox WHERE ticket_code=$1
-    ORDER BY received_at DESC LIMIT 30\`,[code]);
+    ORDER BY received_at DESC LIMIT 30`,[code]);
  return registration(r.rows);
 }
 async function getAuthorization(client,code){
  const result=await client.query(
-  \`SELECT event_id,ticket_code,entry_id,participant_id,participant_name,registration_status,
+  `SELECT event_id,ticket_code,entry_id,participant_id,participant_name,registration_status,
           payment_status,evidence_reference,verified_at,revoked_at,checked_in_at
     FROM peniel_ops.entry_authorizations
-    WHERE event_id=$1 AND ticket_code=$2\`,[EVENT_ID,code]);
+    WHERE event_id=$1 AND ticket_code=$2`,[EVENT_ID,code]);
  return result.rows[0]||null;
 }
 function publicResult(raw,auth,session,entry,reason,admitted=false){
@@ -88,8 +88,8 @@ export default async function handler(req,res){
 
    // A distinct verification of the official Even3 catalog has to activate the mapping.
    const verified=await client.query(
-    \`SELECT session_date::text FROM even3_integration.entry_map
-      WHERE event_id=$1 AND entry_id=$2 AND active=true AND verified_at IS NOT NULL\`,
+    `SELECT session_date::text FROM even3_integration.entry_map
+      WHERE event_id=$1 AND entry_id=$2 AND active=true AND verified_at IS NOT NULL`,
     [EVENT_ID,approval.entry.entryId]);
    if(verified.rows[0]?.session_date!==session)
      return publicResult(raw,auth,session,approval.entry,'Categoria ainda não homologada no catálogo Even3.');
