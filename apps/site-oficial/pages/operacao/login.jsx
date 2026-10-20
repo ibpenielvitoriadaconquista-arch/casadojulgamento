@@ -26,7 +26,7 @@ export default function Login(){
     {error&&<div className="error" role="alert">{error}</div>}
     <button className="submit" type="submit" disabled={busy}>{busy?'Abrindo seu painel…':'Entrar no meu painel'} <span aria-hidden="true">→</span></button>
    </form>
-   <div className="help"><strong>Primeiro acesso ou esqueceu a senha?</strong><p>Peça seu convite à coordenação. Você define sua senha e entra no painel da sua função. Para recuperar o acesso, solicite um novo link.</p></div>
+   <div className="help"><strong>Primeiro acesso ou esqueceu a senha?</strong><p><a href="/operacao/solicitar">Solicitar cadastro com nome, WhatsApp e função →</a></p><p><a href="/operacao/recuperar">Redefinir minha senha →</a></p><p>A Gestão Geral aprova cada solicitação e envia um convite individual.</p></div>
    <div className="roles" aria-label="Funções da equipe"><span>Portaria</span><span>Coordenação</span><span>Guias</span><span>Apoio</span><span>Gestão geral</span></div>
   </div><footer>IGREJA BATISTA PENIEL · VITÓRIA DA CONQUISTA</footer></section>
  </div></main>
