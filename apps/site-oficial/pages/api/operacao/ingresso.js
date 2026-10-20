@@ -36,13 +36,13 @@ async function getAuthorization(client,code){
     WHERE event_id=$1 AND ticket_code=$2`,[EVENT_ID,code]);
  return result.rows[0]||null;
 }
-function publicResult(raw,auth,session,entry,reason,admitted=false){
+function publicResult(raw,auth,session,entry,reason,admitted=false,eligible=false){
  return {
   found:!!raw,
   participantName:raw?.participant_name||null,
   entry:entry?{id:entry.entryId,date:entry.session,label:entry.label}:null,
   session,admitted,checkedIn:!!auth?.checked_in_at,
-  status:admitted?'admitted':'blocked',message:reason
+  status:admitted?'admitted':eligible?'ready':'blocked',eligible,message:reason
  };
 }
 export default async function handler(req,res){
@@ -65,9 +65,17 @@ export default async function handler(req,res){
    let auth=null;
    try{auth=await getAuthorization({query},code);}
    catch(e){if(e.code!=='42P01')throw e;} // migration not yet applied: lookup remains safely blocked
-   const check=assessAdmission(raw,auth,{today:bahiaDay(),enabled:false});
+   if(auth?.checked_in_at)return res.status(200).json(publicResult(raw,auth,session,entry,'Este ingresso já foi utilizado.'));
+   const check=assessAdmission(raw,auth,{
+    today:bahiaDay(),enabled:process.env.CDJ_ENTRY_ADMISSION_ENABLED==='true'
+   });
    if(entry&&session!==entry.session)return res.status(200).json(publicResult(raw,auth,session,entry,'Este código pertence à sessão '+entry.label+'.'));
-   return res.status(200).json(publicResult(raw,auth,session,entry,check.reason));
+   if(!check.ok)return res.status(200).json(publicResult(raw,auth,session,entry,check.reason));
+   const mapping=await query(
+    'SELECT session_date::text FROM even3_integration.entry_map WHERE event_id=$1 AND entry_id=$2 AND active=true AND verified_at IS NOT NULL',
+    [EVENT_ID,entry.entryId]);
+   if(mapping.rows[0]?.session_date!==session)return res.status(200).json(publicResult(raw,auth,session,entry,'Categoria ainda não homologada no catálogo Even3.'));
+   return res.status(200).json(publicResult(raw,auth,session,entry,check.reason,false,true));
   }
 
   // Fail closed until the category IDs have been verified with organizer Even3,
