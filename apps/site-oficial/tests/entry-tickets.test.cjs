@@ -13,7 +13,7 @@ test('QR recebe somente codigo individual, nunca entrada nem URL maliciosa',()=>
   assert.equal(tickets.parseTicketCode(s),null);
 });
 test('a origem Pluga nunca prova pagamento; divergencias e dias errados bloqueiam',()=>{
- const raw={event_id:'798621',ticket_code:'77472765',participant_id:'100',participant_name:'Pessoa',entry_candidate_id:'968577',source_action:'registration_confirmed'};
+ const raw={event_id:'798621',ticket_code:'77472765',participant_id:'100',participant_name:'Pessoa',ticket_category:'09/11 · 17h',source_action:'registration_confirmed'};
  const auth={event_id:'798621',ticket_code:'77472765',participant_id:'100',entry_id:'968577',registration_status:'confirmed',payment_status:'paid',verified_at:'2026-10-20T00:00:00Z',evidence_reference:'external-reconciled-item'};
  assert.equal(tickets.assessAdmission(raw,null,{today:'2026-11-09',enabled:true}).ok,false);
  assert.equal(tickets.assessAdmission(raw,auth,{today:'2026-11-13',enabled:true}).ok,false);
@@ -23,6 +23,15 @@ test('a origem Pluga nunca prova pagamento; divergencias e dias errados bloqueia
  assert.equal(tickets.assessAdmission(raw,{...auth,payment_status:'refunded'},{today:'2026-11-09',enabled:true}).ok,false);
  assert.equal(tickets.assessAdmission(raw,{...auth,revoked_at:'2026-11-01'},{today:'2026-11-09',enabled:true}).ok,false);
  assert.equal(tickets.assessAdmission(raw,auth,{today:'2026-11-09',enabled:true}).ok,true);
+ assert.equal(tickets.assessAdmission({...raw,ticket_category:'TESTE'},auth,{today:'2026-11-09',enabled:true}).ok,false);
+ assert.equal(tickets.assessAdmission({...raw,ticket_category:'Ingresso Geral - 1º Lote'},auth,{today:'2026-11-09',enabled:true}).ok,false);
+ assert.equal(tickets.assessAdmission({...raw,even3_registration_id:'968577'},null,{today:'2026-11-09',enabled:true}).ok,false);
+ for(const e of tickets.ENTRIES){
+  const simulated={...raw,ticket_category:e.label};
+  const verified={...auth,entry_id:e.entryId};
+  assert.equal(tickets.assessAdmission(simulated,verified,{today:e.session,enabled:true}).ok,true);
+  assert.equal(tickets.assessAdmission(simulated,verified,{today:'2026-10-20',enabled:true}).ok,false);
+ }
 });
 test('portaria exige colaborador, Pluga, verificação financeira e bloqueio de uso repetido',()=>{
  const api=source('pages/api/operacao/ingresso.js');
