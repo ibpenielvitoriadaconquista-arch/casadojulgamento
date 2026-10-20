@@ -37,10 +37,10 @@ test('solicitações não abrem acesso automático e preservam autorização da 
  assert.match(src,/peniel_ops\.access_requests/);
 });
 
-test('login mostra botoes claros para cadastro e redefinir senha',()=>{
+test('login mostra links discretos para cadastro e redefinir senha',()=>{
  const ui=read('pages/operacao/login.jsx');
- assert.match(ui,/className="access-link primary" href="\/operacao\/solicitar"/);
- assert.match(ui,/className="access-link secondary" href="\/operacao\/recuperar"/);
+ assert.match(ui,/href="\/operacao\/solicitar"/);
+ assert.match(ui,/href="\/operacao\/recuperar"/);
 });
 test('recovery informa limite de e-mails sem declarar sucesso',()=>{
  const api=read('pages/api/operacao/recuperar.js');
