@@ -9,21 +9,21 @@ const {EVENT_ID,findEntry,parseTicketCode,assessAdmission,bahiaDay}=tickets;
 function registration(rows){
  if(!rows.length)return null;
  const first=rows[0];
- const fingerprint=r=>[r.event_id,r.participant_id,r.even3_registration_id,String(r.participant_name||'').trim()].join('|');
+ const fingerprint=r=>[r.event_id,r.participant_id,r.even3_registration_id,String(r.ticket_category||'').trim(),String(r.participant_name||'').trim()].join('|');
  const conflict=rows.some(r=>fingerprint(r)!==fingerprint(first));
  return {
   event_id:String(first.event_id||''),
   ticket_code:String(first.ticket_code||''),
   participant_id:String(first.participant_id||''),
   participant_name:String(first.participant_name||'').trim(),
-  entry_candidate_id:String(first.even3_registration_id||''),
+  ticket_category:String(first.ticket_category||''),
   source_action:String(first.source_action||''),
   conflict
  };
 }
 async function getTicket(client,code){
  const r=await client.query(
-  `SELECT event_id,ticket_code,participant_id,participant_name,even3_registration_id,source_action
+  `SELECT event_id,ticket_code,participant_id,participant_name,even3_registration_id,ticket_category,source_action
     FROM public.cdj_pluga_inscricoes_inbox WHERE ticket_code=$1
     ORDER BY received_at DESC LIMIT 30`,[code]);
  return registration(r.rows);
@@ -61,10 +61,10 @@ export default async function handler(req,res){
   if(action==='lookup'){
    const raw=await getTicket({query},code);
    if(!raw)return res.status(200).json(publicResult(null,null,session,null,'Código não localizado nos dados recebidos pela Pluga.'));
-   const entry=findEntry(raw.entry_candidate_id);
    let auth=null;
    try{auth=await getAuthorization({query},code);}
    catch(e){if(e.code!=='42P01')throw e;} // migration not yet applied: lookup remains safely blocked
+   const entry=auth?findEntry(auth.entry_id):null;
    if(auth?.checked_in_at)return res.status(200).json(publicResult(raw,auth,session,entry,'Este ingresso já foi utilizado.'));
    const check=assessAdmission(raw,auth,{
     today:bahiaDay(),enabled:process.env.CDJ_ENTRY_ADMISSION_ENABLED==='true'
