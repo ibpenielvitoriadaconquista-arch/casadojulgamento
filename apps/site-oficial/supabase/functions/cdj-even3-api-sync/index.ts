@@ -27,7 +27,7 @@ Deno.serve(async(req)=>{
  const apiKey=Deno.env.get("EVEN3_API_KEY")||"";
  if(apiKey.length<20)return response(503,{ok:false,error:"even3_key_missing"});
  let mode="probe";
- try{const b=await req.json();mode=b?.mode==="sync"?"sync":"probe";}catch{/* probe */}
+ try{const b=await req.json();mode=b?.mode==="sync"?"sync":b?.mode==="schema"?"schema":"probe";}catch{/* probe */}
  // The event endpoint determines whether the key belongs to event 798621.
  const event=await remote("event",apiKey);
  if(!event.ok)return response(502,{ok:false,mode,stage:"event",code:event.code,http_status:event.status,admission:false});
@@ -37,6 +37,15 @@ Deno.serve(async(req)=>{
  const verified=String(obj?.id_event??obj?.id??"")===EVENT_ID;
  if(!verified)return response(422,{ok:false,mode,stage:"event",code:"event_id_mismatch_or_unrecognized_shape",response_shape:Array.isArray(event.body)?"array":typeof event.body,admission:false});
  if(mode==="probe")return response(200,{ok:true,mode,event_id:EVENT_ID,api_version:"v1",admission:false});
+ if(mode==="schema") {
+ const pay=await remote("payments",apiKey);
+ const sample=items(pay.body)[0];
+ return response(pay.ok?200:502,{ok:pay.ok,mode:"schema",stage:"payments",api_status:pay.status,
+   keys:sample&&typeof sample==="object"?Object.keys(sample).slice(0,45):[],
+   nested_fields:sample&&typeof sample==="object"?Object.fromEntries(Object.entries(sample).filter(([k,v])=>v&&typeof v==="object"&&!Array.isArray(v)).slice(0,6).map(([k,v])=>[k,Object.keys(v as any).slice(0,20)])):{},
+   admission:false});
+}
+
  const {data:run,error:runErr}=await db.from("cdj_even3_api_sync_runs").insert({mode:"sync"}).select("id").single();
  if(runErr||!run?.id)return response(503,{ok:false,code:"run_storage_unavailable"});
  const errors:string[]=[],counts:Record<string,number>={};
