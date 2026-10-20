@@ -1,4 +1,4 @@
-import {authClient,throttle} from '../../../lib/staff-access';
+import {authClient} from '../../../lib/staff-access';
 import {fail,sameOrigin} from '../../../lib/operation-auth';
 export const config={api:{bodyParser:{sizeLimit:'3kb'}}};
 export default async function handler(req,res){
@@ -8,7 +8,10 @@ export default async function handler(req,res){
   sameOrigin(req);
   const email=String(req.body?.email||'').trim().toLowerCase();
   if(email.length>254||! /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))throw fail(400,'Informe seu e-mail.');
-  await throttle(req,'password_reset');
+  // Supabase Auth enforces its own per-IP and email rate limits. Do not require a
+  // PostgreSQL connection just to request a recovery email: database failures
+  // must not block a user from recovering their account.
+
   const {error}=await authClient().auth.resetPasswordForEmail(email,{
    redirectTo:'https://www.ibpeniel.com/operacao/redefinir'
   });
