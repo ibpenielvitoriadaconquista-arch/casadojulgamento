@@ -1,0 +1,35 @@
+name: Security gates (no deploy)
+on:
+  pull_request:
+  push:
+    branches: [main, migracao/site-oficial-20261017]
+permissions:
+  contents: read
+jobs:
+  security:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/site-oficial
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: apps/site-oficial/package-lock.json
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Run automated tests
+        run: npm test
+      - name: Audit dependencies for high-severity advisories
+        run: npm audit --audit-level=high
+      - name: Build application
+        run: npm run build
+      - name: Scan for common accidental secret patterns
+        shell: bash
+        run: |
+          if grep -rInE '(sk_live_|ghp_[A-Za-z0-9]{30,}|-----BEGIN PRIVATE KEY-----)' --exclude-dir=node_modules --exclude-dir=.git --exclude='*.bin' .; then
+            echo "Potential secret pattern found; review the matching file before merge."
+            exit 1
+          fi
