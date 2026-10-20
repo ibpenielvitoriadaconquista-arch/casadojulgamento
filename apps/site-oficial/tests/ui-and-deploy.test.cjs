@@ -12,12 +12,21 @@ test('rota antiga de sessões redireciona para o seletor oficial',async()=>{
  assert.deepEqual(module.getServerSideProps(),{redirect:{destination:'/ingressos',permanent:false}});
 });
 test('Página de flyer mantém um único CTA central',()=>{
- const code=read('pages/convite.jsx');assert.equal((code.match(/<Link\\s/g)||[]).length,1);assert.match(code,/IR AO JULGAMENTO/);});
+ const code=read('pages/convite.jsx');
+ assert.equal(code.split('<Link ').length-1,1);
+ assert.match(code,/IR AO JULGAMENTO/);
+});
 test('Mensagens públicas enfatizam abertura dos portões',()=>{
- for (const p of ['pages/index.jsx','pages/ingressos.jsx','pages/ingressos/[dia].jsx'])assert.match(read(p),/portões/i);});
+ for (const p of ['pages/index.jsx','pages/ingressos.jsx','pages/ingressos/[dia].jsx'])assert.match(read(p),/portões/i);
+});
 test('Nenhuma fonte externa do Google é carregada pelo CSS',()=>{
- assert.doesNotMatch(read('styles.css'),/fonts\\.googleapis\\.com/);});
+ assert.equal(read('styles.css').includes('fonts.googleapis.com'),false);
+});
 test('Health descreve ambiente de preview, não declara pagamento pronto',()=>{
- assert.match(read('pages/api/health.js'),/paymentsEnabled:false/);});
+ assert.match(read('pages/api/health.js'),/paymentsEnabled:false/);
+});
 test('Arquivo .env real permanece ignorado no controle de versão',()=>{
- const x=read('.gitignore');assert.match(x,/\\.env\\.\\*/);assert.match(x,/!\\.env\\.example/);});
+ const lines=read('.gitignore').split(/\\r?\\n/);
+ assert.ok(lines.includes('.env.*'));
+ assert.ok(lines.includes('!.env.example'));
+});
