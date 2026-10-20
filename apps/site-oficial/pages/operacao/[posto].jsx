@@ -1,4 +1,5 @@
 import RehearsalPanel from '../../components/RehearsalPanel';
+import CashierPanel from '../../components/CashierPanel';
 import OperationTraining from '../../components/OperationTraining';
 import {actor} from '../../lib/operation-auth';
 import ops from '../../lib/operation-training.cjs';
@@ -10,4 +11,4 @@ export async function getServerSideProps({req,res,params}){
  catch{return {redirect:{destination:'/operacao/login',permanent:false}};}
  return {props:{role:params.posto,viewerRole}};
 }
-export default function Posto({role,viewerRole}){return role==='apoio'?<RehearsalPanel remote/>:<OperationTraining role={role} viewerRole={viewerRole} remote/>;}
+export default function Posto({role,viewerRole}){return role==='apoio'?<RehearsalPanel remote/>:role==='caixa'?<CashierPanel/>:<OperationTraining role={role} viewerRole={viewerRole} remote/>;}
