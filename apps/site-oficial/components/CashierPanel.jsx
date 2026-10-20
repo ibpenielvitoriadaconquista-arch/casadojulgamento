@@ -1,6 +1,6 @@
 import {useState,useEffect} from 'react';
 import Head from 'next/head';
-import checkout from '../../lib/even3-checkout.cjs';
+import checkout from '../lib/even3-checkout.cjs';
 export default function CashierPanel(){
  const [form,setForm]=useState({session:'2026-11-09',channel:'balcao',name:'',contact:'',quantity:'1',paymentMethod:'even3',notes:''});
  const [busy,setBusy]=useState(false),[notice,setNotice]=useState(''),[error,setError]=useState(''),[created,setCreated]=useState(null),[orders,setOrders]=useState([]);
