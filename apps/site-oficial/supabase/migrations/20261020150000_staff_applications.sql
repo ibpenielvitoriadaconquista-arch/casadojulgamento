@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS peniel_ops.access_requests(
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   full_name text NOT NULL CHECK(length(full_name) BETWEEN 2 AND 120),
   email text NOT NULL,
-  whatsapp text NOT NULL CHECK (whatsapp ~ '^\\+?[0-9]{10,15}$'),
+  whatsapp text NOT NULL CHECK (whatsapp ~ '^([+])?[0-9]{10,15}$'),
   requested_role text NOT NULL CHECK(requested_role IN('guias','coordenacao','caixa','apoio','portaria')),
   status text NOT NULL DEFAULT 'pending'
     CHECK(status IN('pending','approved','rejected')),
