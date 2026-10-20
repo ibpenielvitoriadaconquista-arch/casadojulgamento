@@ -26,7 +26,7 @@ test('Health descreve ambiente de preview, não declara pagamento pronto',()=>{
  assert.match(read('pages/api/health.js'),/paymentsEnabled:false/);
 });
 test('Arquivo .env real permanece ignorado no controle de versão',()=>{
- const lines=read('.gitignore').split(/\\r?\\n/);
- assert.ok(lines.includes('.env.*'));
- assert.ok(lines.includes('!.env.example'));
+ const x=read('.gitignore');
+ assert.ok(x.includes('.env.*'));
+ assert.ok(x.includes('!.env.example'));
 });
