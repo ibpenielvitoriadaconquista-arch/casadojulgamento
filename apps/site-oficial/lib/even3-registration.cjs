@@ -6,7 +6,7 @@ const statuses = new Map([
 ]);
 function identifier(value) {
  const text=String(value??'');
- return /^[1-9][0-9]{0,19}$/.test(text) ? text : null;
+ return /^[0-9]{1,20}$/.test(text) ? text : null;
 }
 function registrationFrom(body) {
  const status=statuses.get(body?.type?.name);
