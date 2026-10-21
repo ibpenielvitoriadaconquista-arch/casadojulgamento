@@ -12,5 +12,5 @@ export async function getServerSideProps({req,res,params}){
  }catch{return {redirect:{destination:'/operacao/login',permanent:false}};}
 }
 export default function EnsaioPosto({role,viewerRole}){
- return role==='apoio'?<RehearsalPanel remote/>:<OperationTraining role={role} viewerRole={viewerRole} remote rehearsal/>;
+ return role==='apoio'?<RehearsalPanel remote={false}/>:<OperationTraining role={role} viewerRole={viewerRole} remote rehearsal/>;
 }
