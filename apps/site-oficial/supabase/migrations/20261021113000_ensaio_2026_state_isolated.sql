@@ -7,7 +7,12 @@ CREATE TABLE IF NOT EXISTS peniel_ops.ensaios_session_state (
  updated_at timestamptz NOT NULL DEFAULT now()
 );
 INSERT INTO peniel_ops.ensaios_session_state(session_date,state,revision)
- SELECT session_date,state,0 FROM peniel_ops.session_state
+ SELECT session_date,
+ jsonb_build_object(
+  'counter',0,'paused',false,'coordinator','Titular','people','[]'::jsonb,
+  'groups',(SELECT jsonb_agg(jsonb_build_object('id','G'||lpad(n::text,2,'0'),'status','forming','guide','','members','[]'::jsonb) ORDER BY n) FROM generate_series(1,15) n),
+  'history','[]'::jsonb,'lastAssignment',NULL
+ ),0 FROM peniel_ops.session_state
  ON CONFLICT (session_date) DO NOTHING;
 CREATE TABLE IF NOT EXISTS peniel_ops.ensaios_command_log (
  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
