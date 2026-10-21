@@ -2,31 +2,16 @@ import {actor,fail,sameOrigin} from '../../../lib/operation-auth';
 import {query,transaction} from '../../../lib/db';
 import live from '../../../lib/operation-live.cjs';
 import tickets from '../../../lib/entry-tickets.cjs';
+import bridge from '../../../lib/even3-ticket-bridge.cjs';
 
 export const config={api:{bodyParser:{sizeLimit:'3kb'}}};
 const {EVENT_ID,findEntry,parseTicketCode,assessAdmission,bahiaDay}=tickets;
 
-function registration(rows){
- if(!rows.length)return null;
- const first=rows[0];
- const fingerprint=r=>[r.event_id,r.participant_id,r.even3_registration_id,String(r.participant_name||'').trim()].join('|');
- const conflict=rows.some(r=>fingerprint(r)!==fingerprint(first));
- return {
-  event_id:String(first.event_id||''),
-  ticket_code:String(first.ticket_code||''),
-  participant_id:String(first.participant_id||''),
-  participant_name:String(first.participant_name||'').trim(),
-  entry_candidate_id:String(first.even3_registration_id||''),
-  source_action:String(first.source_action||''),
-  conflict
- };
-}
 async function getTicket(client,code){
  const r=await client.query(
-  `SELECT event_id,ticket_code,participant_id,participant_name,even3_registration_id,source_action
-    FROM public.cdj_pluga_inscricoes_inbox WHERE ticket_code=$1
-    ORDER BY received_at DESC LIMIT 30`,[code]);
- return registration(r.rows);
+  'SELECT event_id,attendee_id,participant_name,category_name,is_confirmed FROM public.cdj_even3_api_attendees WHERE event_id=$1 AND checkin_code=$2 ORDER BY retrieved_at DESC LIMIT 30',
+  [EVENT_ID,code]);
+ return bridge.fromApiRows(r.rows,code);
 }
 async function getAuthorization(client,code){
  const result=await client.query(
@@ -60,7 +45,7 @@ export default async function handler(req,res){
 
   if(action==='lookup'){
    const raw=await getTicket({query},code);
-   if(!raw)return res.status(200).json(publicResult(null,null,session,null,'Código não localizado nos dados recebidos pela Pluga.'));
+   if(!raw)return res.status(200).json(publicResult(null,null,session,null,'Código não localizado nos dados atuais da API Even3. Aguarde a sincronização e procure a Gestão Geral.'));
    const entry=findEntry(raw.entry_candidate_id);
    let auth=null;
    try{auth=await getAuthorization({query},code);}

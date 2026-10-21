@@ -29,10 +29,18 @@ export default async function handler(req,res){
   }
   const existing=await query('SELECT u.id,s.role,s.active FROM auth.users u LEFT JOIN peniel_ops.staff s ON s.user_id=u.id WHERE lower(u.email)=$1',[item.email]);
   if(existing.rows[0]?.active)throw fail(409,'Esta conta já é colaboradora. Use Gestão de Equipe.');
-  // New users receive invitation; existing auth users without a role receive recovery link.
+  // Send official invite/recovery e-mail via Supabase Auth, never expose an OTP in the response.
   const linkType=existing.rows.length?'recovery':'invite';
-  const {data,error}=await authClient(true).auth.admin.generateLink({type:linkType,email:item.email});
-  if(error||!data?.user?.id||!data?.properties?.hashed_token)throw fail(503,'Não foi possível gerar convite. Verifique a configuração Supabase.');
+  let accountId=existing.rows[0]?.id;
+  if(linkType==='invite'){
+    const {data,error}=await authClient(true).auth.admin.inviteUserByEmail(item.email,{redirectTo:'https://www.ibpeniel.com/operacao/ativar'});
+    if(error||!data?.user?.id)throw fail(503,'Falha ao solicitar e-mail de convite. Verifique SMTP do Supabase.');
+    accountId=data.user.id;
+  }else{
+    const {error}=await authClient().auth.resetPasswordForEmail(item.email,{redirectTo:'https://www.ibpeniel.com/operacao/ativar'});
+    if(error)throw fail(503,'Falha ao solicitar e-mail de recuperação.');
+  }
+  const data={user:{id:accountId}};
   await transaction(async c=>{
    const lock=await c.query("SELECT id FROM peniel_ops.access_requests WHERE id=$1 AND status='pending' FOR UPDATE",[id]);
    if(!lock.rowCount)throw fail(409,'Solicitação já analisada.');
@@ -47,8 +55,7 @@ export default async function handler(req,res){
    await c.query('INSERT INTO peniel_ops.staff_audit(actor_id,target_id,action,details) VALUES($1,$2,$3,$4::jsonb)',
     [user.user_id,data.user.id,'approve_application',JSON.stringify({requestId:id,role:item.requested_role})]);
   });
-  const link='https://www.ibpeniel.com/operacao/ativar#token_hash='+encodeURIComponent(data.properties.hashed_token)+'&type='+linkType;
-  return res.json({ok:true,link});
+  return res.json({ok:true,emailSent:true,message:'Solicitação aprovada. Envio do e-mail de acesso solicitado ao Supabase.'});
  }catch(e){
   if(!e.status)console.error('peniel_approval_error',{code:String(e?.code||e?.name||'unknown').slice(0,40)});
   return res.status(e.status||503).json({error:e.status?e.message:'Falha ao processar solicitação; tente novamente.'});

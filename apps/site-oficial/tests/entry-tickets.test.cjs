@@ -24,10 +24,10 @@ test('a origem Pluga nunca prova pagamento; divergencias e dias errados bloqueia
  assert.equal(tickets.assessAdmission(raw,{...auth,revoked_at:'2026-11-01'},{today:'2026-11-09',enabled:true}).ok,false);
  assert.equal(tickets.assessAdmission(raw,auth,{today:'2026-11-09',enabled:true}).ok,true);
 });
-test('portaria exige colaborador, Pluga, verificação financeira e bloqueio de uso repetido',()=>{
+test('portaria exige colaborador, API Even3, verificação financeira e bloqueio de uso repetido',()=>{
  const api=source('pages/api/operacao/ingresso.js');
  assert.match(api,/await actor\(req\)/);assert.match(api,/sameOrigin\(req\)/);
- assert.match(api,/cdj_pluga_inscricoes_inbox/);assert.match(api,/entry_authorizations/);
+ assert.match(api,/cdj_even3_api_attendees/);assert.doesNotMatch(api,/cdj_pluga_inscricoes_inbox/);assert.match(api,/entry_authorizations/);
  assert.match(api,/FOR UPDATE/);assert.match(api,/checked_in_at/);
  assert.match(api,/CDJ_ENTRY_ADMISSION_ENABLED/);
  assert.match(api,/entry_map/);

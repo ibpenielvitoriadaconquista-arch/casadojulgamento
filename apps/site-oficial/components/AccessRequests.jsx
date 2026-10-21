@@ -13,8 +13,8 @@ export default function AccessRequests(){
   try{
    const r=await fetch('/api/operacao/solicitacoes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,action}),signal:AbortSignal.timeout(20000)});
    const d=await r.json();if(!r.ok)throw Error(d.error||'Falha na avaliação.');
-   if(d.link){setLink(d.link);setNotice('Solicitação aprovada. Copie o convite e entregue ao colaborador por canal privado.');}
-   else setNotice('Solicitação recusada.');
+   if(d.link){setLink(d.link);setNotice('Solicitação aprovada. Entregue o convite individual em canal privado.');}
+   else setNotice(d.message||(action==='approve'?'Solicitação aprovada e convite por e-mail solicitado.':'Solicitação recusada.'));
    await load();
   }catch(e){setError(e.message);}finally{setBusy('');}
  }
@@ -30,7 +30,7 @@ export default function AccessRequests(){
   {!pending.length?<p>Nenhuma solicitação pendente.</p>:pending.map(item=><div className="card" key={item.id}>
    <strong>{item.full_name}</strong>
    <small>{item.email} · WhatsApp: {item.whatsapp} · Função: {roles[item.requested_role]||item.requested_role}</small>
-   <div className="pair"><button disabled={!!busy} onClick={()=>review(item.id,'approve')}>Aprovar e gerar convite</button>
+   <div className="pair"><button disabled={!!busy} onClick={()=>review(item.id,'approve')}>Aprovar e enviar e-mail</button>
     <button disabled={!!busy} onClick={()=>review(item.id,'reject')}>Recusar solicitação</button></div>
   </div>)}
  </section>;
