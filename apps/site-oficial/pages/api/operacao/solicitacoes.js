@@ -31,16 +31,16 @@ export default async function handler(req,res){
   if(existing.rows[0]?.active)throw fail(409,'Esta conta já é colaboradora. Use Gestão de Equipe.');
   // Send official invite/recovery e-mail via Supabase Auth, never expose an OTP in the response.
   const linkType=existing.rows.length?'recovery':'invite';
-  let id=existing.rows[0]?.id;
+  let accountId=existing.rows[0]?.id;
   if(linkType==='invite'){
     const {data,error}=await authClient(true).auth.admin.inviteUserByEmail(item.email,{redirectTo:'https://www.ibpeniel.com/operacao/ativar'});
     if(error||!data?.user?.id)throw fail(503,'Falha ao solicitar e-mail de convite. Verifique SMTP do Supabase.');
-    id=data.user.id;
+    accountId=data.user.id;
   }else{
     const {error}=await authClient().auth.resetPasswordForEmail(item.email,{redirectTo:'https://www.ibpeniel.com/operacao/ativar'});
     if(error)throw fail(503,'Falha ao solicitar e-mail de recuperação.');
   }
-  const data={user:{id}};
+  const data={user:{id:accountId}};
   await transaction(async c=>{
    const lock=await c.query("SELECT id FROM peniel_ops.access_requests WHERE id=$1 AND status='pending' FOR UPDATE",[id]);
    if(!lock.rowCount)throw fail(409,'Solicitação já analisada.');
