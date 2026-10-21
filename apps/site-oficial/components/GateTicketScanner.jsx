@@ -2,7 +2,7 @@ import {useState,useRef,useEffect} from 'react';
 import tickets from '../lib/entry-tickets.cjs';
 
 // No browser-side validation grants admission. The server is authoritative.
-export default function GateTicketScanner({session}){
+export default function GateTicketScanner({session,rehearsal=false}){
  const [code,setCode]=useState(''),[busy,setBusy]=useState(false),[result,setResult]=useState(null),[error,setError]=useState('');
  const [camera,setCamera]=useState(false),[cameraError,setCameraError]=useState('');
  const video=useRef(null),stream=useRef(null),detector=useRef(null),reading=useRef(false),active=useRef(false);
@@ -15,7 +15,7 @@ export default function GateTicketScanner({session}){
   if(reading.current)return;reading.current=true;setBusy(true);setError('');
   if(action==='lookup')setResult(null);
   try{
-   const r=await fetch('/api/operacao/ingresso',{method:'POST',headers:{'Content-Type':'application/json'},
+   const r=await fetch(rehearsal?'/api/operacao/ingresso-ensaio':'/api/operacao/ingresso',{method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({code:ticket,session,action}),signal:AbortSignal.timeout(12000)});
    const data=await r.json();
    if(!r.ok)throw Error(data.error||'Não foi possível validar o ingresso.');
@@ -50,6 +50,7 @@ export default function GateTicketScanner({session}){
  const canAdmit=result?.eligible&&result?.entry?.date===session&&!result?.checkedIn;
  return <section className="scanner" aria-label="Leitor de ingressos da portaria">
   <div className="head"><strong>Leitura do ingresso Even3</strong><span>CONSULTA SEGURA</span></div>
+  {rehearsal&&<p role="status" className="warning"><b>ENSAIO — sem pagamento validado e sem credenciamento real.</b></p>}
   <p>Confira o QR ou digite o código individual do ingresso. Data selecionada: <b>{sessionData?.label||session}</b>.</p>
   {camera&&<div className="camera"><video ref={video} muted playsInline autoPlay aria-label="Câmera de leitura QR"/><button type="button" onClick={stopCamera}>Fechar câmera</button></div>}
   <button type="button" className="camera-button" disabled={busy} onClick={camera?stopCamera:startCamera}>{camera?'Desligar câmera':'Ler QR com câmera'}</button>
@@ -67,8 +68,8 @@ export default function GateTicketScanner({session}){
    <p className={result.admitted?'success':'warning'}>{result.message}</p>
    {result.checkedIn&&<p>Já consta uma chegada para este código.</p>}
    {canAdmit&&<button className="confirm" type="button" disabled={busy}
-    onClick={()=>{if(window.confirm('Confirma a entrada física deste participante?'))send(selectedCode,'admit');}}>
-    Confirmar entrada e enviar à Coordenação
+    onClick={()=>{if(window.confirm(rehearsal?'Confirmar chegada APENAS NO ENSAIO? Não registra entrada real.':'Confirma a entrada física deste participante?'))send(selectedCode,'admit');}}>
+    {rehearsal?'Enviar à Coordenação (SOMENTE ENSAIO)':'Confirmar entrada e enviar à Coordenação'}
    </button>}
   </div>}
   <p className="foot">A Portaria não pode liberar pessoas sem confirmação de inscrição, pagamento, data e uso anterior. Divergências vão para Gestão Geral.</p>
