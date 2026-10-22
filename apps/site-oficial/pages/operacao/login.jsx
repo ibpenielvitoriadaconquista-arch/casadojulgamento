@@ -1,5 +1,7 @@
 import {useState} from 'react';
 import Head from 'next/head';
+import {actor} from '../../lib/operation-auth';
+export async function getServerSideProps({req,res}){res.setHeader('Cache-Control','private, no-store');try{const user=await actor(req);return {redirect:{destination:'/operacao/'+user.role,permanent:false}};}catch{return {props:{}};}}
 export default function Login(){
  const[error,setError]=useState(''),[busy,setBusy]=useState(false),[visible,setVisible]=useState(false);
  async function submit(e){
