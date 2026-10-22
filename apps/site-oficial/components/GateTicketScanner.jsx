@@ -5,7 +5,7 @@ import tickets from '../lib/entry-tickets.cjs';
 export default function GateTicketScanner({session,rehearsal=false,testLot=false}){
  const [code,setCode]=useState(''),[busy,setBusy]=useState(false),[result,setResult]=useState(null),[error,setError]=useState('');
  const [camera,setCamera]=useState(false),[cameraError,setCameraError]=useState('');
- const video=useRef(null),stream=useRef(null),detector=useRef(null),reading=useRef(false),active=useRef(false);
+ const video=useRef(null),stream=useRef(null),detector=useRef(null),reading=useRef(false),active=useRef(false),canvas=useRef(null),decoder=useRef(null);
  const [selectedCode,setSelectedCode]=useState('');
  const sessionData=tickets.ENTRIES.find(e=>e.session===session);
  useEffect(()=>{setResult(null);setCode('');setError('');},[session]);
@@ -23,28 +23,50 @@ export default function GateTicketScanner({session,rehearsal=false,testLot=false
   }catch(e){setError(e.name==='TimeoutError'?'Conexão demorou. Não libere a entrada.':e.message||'Falha na consulta.');}
   finally{reading.current=false;setBusy(false);}
  }
+ async function ensureDecoder(){
+  if(window.jsQR){decoder.current=window.jsQR;return true;}
+  await new Promise((resolve,reject)=>{
+   const prior=document.querySelector('script[data-cdj-jsqr]');
+   if(prior){if(window.jsQR)return resolve();prior.addEventListener('load',resolve,{once:true});prior.addEventListener('error',reject,{once:true});return;}
+   const script=document.createElement('script');script.src='https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js';script.async=true;script.dataset.cdjJsqr='true';
+   script.onload=resolve;script.onerror=()=>reject(new Error('Leitor alternativo indisponível.'));document.head.appendChild(script);
+  });
+  decoder.current=window.jsQR;
+  return typeof decoder.current==='function';
+ }
  async function startCamera(){
   setCameraError('');
-  if(!navigator.mediaDevices?.getUserMedia||!window.BarcodeDetector){setCameraError('Câmera QR indisponível neste navegador. Digite o código abaixo.');return;}
+  if(!navigator.mediaDevices?.getUserMedia){setCameraError('Este navegador não permite abrir a câmera. Use Chrome atualizado, permita a câmera ou digite o código.');return;}
   try{
-   detector.current=new window.BarcodeDetector({formats:['qr_code']});
-   const s=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});
-   stream.current=s;active.current=true;setCamera(true);
-  }catch{setCameraError('Não foi possível acessar a câmera. Verifique as permissões ou digite o código.');stopCamera();}
+   let nativeSupported=false;
+   if(window.BarcodeDetector){
+    try{const formats=await window.BarcodeDetector.getSupportedFormats();nativeSupported=formats.includes('qr_code');}catch{nativeSupported=true;}
+   }
+   if(nativeSupported){try{detector.current=new window.BarcodeDetector({formats:['qr_code']});}catch{detector.current=null;}}
+   if(!detector.current&&!await ensureDecoder())throw Error('Leitor de QR indisponível. Use o código manual.');
+   const media=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}},audio:false});
+   stream.current=media;active.current=true;setCamera(true);
+  }catch(e){stopCamera();setCameraError(e?.name==='NotAllowedError'?'Permissão da câmera negada. Toque no cadeado do navegador e permita a câmera.':e?.message||'Não foi possível acessar a câmera. Digite o código individual.');}
  }
  useEffect(()=>{
   if(!camera)return;
   if(video.current&&stream.current){video.current.srcObject=stream.current;video.current.play().catch(()=>{});}
   let detecting=false;
   const timer=setInterval(async()=>{
-   if(!active.current||detecting||reading.current||!video.current||video.current.readyState<2)return;
+   const el=video.current;
+   if(!active.current||detecting||reading.current||!el||el.readyState<2)return;
    detecting=true;
    try{
-    const qrs=await detector.current.detect(video.current);
-    if(qrs?.[0]?.rawValue){const value=qrs[0].rawValue;stopCamera();setCode(value);await send(value);}
-   }catch{/* transient video frames are not admission decisions */}
+    let value=null;
+    if(detector.current){const codes=await detector.current.detect(el);value=codes?.[0]?.rawValue||null;}
+    else if(decoder.current){
+      const w=el.videoWidth,h=el.videoHeight;
+      if(w&&h){const c=canvas.current||(canvas.current=document.createElement('canvas'));c.width=Math.min(w,960);c.height=Math.round(h*c.width/w);const ctx=c.getContext('2d',{willReadFrequently:true});ctx.drawImage(el,0,0,c.width,c.height);const pixels=ctx.getImageData(0,0,c.width,c.height);value=decoder.current(pixels.data,c.width,c.height,{inversionAttempts:'attemptBoth'})?.data||null;}
+    }
+    if(value){stopCamera();setCode(value);await send(value);}
+   }catch{/* A failed frame must never admit someone. */}
    finally{detecting=false;}
-  },600);
+  },500);
   return()=>clearInterval(timer);
  },[camera,session]);
  const canAdmit=result?.eligible&&result?.entry?.date===session&&!result?.checkedIn;
