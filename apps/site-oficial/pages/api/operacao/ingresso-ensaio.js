@@ -32,7 +32,15 @@ export default async function handler(req,res){
   const {session,code:raw,action='lookup'}=req.body||{};
   if(!tickets.ENTRIES.some(e=>e.session===session)||!['lookup','admit'].includes(action))throw fail(400,'Parâmetros inválidos.');
   const code=parseTicketCode(raw);if(!code)throw fail(400,'QR inválido. Digite o código individual mostrado no ingresso.');
-  if(action==='lookup'){return res.json(decision(code,await getOne({query},code),session));}
+  if(action==='lookup'){
+   const candidate=await getOne({query},code);
+   const check=decision(code,candidate,session);
+   if(check.eligible){
+    const state=await query('SELECT state FROM peniel_ops.ensaios_session_state WHERE session_date=$1',[session]);
+    if(state.rows[0]?.state?.people?.some(p=>p.id===code))return res.json({...check,eligible:false,checkedIn:true,status:'blocked',message:'Ingresso já utilizado nesta sessão. Entrada duplicada bloqueada.'});
+   }
+   return res.json(check);
+  }
   const result=await transaction(async db=>{
    const state=await db.query('SELECT state,revision FROM peniel_ops.ensaios_session_state WHERE session_date=$1 FOR UPDATE',[session]);
    if(!state.rows[0])throw fail(503,'Ensaio não preparado.');
