@@ -15,7 +15,13 @@ function admit(state, session, arrival, now=new Date().toISOString()) {
 }
 function project(state, role) {
   const next=structuredClone(state);
-  if(['guias','telao','apoio'].includes(role)) for(const s of Object.values(next.sessions)) {
+  if(role==='guias') for(const s of Object.values(next.sessions)) {
+    // Guides may see only the participant names of groups called to the waiting area or circuit.
+    const visible=new Set(s.groups.filter(g=>['called','waiting','circuit','safe'].includes(g.status)).flatMap(g=>g.members));
+    s.people=s.people.filter(p=>visible.has(p.id)).map(p=>({id:p.id,name:p.name,group:p.group,paperAt:p.paperAt}));
+    s.history=[];s.lastAssignment=null;
+  }
+  if(['telao','apoio'].includes(role)) for(const s of Object.values(next.sessions)) {
     // No names or ticket identifiers sent to these roles, including hidden history.
     s.people=s.people.map(p=>({group:p.group,paperAt:p.paperAt}));
     s.groups=s.groups.map(g=>({...g,members:g.members.map(()=>null)}));
