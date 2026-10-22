@@ -39,5 +39,5 @@ export default async function handler(req,res){
    return next;
   });
   return res.json({...result,db:live.project(result.db,role)});
- }catch(e){return res.status(e.status||503).json({error:e.status?e.message:'Conexão indisponível. Nenhuma confirmação foi recebida; atualize antes de repetir.'});}
+ }catch(e){if(!e.status)console.error('official_operation_api_failure',{code:String(e.code||e.name||'unknown').slice(0,60),method:req.method});return res.status(e.status||503).json({error:e.status?e.message:'Servidor da operação não conseguiu consultar o banco. Nenhuma confirmação foi recebida; tente novamente.'});}
 }
