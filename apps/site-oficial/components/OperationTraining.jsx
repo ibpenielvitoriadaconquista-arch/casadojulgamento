@@ -22,6 +22,9 @@ export default function OperationTraining({role='geral',remote=false,viewerRole=
   const refresh=e=>{if(e.key===KEY){try{setDb(read());}catch{setStorageError(true);}}};window.addEventListener('storage',refresh);return()=>window.removeEventListener('storage',refresh);
  },[]);
  useEffect(()=>{setSelection([]);setSearch('');setNotice(null);},[session]);
+ const lotSession=remote&&!rehearsal&&session==='2026-11-09'&&['geral','portaria','coordenacao','guias'].includes(role)&&['2026-10-22','2026-10-23'].includes(new Intl.DateTimeFormat('en-CA',{timeZone:'America/Bahia',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date()));
+ const useLotQueue=rehearsal||(lotSession&&(testLot||['coordenacao','guias'].includes(role)));
+
  useEffect(()=>{
   if(!remote)return;
   let stopped=false,controller,loading=false;
@@ -29,14 +32,14 @@ export default function OperationTraining({role='geral',remote=false,viewerRole=
    if(writing.current||loading)return;loading=true;
    controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),10000);const seq=++latest.current;
    try{
-    const r=await fetch((rehearsal?'/api/operacao/ensaio':'/api/operacao')+'?session='+session+'&role='+role,{cache:'no-store',signal:controller.signal});
+    const r=await fetch((useLotQueue?'/api/operacao/ensaio':'/api/operacao')+'?session='+session+'&role='+role,{cache:'no-store',signal:controller.signal});
     const data=await r.json();if(!r.ok)throw Error(data.error);
     if(!stopped&&seq===latest.current){setDb(data.db);setStorageError(false);}
    }catch(e){if(!stopped&&seq===latest.current){setStorageError(true);setNotice({text:e.message==='Failed to fetch'?'Sem comunicação com a API oficial. Confira a rede e tente novamente.':e.message||'Falha de sincronização.',error:true});}}finally{loading=false;clearTimeout(timeout);}
   };
   setDb(null);load();const timer=setInterval(load,4000);
   return()=>{stopped=true;controller?.abort();clearInterval(timer);};
- },[remote,session,role,rehearsal]);
+ },[remote,session,role,rehearsal,useLotQueue]);
  const s=db?.sessions[session],can=action=>ops.ALLOWED[role]?.includes(action)&&(!remote||!['scan','reset','takeover'].includes(action)||(rehearsal&&['reset'].includes(action)));
  async function run(action,arg={}){
   if(busy||writing.current)return;writing.current=true;setBusy(true);
@@ -44,7 +47,7 @@ export default function OperationTraining({role='geral',remote=false,viewerRole=
    if(remote){
     if(storageError)throw Error('Sem sincronização. Aguarde a reconexão antes de alterar.');
     ++latest.current;
-    const r=await fetch(rehearsal?'/api/operacao/ensaio':'/api/operacao',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({session,role,action,arg,revision:db.revision,requestId:crypto.randomUUID()}),signal:AbortSignal.timeout(12000)});
+    const r=await fetch(useLotQueue?'/api/operacao/ensaio':'/api/operacao',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({session,role,action,arg,revision:db.revision,requestId:crypto.randomUUID()}),signal:AbortSignal.timeout(12000)});
     const data=await r.json();if(!r.ok)throw Error(data.error);
     ++latest.current;setDb(data.db);setNotice({text:data.message});if(action==='assign'){setSelection([]);setGroupId(arg.group);}return true;
    }
@@ -99,7 +102,7 @@ export default function OperationTraining({role='geral',remote=false,viewerRole=
  const generalTabs=[['overview','Visão geral'],['queue','Fila e senhas'],['groups','Grupos e pessoas'],['gate','Portaria'],['guides','Guias'],['history','Histórico']];
  return <><Head><title>{ops.ROLES[role]} · {remote?'Operação':'Treinamento'} Peniel</title><meta name="robots" content="noindex,nofollow"/><meta name="viewport" content="width=device-width, initial-scale=1"/></Head><style>{styles}</style><div className={'op-app '+(role==='telao'?'board-mode':'')}>{dialog&&<OperationDialog config={dialog} onClose={()=>setDialog(null)}/>}
  <header className="op-top"><Link href="/treinamento" className="op-brand"><span className="op-mark">P</span><span>PENIEL <b>OPERAÇÃO</b><small>Casa do Julgamento · 2026</small></span></Link><div className="op-top-right">{pill(remote?(rehearsal?'ENSAIO · SEM ENTRADA REAL':'OPERAÇÃO · ACESSO RESTRITO'):'TREINAMENTO ABERTO','gold')}<Link href="/">Site oficial ↗</Link>{remote&&<button type="button" className="op-btn" onClick={async()=>{try{await fetch('/api/operacao/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({logout:true})});}finally{window.location.replace('/operacao/login');}}}>Sair da conta</button>}</div></header>
- <div className="op-layout">{role!=='telao'&&<aside className="op-sidebar"><p className="op-eyebrow">POSTOS DE TRABALHO</p><nav>{Object.entries(ops.ROLES).filter(([key])=>(!rehearsal||!['caixa','telao'].includes(key))&&(!remote||viewerRole==='geral'||key===role)).map(([key,title])=><Link key={key} className={key===role?'active':''} href={(remote?(rehearsal?'/operacao/ensaio/':'/operacao/')+key:ROUTES[key])+'?sessao='+session}><span>{key==='geral'?'00':key==='portaria'?'01':key==='coordenacao'?'02':key==='guias'?'03':'04'}</span>{title}</Link>)}</nav><div className="op-side-note"><b>{remote?'Acesso por colaborador':'Sem login nesta demonstração'}</b><p>{remote?'Permissões verificadas no servidor. Atualização automática a cada 4 segundos.':'Use somente os dados fictícios gerados aqui.'}</p>{remote&&<button className="op-btn" onClick={async()=>{await fetch('/api/operacao/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({logout:true})});window.location.href='/operacao/login';}}>Sair</button>}</div>{remote&&viewerRole==='geral'&&<Link href="/operacao/equipe">Gerenciar colaboradores →</Link>}{remote&&rehearsal&&<Link href={'/operacao/'+role+'?sessao='+session}>Voltar à operação oficial →</Link>}</aside>}
+ <div className="op-layout">{role!=='telao'&&<aside className="op-sidebar"><p className="op-eyebrow">POSTOS DE TRABALHO</p><nav>{Object.entries(ops.ROLES).filter(([key])=>(!rehearsal||!['caixa','telao'].includes(key))&&(!remote||viewerRole==='geral'||key===role)).map(([key,title])=><Link key={key} className={key===role?'active':''} href={(remote?(rehearsal?'/operacao/ensaio/':'/operacao/')+key:ROUTES[key])+'?sessao='+session+(testLot?'&lote=1':'')}><span>{key==='geral'?'00':key==='portaria'?'01':key==='coordenacao'?'02':key==='guias'?'03':'04'}</span>{title}</Link>)}</nav><div className="op-side-note"><b>{remote?'Acesso por colaborador':'Sem login nesta demonstração'}</b><p>{remote?'Permissões verificadas no servidor. Atualização automática a cada 4 segundos.':'Use somente os dados fictícios gerados aqui.'}</p>{remote&&<button className="op-btn" onClick={async()=>{await fetch('/api/operacao/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({logout:true})});window.location.href='/operacao/login';}}>Sair</button>}</div>{remote&&viewerRole==='geral'&&<Link href="/operacao/equipe">Gerenciar colaboradores →</Link>}{remote&&rehearsal&&<Link href={'/operacao/'+role+'?sessao='+session}>Voltar à operação oficial →</Link>}</aside>}
  <div className="op-work"><div className="op-page-head"><div><span className="op-eyebrow">{role==='geral'?'VISÃO COMPLETA · CONTROLA OS POSTOS':'PAINEL DO POSTO'}</span><h1>{ops.ROLES[role]}</h1></div><label>Sessão · horário de abertura dos portões<select disabled={busy} value={testLot?'lote1':session} onChange={e=>changeSession(e.target.value)}>{(rehearsal||role==='portaria'||role==='geral')&&<option value="lote1">Ingresso Geral - 1º Lote · ENSAIO 22–23/10</option>}{ops.SESSIONS.map(x=><option key={x.id} value={x.id}>{x.label} · 2026</option>)}</select></label></div>
  {remote&&<div className="op-training"><b>{rehearsal?'ENSAIO COMPARTILHADO · NENHUM INGRESSO REAL CONSUMIDO':'BANCO CENTRAL · INTEGRAÇÃO EVEN3 EM HOMOLOGAÇÃO'}</b><p>Dados compartilhados entre colaboradores autorizados. A admissão por ingresso ainda depende da conciliação das inscrições e vendas da Even3.</p></div>}
  {role!=='telao'&&!remote&&<div className="op-training"><b>SIMULAÇÃO · SEM EVEN3 CONECTADA E SEM QR REAL</b><p>Não use para credenciamento real. Dados compartilhados apenas entre abas do <strong>mesmo navegador e perfil</strong>; celulares diferentes não se sincronizam. Autenticação, banco central e integração real serão implantados depois.</p></div>}
