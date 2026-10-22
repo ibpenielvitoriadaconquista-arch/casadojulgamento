@@ -32,7 +32,7 @@ export default function OperationTraining({role='geral',remote=false,viewerRole=
     const r=await fetch((rehearsal?'/api/operacao/ensaio':'/api/operacao')+'?session='+session+'&role='+role,{cache:'no-store',signal:controller.signal});
     const data=await r.json();if(!r.ok)throw Error(data.error);
     if(!stopped&&seq===latest.current){setDb(data.db);setStorageError(false);}
-   }catch(e){if(!stopped&&seq===latest.current){setStorageError(true);setNotice({text:e.message,error:true});}}finally{loading=false;clearTimeout(timeout);}
+   }catch(e){if(!stopped&&seq===latest.current){setStorageError(true);setNotice({text:e.message==='Failed to fetch'?'Sem comunicação com a API oficial. Confira a rede e tente novamente.':e.message||'Falha de sincronização.',error:true});}}finally{loading=false;clearTimeout(timeout);}
   };
   setDb(null);load();const timer=setInterval(load,4000);
   return()=>{stopped=true;controller?.abort();clearInterval(timer);};
