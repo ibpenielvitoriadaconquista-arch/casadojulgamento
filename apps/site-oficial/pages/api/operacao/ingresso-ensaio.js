@@ -6,13 +6,17 @@ import live from '../../../lib/operation-live.cjs';
 const {EVENT_ID,parseTicketCode}=tickets;
 export const config={api:{bodyParser:{sizeLimit:'3kb'}}};
 function decision(code,p,session){
- const entry=bridge.entryFromCategory(p?.category_name);
+ const originalEntry=bridge.entryFromCategory(p?.category_name);
+ // Only in rehearsal, route the organizer's first general lot through the 09/11 mock session.
+ // Never make this category eligible for any real admission.
+ const isGeneralRehearsal=p?.category_name==='Ingresso Geral - 1º Lote' && session==='2026-11-09';
+ const entry=isGeneralRehearsal?bridge.entryFromCategory('Casa do Julgamento — 09/11/2026'):originalEntry;
  const result={found:!!p,participantName:p?.participant_name||null,entry:entry?{id:entry.entryId,date:entry.session,label:entry.label}:null,session,admitted:false,checkedIn:false,eligible:false,status:'blocked',message:'Código não encontrado na API Even3.',rehearsal:true};
  if(!p)return result;
  if(!p.is_confirmed){result.message='Inscrição ainda não confirmada na Even3.';return result;}
  if(!entry||entry.session!==session){result.message='Categoria TESTE, desconhecida ou ingresso de outra data.';return result;}
  if(!p.attendee_id||!p.participant_name){result.message='Dados de ingresso incompletos.';return result;}
- result.eligible=true;result.status='ready';result.message='QR reconhecido para ENSAIO. Pagamento não conciliado. NÃO autoriza entrada real.';return result;
+ result.eligible=true;result.status='ready';result.message=isGeneralRehearsal?'Ingresso Geral - 1º Lote reconhecido SOMENTE para o ensaio (referência 09/11). Não autoriza entrada real.':'QR reconhecido para ENSAIO. Pagamento não conciliado. NÃO autoriza entrada real.';return result;
 }
 async function getOne(db,code){
  const r=await db.query('SELECT event_id,attendee_id,participant_name,category_name,is_confirmed FROM public.cdj_even3_api_attendees WHERE event_id=$1 AND checkin_code=$2',[EVENT_ID,code]);
