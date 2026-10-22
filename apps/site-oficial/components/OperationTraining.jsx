@@ -22,7 +22,7 @@ export default function OperationTraining({role='geral',remote=false,viewerRole=
   const refresh=e=>{if(e.key===KEY){try{setDb(read());}catch{setStorageError(true);}}};window.addEventListener('storage',refresh);return()=>window.removeEventListener('storage',refresh);
  },[]);
  useEffect(()=>{setSelection([]);setSearch('');setNotice(null);},[session]);
- const lotSession=remote&&!rehearsal&&session==='2026-11-09'&&['geral','portaria','coordenacao','guias'].includes(role)&&['2026-10-22','2026-10-23'].includes(new Intl.DateTimeFormat('en-CA',{timeZone:'America/Bahia',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date()));
+ const lotSession=remote&&!rehearsal&&session==='2026-11-09'&&['geral','portaria','coordenacao','guias','telao'].includes(role)&&['2026-10-22','2026-10-23'].includes(new Intl.DateTimeFormat('en-CA',{timeZone:'America/Bahia',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date()));
  const useLotQueue=rehearsal||(lotSession&&testLot);
 
  useEffect(()=>{
