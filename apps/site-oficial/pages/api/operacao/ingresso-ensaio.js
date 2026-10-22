@@ -9,7 +9,8 @@ function decision(code,p,session){
  const originalEntry=bridge.entryFromCategory(p?.category_name);
  // Only in rehearsal, route the organizer's first general lot through the 09/11 mock session.
  // Never make this category eligible for any real admission.
- const isGeneralRehearsal=p?.category_name==='Ingresso Geral - 1º Lote' && session==='2026-11-09';
+ const today=tickets.bahiaDay();
+ const isGeneralRehearsal=p?.category_name==='Ingresso Geral - 1º Lote' && session==='2026-11-09' && (today==='2026-10-22'||today==='2026-10-23');
  const entry=isGeneralRehearsal?bridge.entryFromCategory('Casa do Julgamento — 09/11/2026'):originalEntry;
  const result={found:!!p,participantName:p?.participant_name||null,entry:entry?{id:entry.entryId,date:entry.session,label:entry.label}:null,session,admitted:false,checkedIn:false,eligible:false,status:'blocked',message:'Código não encontrado na API Even3.',rehearsal:true};
  if(!p)return result;
