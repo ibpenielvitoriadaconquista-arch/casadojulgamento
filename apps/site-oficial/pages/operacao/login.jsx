@@ -7,7 +7,9 @@ export default function Login(){
   try{
    const r=await fetch('/api/operacao/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:String(f.get('email')).trim(),password:f.get('password')}),signal:AbortSignal.timeout(15000)});
    const d=await r.json();if(!r.ok)throw Error(d.error||'Não foi possível entrar. Tente novamente.');
-   window.location.assign('/operacao/'+d.role);
+   const intended=new URLSearchParams(window.location.search).get('next');
+   const permitted=/^\/operacao\/ensaio\/(geral|portaria|coordenacao|guias|apoio)(\?lote=1)?$/.test(intended||'');
+   window.location.assign(permitted?intended:'/operacao/'+d.role);
   }catch(e){setError(e.name==='TimeoutError'||e.name==='TypeError'?'Não conseguimos conectar. Confira sua internet e tente novamente.':e.message);}finally{setBusy(false);}
  }
  return <><Head><title>Equipe · Casa do Julgamento</title><meta name="robots" content="noindex,nofollow"/></Head>
