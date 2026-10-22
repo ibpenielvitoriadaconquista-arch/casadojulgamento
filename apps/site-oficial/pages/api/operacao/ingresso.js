@@ -99,9 +99,19 @@ export default async function handler(req,res){
    await client.query(
     'UPDATE peniel_ops.session_state SET state=$2::jsonb,revision=$3,updated_at=now() WHERE session_date=$1',
     [session,JSON.stringify(next.db.sessions[session]),next.db.revision]);
-   await client.query(
-    'UPDATE peniel_ops.entry_authorizations SET checked_in_at=now(),admitted_by=$3,updated_at=now() WHERE event_id=$1 AND ticket_code=$2',
+   const admission=await client.query(
+    'UPDATE peniel_ops.entry_authorizations SET checked_in_at=now(),admitted_by=$3,updated_at=now() WHERE event_id=$1 AND ticket_code=$2 AND checked_in_at IS NULL RETURNING checked_in_at',
     [EVENT_ID,code,user.user_id]);
+   if(admission.rowCount!==1)throw fail(409,'Ingresso já utilizado.');
+   // Durable local-first queue: never send external requests inside the admission transaction.
+   // A separate authenticated worker must verify the Even3 per-date check-in semantics
+   // before syncing. Do not enqueue rehearsal or cancelled admissions.
+   await client.query(
+    `INSERT INTO peniel_ops.even3_checkin_outbox
+      (event_id,ticket_code,attendee_id,session_date,checked_in_at)
+      VALUES($1,$2,$3,$4,$5)
+      ON CONFLICT(event_id,ticket_code) DO NOTHING`,
+    [EVENT_ID,code,raw.participant_id,session,admission.rows[0].checked_in_at]);
    return publicResult(raw,{...auth,checked_in_at:new Date()},session,approval.entry,
     'Entrada registrada. Participante enviado à Coordenação.',true);
   });
