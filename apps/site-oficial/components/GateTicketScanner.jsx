@@ -43,10 +43,11 @@ export default function GateTicketScanner({session,rehearsal=false,testLot=false
     try{const formats=await window.BarcodeDetector.getSupportedFormats();nativeSupported=formats.includes('qr_code');}catch{nativeSupported=true;}
    }
    if(nativeSupported){try{detector.current=new window.BarcodeDetector({formats:['qr_code']});}catch{detector.current=null;}}
-   if(!detector.current&&!await ensureDecoder())throw Error('Leitor de QR indisponível. Use o código manual.');
-   const media=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}},audio:false});
+   // Request camera permission directly from the user's click before any network request.
+   const media=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});
    stream.current=media;active.current=true;setCamera(true);
-  }catch(e){stopCamera();setCameraError(e?.name==='NotAllowedError'?'Permissão da câmera negada. Toque no cadeado do navegador e permita a câmera.':e?.message||'Não foi possível acessar a câmera. Digite o código individual.');}
+   if(!detector.current&&!await ensureDecoder())setCameraError('O leitor alternativo não carregou. Utilize o código manual.');
+  }catch(e){stopCamera();setCameraError(e?.name==='NotAllowedError'?'O navegador recusou a câmera. Feche outras abas que usam a câmera e confirme a permissão deste site.':e?.message||'Não foi possível acessar a câmera. Digite o código individual.');}
  }
  useEffect(()=>{
   if(!camera)return;
