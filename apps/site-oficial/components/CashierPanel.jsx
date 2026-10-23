@@ -1,7 +1,10 @@
 import {useState,useEffect} from 'react';
 import Head from 'next/head';
+import GateTicketScanner from './GateTicketScanner';
+import official from '../lib/official-entries.cjs';
 import checkout from '../lib/even3-checkout.cjs';
 export default function CashierPanel(){
+ const [entrySession,setEntrySession]=useState(official.LOT.session);
  const [form,setForm]=useState({session:'2026-11-09',channel:'balcao',name:'',contact:'',quantity:'1',paymentMethod:'even3',notes:''});
  const [busy,setBusy]=useState(false),[notice,setNotice]=useState(''),[error,setError]=useState(''),[created,setCreated]=useState(null),[orders,setOrders]=useState([]);
  async function refresh(){try{const r=await fetch('/api/operacao/caixa',{cache:'no-store'});const j=await r.json();if(r.ok)setOrders(j.orders||[]);}catch{}}
@@ -15,7 +18,7 @@ export default function CashierPanel(){
  return <><Head><title>Caixa · Casa do Julgamento 2026</title><meta name="robots" content="noindex,nofollow"/></Head>
  <main className="cash">
  <header><a href="/operacao/login">← Equipe</a><span>CASA DO JULGAMENTO 2026 · CAIXA OFICIAL</span></header>
- <h1>Atendimento de vendas</h1>
+ <h1>Caixa e portaria presencial</h1><section className="panel"><label>Entrada para credenciamento<select value={entrySession} onChange={e=>setEntrySession(e.target.value)}>{official.ENTRIES.map(e=><option key={e.entryId} value={e.session}>{e.label}</option>)}</select></label><GateTicketScanner session={entrySession}/></section>
  <p className="intro">Registre o atendimento presencial ou com tablet na fila e finalize a compra pela Even3. Não confunda uma anotação de Pix ou dinheiro com ingresso emitido.</p>
  <div className="banner"><strong>Venda não é entrada liberada.</strong> O ingresso precisa existir na Even3 e passar pelas verificações da Portaria.</div>
  <section className="panel"><h2>Novo atendimento</h2>

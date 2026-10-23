@@ -1,5 +1,5 @@
 import {useState,useRef,useEffect} from 'react';
-import tickets from '../lib/entry-tickets.cjs';
+import tickets from '../lib/official-entries.cjs';
 
 // No browser-side validation grants admission. The server is authoritative.
 export default function GateTicketScanner({session,rehearsal=false,testLot=false}){
@@ -16,7 +16,7 @@ export default function GateTicketScanner({session,rehearsal=false,testLot=false
   if(action==='lookup')setResult(null);
   try{
    const r=await fetch(rehearsal?'/api/operacao/ingresso-ensaio':'/api/operacao/ingresso',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({code:ticket,session,action}),signal:AbortSignal.timeout(12000)});
+    body:JSON.stringify({code:ticket,session,action}),signal:AbortSignal.timeout(45000)});
    const data=await r.json();
    if(!r.ok)throw Error(data.error||'Não foi possível validar o ingresso.');
    setSelectedCode(ticket);setResult(data);
@@ -64,7 +64,7 @@ export default function GateTicketScanner({session,rehearsal=false,testLot=false
       const w=el.videoWidth,h=el.videoHeight;
       if(w&&h){const c=canvas.current||(canvas.current=document.createElement('canvas'));c.width=Math.min(w,960);c.height=Math.round(h*c.width/w);const ctx=c.getContext('2d',{willReadFrequently:true});ctx.drawImage(el,0,0,c.width,c.height);const pixels=ctx.getImageData(0,0,c.width,c.height);value=decoder.current(pixels.data,c.width,c.height,{inversionAttempts:'attemptBoth'})?.data||null;}
     }
-    if(value){stopCamera();setCode(value);await send(value);}
+    if(value){stopCamera();setCode(value);await send(value,rehearsal?'lookup':'admit');}
    }catch{/* A failed frame must never admit someone. */}
    finally{detecting=false;}
   },500);
@@ -72,9 +72,9 @@ export default function GateTicketScanner({session,rehearsal=false,testLot=false
  },[camera,session]);
  const canAdmit=result?.eligible&&result?.entry?.date===session&&!result?.checkedIn;
  return <section className="scanner" aria-label="Leitor de ingressos da portaria">
-  <div className="head"><strong>Leitura do ingresso Even3</strong><span>CONSULTA SEGURA</span></div>
+  <div className="head"><strong>Leitura do ingresso Even3</strong><span>{rehearsal?'CONSULTA':'CREDENCIAMENTO OFICIAL'}</span></div>
   {rehearsal&&<p role="status" className="warning"><b>{testLot?'INGRESSO GERAL - 1º LOTE · ENSAIO 22–23/10. Entrada somente na fila de treinamento.':'ENSAIO — sem pagamento validado e sem credenciamento real.'}</b></p>}
-  <p>Confira o QR ou digite o código individual do ingresso. Data selecionada: <b>{sessionData?.label||session}</b>.</p>
+  <p>A leitura pela câmera credencia o ingresso válido na Even3 e registra a entrada. Para conferir antes, digite o código abaixo. Entrada selecionada: <b>{sessionData?.label||session}</b>.</p>
   {camera&&<div className="camera"><video ref={video} muted playsInline autoPlay aria-label="Câmera de leitura QR"/><button type="button" onClick={stopCamera}>Fechar câmera</button></div>}
   <button type="button" className="camera-button" disabled={busy} onClick={camera?stopCamera:startCamera}>{camera?'Desligar câmera':'Ler QR com câmera'}</button>
   {cameraError&&<p role="status" className="warning">{cameraError}</p>}
@@ -92,7 +92,7 @@ export default function GateTicketScanner({session,rehearsal=false,testLot=false
    {result.checkedIn&&<p>Já consta uma chegada para este código.</p>}
    {canAdmit&&<button className="confirm" type="button" disabled={busy}
     onClick={()=>{if(window.confirm(rehearsal?'Confirmar chegada APENAS NO ENSAIO? Não registra entrada real.':'Confirma a entrada física deste participante?'))send(selectedCode,'admit');}}>
-    {rehearsal?(testLot?'Liberar entrada no ensaio e enviar à Coordenação':'Enviar à Coordenação (SOMENTE ENSAIO)'):'Confirmar entrada e enviar à Coordenação'}
+    {rehearsal?(testLot?'Liberar entrada no ensaio e enviar à Coordenação':'Enviar à Coordenação (SOMENTE ENSAIO)'):'Credenciar na Even3 e liberar entrada'}
    </button>}
   </div>}
   <p className="foot">A Portaria não pode liberar pessoas sem confirmação de inscrição, pagamento, data e uso anterior. Divergências vão para Gestão Geral.</p>

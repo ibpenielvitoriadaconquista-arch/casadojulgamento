@@ -18,7 +18,8 @@ export default {
     return [
       {source:'/:path*',headers:common},
       {source:'/operacao/portaria',headers:scannerHeaders},
-      {source:'/operacao/geral',headers:scannerHeaders}
+      {source:'/operacao/geral',headers:scannerHeaders},
+      {source:'/operacao/caixa',headers:scannerHeaders}
     ];
   }
 };

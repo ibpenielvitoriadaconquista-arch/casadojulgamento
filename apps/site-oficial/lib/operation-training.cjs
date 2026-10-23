@@ -1,5 +1,6 @@
 'use strict';
 const SESSIONS = [
+  {id:'2026-10-22',label:'Lote 1 · 22–23/10'},
   {id:'2026-11-09',label:'09/11 · 17h'}, {id:'2026-11-13',label:'13/11 · 20h'},
   {id:'2026-11-14',label:'14/11 · 18h'}, {id:'2026-11-19',label:'19/11 · 20h'},
   {id:'2026-11-20',label:'20/11 · 17h'}, {id:'2026-11-21',label:'21/11 · 18h'}
@@ -13,8 +14,8 @@ function active(s){return s.groups.filter(g=>['circuit','safe'].includes(g.statu
 function wait(s){return s.groups.find(g=>['called','waiting'].includes(g.status));}
 function summarize(s){return {arrived:s.people.length,pending:s.people.filter(p=>!p.group).length,paper:s.people.filter(p=>p.group&&!p.paperAt).length,active:active(s).length};}
 function apply(db,sessionId,role,action,arg={},now=new Date().toISOString()){
-  if(!ALLOWED[role]?.includes(action))throw Error('Este comando pertence a outro posto de treinamento.');
-  if(!SESSIONS.some(s=>s.id===sessionId)||db?.schema!==5)throw Error('Sessão de treinamento inválida.');
+  if(!ALLOWED[role]?.includes(action))throw Error('Este comando pertence a outro posto.');
+  if(!SESSIONS.some(s=>s.id===sessionId)||db?.schema!==5)throw Error('Sessão inválida.');
   const next=JSON.parse(JSON.stringify(db));let s=next.sessions[sessionId];
   const group=id=>s.groups.find(g=>g.id===id),person=id=>s.people.find(p=>p.id===id);
   const log=(text)=>{s.history.unshift({at:now,role:ROLES[role],action,text});s.history=s.history.slice(0,500);};
