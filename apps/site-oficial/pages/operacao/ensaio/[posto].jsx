@@ -9,7 +9,7 @@ export async function getServerSideProps({req,res,params}){
   const user=await actor(req);
   if(user.role!=='geral'&&user.role!==params.posto)return {redirect:{destination:'/operacao/'+user.role,permanent:false}};
   return {props:{role:params.posto,viewerRole:user.role}};
- }catch{return {redirect:{destination:'/operacao/login',permanent:false}};}
+ }catch{return {redirect:{destination:'/operacao/login?next='+encodeURIComponent('/operacao/ensaio/'+params.posto+(req.url?.includes('lote=1')?'?lote=1':'')),permanent:false}};}
 }
 export default function EnsaioPosto({role,viewerRole}){
  return role==='apoio'?<RehearsalPanel remote={false}/>:<OperationTraining role={role} viewerRole={viewerRole} remote rehearsal/>;

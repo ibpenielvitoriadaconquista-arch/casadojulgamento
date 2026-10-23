@@ -23,6 +23,19 @@ export default async function handler(req,res){
     await c.query('INSERT INTO peniel_ops.staff_audit(actor_id,target_id,action,details) VALUES($1,$2,$3,$4::jsonb)',[user.user_id,userId,'update',JSON.stringify({before:current.rows[0],after:{role,active}})]);
    });return res.json({ok:true});
   }
+  if(action==='deactivate'){
+   if(typeof userId!=='string'||userId===user.user_id)throw fail(400,'Não é permitido desativar sua própria conta.');
+   await transaction(async c=>{
+    await c.query("SELECT pg_advisory_xact_lock(hashtext('peniel-staff-management'))");
+    const manager=await c.query("SELECT 1 FROM peniel_ops.staff WHERE user_id=$1 AND role='geral' AND active=true",[user.user_id]);
+    if(!manager.rowCount)throw fail(403,'Permissão administrativa revogada.');
+    const existing=await c.query('SELECT role,active FROM peniel_ops.staff WHERE user_id=$1 FOR UPDATE',[userId]);
+    if(!existing.rowCount)throw fail(404,'Colaborador não encontrado.');
+    await c.query('UPDATE peniel_ops.staff SET active=false WHERE user_id=$1',[userId]);
+    await c.query("INSERT INTO peniel_ops.staff_audit(actor_id,target_id,action,details) VALUES($1,$2,'deactivate',$3::jsonb)",[user.user_id,userId,JSON.stringify({before:existing.rows[0]})]);
+   });
+   return res.json({ok:true,message:'Acesso desativado. Cadastro e histórico preservados para auditoria.'});
+  }
   if(!['invite','recovery'].includes(action))throw fail(400,'Comando inválido.');
   const email=String(req.body.email||'').trim().toLowerCase();if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||email.length>254)throw fail(400,'Informe um e-mail válido.');
   const found=await query('SELECT u.id,s.role,s.active FROM auth.users u LEFT JOIN peniel_ops.staff s ON s.user_id=u.id WHERE lower(u.email)=$1',[email]);

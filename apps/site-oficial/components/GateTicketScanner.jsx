@@ -2,10 +2,10 @@ import {useState,useRef,useEffect} from 'react';
 import tickets from '../lib/entry-tickets.cjs';
 
 // No browser-side validation grants admission. The server is authoritative.
-export default function GateTicketScanner({session,rehearsal=false}){
+export default function GateTicketScanner({session,rehearsal=false,testLot=false}){
  const [code,setCode]=useState(''),[busy,setBusy]=useState(false),[result,setResult]=useState(null),[error,setError]=useState('');
  const [camera,setCamera]=useState(false),[cameraError,setCameraError]=useState('');
- const video=useRef(null),stream=useRef(null),detector=useRef(null),reading=useRef(false),active=useRef(false);
+ const video=useRef(null),stream=useRef(null),detector=useRef(null),reading=useRef(false),active=useRef(false),canvas=useRef(null),decoder=useRef(null);
  const [selectedCode,setSelectedCode]=useState('');
  const sessionData=tickets.ENTRIES.find(e=>e.session===session);
  useEffect(()=>{setResult(null);setCode('');setError('');},[session]);
@@ -23,34 +23,57 @@ export default function GateTicketScanner({session,rehearsal=false}){
   }catch(e){setError(e.name==='TimeoutError'?'Conexão demorou. Não libere a entrada.':e.message||'Falha na consulta.');}
   finally{reading.current=false;setBusy(false);}
  }
+ async function ensureDecoder(){
+  if(window.jsQR){decoder.current=window.jsQR;return true;}
+  await new Promise((resolve,reject)=>{
+   const prior=document.querySelector('script[data-cdj-jsqr]');
+   if(prior){if(window.jsQR)return resolve();prior.addEventListener('load',resolve,{once:true});prior.addEventListener('error',reject,{once:true});return;}
+   const script=document.createElement('script');script.src='https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js';script.async=true;script.dataset.cdjJsqr='true';
+   script.onload=resolve;script.onerror=()=>reject(new Error('Leitor alternativo indisponível.'));document.head.appendChild(script);
+  });
+  decoder.current=window.jsQR;
+  return typeof decoder.current==='function';
+ }
  async function startCamera(){
   setCameraError('');
-  if(!navigator.mediaDevices?.getUserMedia||!window.BarcodeDetector){setCameraError('Câmera QR indisponível neste navegador. Digite o código abaixo.');return;}
+  if(!navigator.mediaDevices?.getUserMedia){setCameraError('Este navegador não permite abrir a câmera. Use Chrome atualizado, permita a câmera ou digite o código.');return;}
   try{
-   detector.current=new window.BarcodeDetector({formats:['qr_code']});
-   const s=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});
-   stream.current=s;active.current=true;setCamera(true);
-  }catch{setCameraError('Não foi possível acessar a câmera. Verifique as permissões ou digite o código.');stopCamera();}
+   let nativeSupported=false;
+   if(window.BarcodeDetector){
+    try{const formats=await window.BarcodeDetector.getSupportedFormats();nativeSupported=formats.includes('qr_code');}catch{nativeSupported=true;}
+   }
+   if(nativeSupported){try{detector.current=new window.BarcodeDetector({formats:['qr_code']});}catch{detector.current=null;}}
+   // Request camera permission directly from the user's click before any network request.
+   const media=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});
+   stream.current=media;active.current=true;setCamera(true);
+   if(!detector.current&&!await ensureDecoder())setCameraError('O leitor alternativo não carregou. Utilize o código manual.');
+  }catch(e){stopCamera();setCameraError(e?.name==='NotAllowedError'?'O navegador recusou a câmera. Feche outras abas que usam a câmera e confirme a permissão deste site.':e?.message||'Não foi possível acessar a câmera. Digite o código individual.');}
  }
  useEffect(()=>{
   if(!camera)return;
   if(video.current&&stream.current){video.current.srcObject=stream.current;video.current.play().catch(()=>{});}
   let detecting=false;
   const timer=setInterval(async()=>{
-   if(!active.current||detecting||reading.current||!video.current||video.current.readyState<2)return;
+   const el=video.current;
+   if(!active.current||detecting||reading.current||!el||el.readyState<2)return;
    detecting=true;
    try{
-    const qrs=await detector.current.detect(video.current);
-    if(qrs?.[0]?.rawValue){const value=qrs[0].rawValue;stopCamera();setCode(value);await send(value);}
-   }catch{/* transient video frames are not admission decisions */}
+    let value=null;
+    if(detector.current){const codes=await detector.current.detect(el);value=codes?.[0]?.rawValue||null;}
+    else if(decoder.current){
+      const w=el.videoWidth,h=el.videoHeight;
+      if(w&&h){const c=canvas.current||(canvas.current=document.createElement('canvas'));c.width=Math.min(w,960);c.height=Math.round(h*c.width/w);const ctx=c.getContext('2d',{willReadFrequently:true});ctx.drawImage(el,0,0,c.width,c.height);const pixels=ctx.getImageData(0,0,c.width,c.height);value=decoder.current(pixels.data,c.width,c.height,{inversionAttempts:'attemptBoth'})?.data||null;}
+    }
+    if(value){stopCamera();setCode(value);await send(value);}
+   }catch{/* A failed frame must never admit someone. */}
    finally{detecting=false;}
-  },600);
+  },500);
   return()=>clearInterval(timer);
  },[camera,session]);
  const canAdmit=result?.eligible&&result?.entry?.date===session&&!result?.checkedIn;
  return <section className="scanner" aria-label="Leitor de ingressos da portaria">
   <div className="head"><strong>Leitura do ingresso Even3</strong><span>CONSULTA SEGURA</span></div>
-  {rehearsal&&<p role="status" className="warning"><b>ENSAIO — sem pagamento validado e sem credenciamento real.</b></p>}
+  {rehearsal&&<p role="status" className="warning"><b>{testLot?'INGRESSO GERAL - 1º LOTE · ENSAIO 22–23/10. Entrada somente na fila de treinamento.':'ENSAIO — sem pagamento validado e sem credenciamento real.'}</b></p>}
   <p>Confira o QR ou digite o código individual do ingresso. Data selecionada: <b>{sessionData?.label||session}</b>.</p>
   {camera&&<div className="camera"><video ref={video} muted playsInline autoPlay aria-label="Câmera de leitura QR"/><button type="button" onClick={stopCamera}>Fechar câmera</button></div>}
   <button type="button" className="camera-button" disabled={busy} onClick={camera?stopCamera:startCamera}>{camera?'Desligar câmera':'Ler QR com câmera'}</button>
@@ -69,7 +92,7 @@ export default function GateTicketScanner({session,rehearsal=false}){
    {result.checkedIn&&<p>Já consta uma chegada para este código.</p>}
    {canAdmit&&<button className="confirm" type="button" disabled={busy}
     onClick={()=>{if(window.confirm(rehearsal?'Confirmar chegada APENAS NO ENSAIO? Não registra entrada real.':'Confirma a entrada física deste participante?'))send(selectedCode,'admit');}}>
-    {rehearsal?'Enviar à Coordenação (SOMENTE ENSAIO)':'Confirmar entrada e enviar à Coordenação'}
+    {rehearsal?(testLot?'Liberar entrada no ensaio e enviar à Coordenação':'Enviar à Coordenação (SOMENTE ENSAIO)'):'Confirmar entrada e enviar à Coordenação'}
    </button>}
   </div>}
   <p className="foot">A Portaria não pode liberar pessoas sem confirmação de inscrição, pagamento, data e uso anterior. Divergências vão para Gestão Geral.</p>
