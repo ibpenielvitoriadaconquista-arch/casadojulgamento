@@ -19,3 +19,11 @@ A Gestão pode registrar pagamento ou cortesia comprovados, revogar autorizaçã
 Testes automatizados cobrem concorrência, timeout, retomada após falha local, calendário e vínculo financeiro. A leitura real da câmera, a resposta externa de credenciamento e o fluxo autenticado em aparelhos físicos continuam sendo verificações operacionais necessárias. Um build READY não comprova essas etapas.
 
 Apoio mantém o painel existente. Coordenação, Guias e Telão da operação consultam `peniel_ops.session_state`, com atualização a cada quatro segundos e projeções por função. O Lote 1 não usa mais `ensaios_session_state`.
+# Recebimentos presenciais
+
+O Caixa pode confirmar dinheiro ou Pix recebido diretamente pela igreja para um QR individual já emitido e confirmado na Even3. Use “Confirmar pagamento recebido na igreja”, informe o código, a forma de recebimento e a referência do recibo com valor e participante. O registro guarda o colaborador responsável na auditoria financeira. A confirmação financeira não realiza check-in: consulte o QR no leitor e confirme a entrada física, respeitando a data. Não cobre novamente no checkout da Even3 um valor já recebido pela igreja.
+
+O Caixa não pode autorizar cortesias, revogar liberações, reabrir autorizações revogadas nem resolver tentativas externas incertas. Essas ações ficam com a Gestão Geral. Pessoas sem ingresso precisam primeiro da emissão individual na Even3; anotar atendimento no Caixa não emite um QR.
+
+Em 23/10/2026 foi comprovado em produção um credenciamento do Lote 1 após confirmação de pagamento em dinheiro: resposta externa `OK`, registro local `admitted`. A consulta financeira automática de detalhes continua retornando HTTP 404; recebimentos presenciais usam a confirmação auditada da igreja.
+

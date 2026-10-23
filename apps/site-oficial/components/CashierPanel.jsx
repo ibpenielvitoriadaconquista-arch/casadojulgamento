@@ -5,6 +5,12 @@ import official from '../lib/official-entries.cjs';
 import checkout from '../lib/even3-checkout.cjs';
 export default function CashierPanel(){
  const [entrySession,setEntrySession]=useState(official.LOT.session);
+ const [receipt,setReceipt]=useState({code:'',paymentMethod:'dinheiro',evidence:'',received:false});
+ const [receiptBusy,setReceiptBusy]=useState(false),[receiptResult,setReceiptResult]=useState(''),[receiptError,setReceiptError]=useState('');
+ async function confirmReceipt(e){e.preventDefault();if(receiptBusy)return;setReceiptBusy(true);setReceiptResult('');setReceiptError('');
+  try{const r=await fetch('/api/operacao/autorizacoes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...receipt,action:'authorize',paymentStatus:'paid',evidence:`Recebimento ${receipt.paymentMethod}: ${receipt.evidence}`}),signal:AbortSignal.timeout(30000)});const j=await r.json();if(!r.ok)throw Error(j.error||'Não foi possível confirmar o recebimento.');setReceiptResult('Recebimento confirmado para este ingresso. Consulte o QR no leitor acima para conferir a data e credenciar na Even3.');setReceipt(x=>({...x,received:false}));}
+  catch(e){setReceiptError(e.message||'Confira o registro antes de repetir.');}finally{setReceiptBusy(false);}
+ }
  const [form,setForm]=useState({session:'2026-11-09',channel:'balcao',name:'',contact:'',quantity:'1',paymentMethod:'even3',notes:''});
  const [busy,setBusy]=useState(false),[notice,setNotice]=useState(''),[error,setError]=useState(''),[created,setCreated]=useState(null),[orders,setOrders]=useState([]);
  async function refresh(){try{const r=await fetch('/api/operacao/caixa',{cache:'no-store'});const j=await r.json();if(r.ok)setOrders(j.orders||[]);}catch{}}
@@ -19,7 +25,16 @@ export default function CashierPanel(){
  <main className="cash">
  <header><a href="/operacao/login">← Equipe</a><span>CASA DO JULGAMENTO 2026 · CAIXA OFICIAL</span></header>
  <h1>Caixa e portaria presencial</h1><section className="panel"><label>Entrada para credenciamento<select value={entrySession} onChange={e=>setEntrySession(e.target.value)}>{official.ENTRIES.map(e=><option key={e.entryId} value={e.session}>{e.label}</option>)}</select></label><GateTicketScanner session={entrySession}/></section>
- <p className="intro">Registre o atendimento presencial ou com tablet na fila e finalize a compra pela Even3. Não confunda uma anotação de Pix ou dinheiro com ingresso emitido.</p>
+ <section className="panel"><h2>Confirmar pagamento recebido na igreja</h2><p>Para ingresso individual já emitido na Even3: confira o participante e a data no leitor acima, registre o recebimento abaixo e consulte novamente para credenciar. Cada pessoa precisa de seu próprio QR. Não cobre novamente na Even3 um pagamento já recebido pela igreja.</p>
+ <form onSubmit={confirmReceipt}>
+ <label>Código do ingresso pago<input required value={receipt.code} onChange={e=>setReceipt(x=>({...x,code:e.target.value,received:false}))}/></label>
+ <label>Forma de recebimento<select value={receipt.paymentMethod} onChange={e=>setReceipt(x=>({...x,paymentMethod:e.target.value,received:false}))}><option value="dinheiro">Dinheiro recebido</option><option value="pix_igreja">Pix recebido pela igreja</option></select></label>
+ <label>Recibo, valor e participante<textarea required minLength={10} maxLength={420} value={receipt.evidence} onChange={e=>setReceipt(x=>({...x,evidence:e.target.value,received:false}))} placeholder="Identificação do recibo, valor recebido e nome do titular deste ingresso"/></label>
+ <label><input type="checkbox" required checked={receipt.received} onChange={e=>setReceipt(x=>({...x,received:e.target.checked}))}/>Conferi o ingresso individual e confirmo que a igreja recebeu este pagamento.</label>
+ <button disabled={receiptBusy||!receipt.received}>{receiptBusy?'Confirmando…':'Confirmar recebimento deste ingresso'}</button>
+ {receiptError&&<p role="alert" className="err">{receiptError}</p>}{receiptResult&&<p role="status" className="ok">{receiptResult}</p>}
+ </form></section>
+ <p className="intro">Quem ainda não possui ingresso precisa da emissão individual na Even3. O registro de atendimento abaixo acompanha a venda; a confirmação do recebimento fica vinculada ao QR no formulário acima.</p>
  <div className="banner"><strong>Venda não é entrada liberada.</strong> O ingresso precisa existir na Even3 e passar pelas verificações da Portaria.</div>
  <section className="panel"><h2>Novo atendimento</h2>
  <form onSubmit={submit}>
