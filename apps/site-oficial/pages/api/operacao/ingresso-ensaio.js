@@ -48,9 +48,22 @@ export default async function handler(req,res){
    if(!check.eligible)return check;
    const dbState={schema:5,revision:Number(state.rows[0].revision),sessions:{[session]:state.rows[0].state}};
    const updated=live.admit(dbState,session,{verified:true,participantId:candidate.attendee_id,registrationId:code,entryId:check.entry.id,name:candidate.participant_name});
-   if(updated.duplicate)return {...check,eligible:false,status:'blocked',message:'QR já registrado neste ensaio. Não duplicar.'};
+   if(updated.duplicate)return {...check,eligible:false,checkedIn:true,status:'blocked',message:'QR já utilizado no treinamento. Não duplicar.'};
+   if(candidate.category_name==='Ingresso Geral - 1º Lote'){
+    const token=process.env.EVEN3_API_TOKEN;
+    if(!token)throw fail(503,'Credenciamento Even3 não configurado. Não libere a entrada.');
+    const response=await fetch('https://www.even3.com.br/api/v1/checkin/attendees',{
+     method:'POST',headers:{'Authorization-Token':token,'Content-Type':'application/json','Accept':'application/json'},
+     body:JSON.stringify({attendees:[{checkin_code:code,checkin:1,checkin_date:new Date().toISOString()}]}),
+     signal:AbortSignal.timeout(12000)
+    });
+    if(!response.ok)throw fail(502,'Even3 não confirmou o credenciamento (HTTP '+response.status+'). Não libere a entrada.');
+    const responseText=(await response.text()).trim();
+    if(!responseText||!/^"?OK"?$/i.test(responseText)&&!/data entered successfully/i.test(responseText))
+     throw fail(502,'Resposta do credenciamento Even3 não reconhecida. Confira o painel antes de repetir.');
+   }
    await db.query('UPDATE peniel_ops.ensaios_session_state SET state=$2::jsonb,revision=$3,updated_at=now() WHERE session_date=$1',[session,JSON.stringify(updated.db.sessions[session]),updated.db.revision]);
-   return {...check,admitted:true,eligible:false,status:'admitted',message:'Participante enviado à Coordenação SOMENTE NO ENSAIO. Ingresso real não consumido.'};
+   return {...check,admitted:true,eligible:false,status:'admitted',message:candidate.category_name==='Ingresso Geral - 1º Lote'?'Credenciamento aceito pela API Even3; participante enviado à Coordenação do Lote 1.':'Participante enviado à Coordenação SOMENTE NO ENSAIO.'};
   });
   return res.json(result);
  }catch(e){if(!e.status)console.error('ensaio_qr_error',{code:String(e.code||e.name||'unknown').slice(0,40)});return res.status(e.status||503).json({error:e.status?e.message:'Leitor de ensaio indisponível. Não libere a entrada real.'});}
