@@ -8,7 +8,7 @@ function details(reference,token=process.env.EVEN3_API_TOKEN){
   const body=JSON.stringify({reference});
   const req=https.request('https://www.even3.com.br/api/v1/payments/details',{method:'GET',headers:{'Authorization-Token':token,'Content-Type':'application/json',Accept:'application/json','Content-Length':Buffer.byteLength(body)}},res=>{
    let raw='';res.on('data',chunk=>{raw+=chunk;if(raw.length>1000000)req.destroy(Error('Response too large'));});res.on('error',reject);
-   res.on('end',()=>{try{if(res.statusCode!==200)throw Error('Payment details unavailable');const x=JSON.parse(raw);if(!Array.isArray(x.data)||Number(x.count)!==x.data.length)throw Error('Incomplete payment details');resolve(x.data);}catch(e){reject(e);}});
+   res.on('end',()=>{try{if(res.statusCode!==200)throw Object.assign(Error('Payment details unavailable'),{diagnosticCode:'HTTP_'+res.statusCode});const x=JSON.parse(raw);if(!Array.isArray(x.data)||Number(x.count)!==x.data.length)throw Object.assign(Error('Incomplete payment details'),{diagnosticCode:'INCOMPLETE_RESPONSE'});resolve(x.data);}catch(e){reject(e);}});
   });req.setTimeout(8000,()=>req.destroy(Error('Payment details timeout')));req.on('error',reject);req.end(body);
  });
 }
@@ -42,4 +42,13 @@ async function reconcile({p,entry,query,even3}){
   if(prior)throw Object.assign(Error('Não foi possível atualizar a comprovação financeira na Even3. Procure a Gestão.'),{status:503});
  }
 }
-module.exports={details,matches,reconcile};
+// Management diagnostics expose only aggregate availability, never buyer data,
+// payment references, response bodies, or credentials.
+async function diagnostic(even3,readDetails=details){
+ const response=await even3.request('payments'),rows=even3.items(response);
+ if(Number(response.count)!==rows.length)return {status:'incomplete_payment_list'};
+ if(rows.length>20)return {status:'reconciliation_capacity_exceeded',paymentCount:rows.length};
+ const outcomes=await Promise.all(rows.map(async row=>{try{await readDetails(row.reference_payment);return 'OK';}catch(e){return /^HTTP_\d{3}$/.test(e.diagnosticCode||'')||e.diagnosticCode==='INCOMPLETE_RESPONSE'?e.diagnosticCode:'UNAVAILABLE';}}));
+ return {status:outcomes.every(x=>x==='OK')?'details_available':'details_unavailable',paymentCount:rows.length,results:outcomes.reduce((counts,key)=>({...counts,[key]:(counts[key]||0)+1}),{})};
+}
+module.exports={details,matches,reconcile,diagnostic};
