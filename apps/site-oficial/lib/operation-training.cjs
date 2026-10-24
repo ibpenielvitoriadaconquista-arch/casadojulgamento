@@ -1,4 +1,5 @@
 'use strict';
+const {capacityFor}=require('./session-capacity.cjs');
 const SESSIONS = [
   {id:'2026-10-22',label:'Lote 1 · 22–23/10'},
   {id:'2026-11-09',label:'09/11 · 17h'}, {id:'2026-11-13',label:'13/11 · 20h'},
@@ -8,20 +9,21 @@ const SESSIONS = [
 const LABELS={forming:'Em formação',closed:'Fechado no salão',called:'Chamado para espera',waiting:'Na sala de espera',circuit:'No circuito',safe:'No ponto seguro',finished:'Finalizado'};
 const ROLES={geral:'Painel geral',portaria:'Portaria',caixa:'Caixa',coordenacao:'Coordenação',guias:'Guias',apoio:'Apoio',telao:'Telão'};
 const ALLOWED={geral:['scan','assign','deliver','undoDelivery','move','close','reopen','call','arrive','start','safe','finish','pause','takeover','guide','reset'],portaria:['scan'],caixa:[],coordenacao:['assign','deliver','undoDelivery','move','close','reopen','call'],guias:['arrive','start','safe','finish'],telao:[],apoio:[]};
-function freshSession(){return {counter:0,paused:false,coordinator:'Titular',people:[],groups:Array.from({length:15},(_,i)=>({id:'G'+String(i+1).padStart(2,'0'),status:'forming',guide:'',members:[]})),history:[],lastAssignment:null};}
-function fresh(){return {schema:5,revision:0,sessions:Object.fromEntries(SESSIONS.map(s=>[s.id,freshSession()]))};}
+function freshSession(sessionId=SESSIONS[0].id){return {counter:0,paused:false,coordinator:'Titular',people:[],groups:Array.from({length:capacityFor(sessionId).groups},(_,i)=>({id:'G'+String(i+1).padStart(2,'0'),status:'forming',guide:'',members:[]})),history:[],lastAssignment:null};}
+function fresh(){return {schema:5,revision:0,sessions:Object.fromEntries(SESSIONS.map(s=>[s.id,freshSession(s.id)]))};}
 function active(s){return s.groups.filter(g=>['circuit','safe'].includes(g.status));}
 function wait(s){return s.groups.find(g=>['called','waiting'].includes(g.status));}
 function summarize(s){return {arrived:s.people.length,pending:s.people.filter(p=>!p.group).length,paper:s.people.filter(p=>p.group&&!p.paperAt).length,active:active(s).length};}
 function apply(db,sessionId,role,action,arg={},now=new Date().toISOString()){
   if(!ALLOWED[role]?.includes(action))throw Error('Este comando pertence a outro posto.');
   if(!SESSIONS.some(s=>s.id===sessionId)||db?.schema!==5)throw Error('Sessão inválida.');
+  const capacity=capacityFor(sessionId);
   const next=JSON.parse(JSON.stringify(db));let s=next.sessions[sessionId];
   const group=id=>s.groups.find(g=>g.id===id),person=id=>s.people.find(p=>p.id===id);
   const log=(text)=>{s.history.unshift({at:now,role:ROLES[role],action,text});s.history=s.history.slice(0,500);};
   let message='';
   if(action==='scan'){
-    if(s.people.length>=300)throw Error('Limite de 300 espectadores de teste por sessão.');
+    if(s.people.length>=capacity.total)throw Error('Limite de '+capacity.total+' espectadores de teste por sessão.');
     if(arg.eventId&&s.people.some(p=>p.eventId===arg.eventId))throw Error('Este QR fictício já foi recebido. Nenhuma pessoa duplicada.');
     const n=++s.counter,names=['Ana','Bruno','Carla','Diego','Elisa','Felipe','Giovana','Hugo','Isabela','João','Larissa','Marcos'];
     const p={id:'TESTE-'+sessionId.slice(5)+'-'+String(n).padStart(3,'0'),name:names[(n-1)%names.length]+' · Teste '+String(n).padStart(3,'0'),family:'F'+String(Math.ceil(n/3)).padStart(3,'0'),group:null,paperAt:null,arrivedAt:now,eventId:arg.eventId||'sim-'+n};
@@ -31,7 +33,7 @@ function apply(db,sessionId,role,action,arg={},now=new Date().toISOString()){
     if(!ids.length)throw Error('Selecione pelo menos uma pessoa na fila.');
     if(!g||g.status!=='forming')throw Error('Escolha um grupo em formação.');
     const people=ids.map(person);if(people.some(p=>!p||p.group))throw Error('Uma das pessoas já recebeu grupo. Atualize a seleção.');
-    if(g.members.length+people.length>20)throw Error('O grupo não tem vagas para todas as pessoas selecionadas.');
+    if(g.members.length+people.length>capacity.groupSize)throw Error('O grupo não tem vagas para todas as pessoas selecionadas.');
     for(const p of people){p.group=g.id;p.assignedAt=now;g.members.push(p.id);}
     s.lastAssignment={group:g.id,ids,at:now};message=people.map(p=>p.name).join(', ')+' → '+g.id+'. Entregue a senha '+g.id+' e confirme a entrega.';
   }else if(action==='deliver'||action==='undoDelivery'){
@@ -44,7 +46,7 @@ function apply(db,sessionId,role,action,arg={},now=new Date().toISOString()){
   }else if(action==='move'){
     const p=person(arg.id),to=group(arg.group),from=p&&group(p.group);
     if(!p||!from||from.status!=='forming'||!to||to.status!=='forming'||to.id===from.id)throw Error('A troca exige dois grupos diferentes em formação.');
-    if(to.members.length>=20)throw Error('Grupo de destino lotado.');
+    if(to.members.length>=capacity.groupSize)throw Error('Grupo de destino lotado.');
     if(!String(arg.reason||'').trim())throw Error('Informe o motivo da troca.');
     if(p.paperAt&&!arg.paperReturned)throw Error('Recolha a senha anterior antes de trocar de grupo.');
     from.members=from.members.filter(id=>id!==p.id);to.members.push(p.id);p.group=to.id;p.paperAt=null;p.assignedAt=now;
@@ -52,7 +54,7 @@ function apply(db,sessionId,role,action,arg={},now=new Date().toISOString()){
   }else if(action==='close'){
     const g=group(arg.group);if(!g||g.status!=='forming'||!g.members.length)throw Error('O grupo precisa estar em formação e ter ao menos uma pessoa.');
     if(g.members.some(id=>!person(id).paperAt))throw Error('Confirme a entrega de todas as senhas antes de fechar o grupo.');
-    g.status='closed';message=g.id+' fechado com '+g.members.length+'/20. Todos receberam senha.';
+    g.status='closed';message=g.id+' fechado com '+g.members.length+'/'+capacity.groupSize+'. Todos receberam senha.';
   }else if(action==='reopen'){
     const g=group(arg.group);if(!g||g.status!=='closed')throw Error('Só é possível reabrir um grupo ainda fechado no salão.');
     g.status='forming';message=g.id+' reaberto no salão.';
@@ -88,8 +90,8 @@ function apply(db,sessionId,role,action,arg={},now=new Date().toISOString()){
   }else if(action==='takeover'){
     s.coordinator=s.coordinator==='Titular'?'Substituto':'Titular';s.paused=true;message=s.coordinator+' assumiu. Movimentos pausados até conferência.';
   }else if(action==='reset'){
-    next.sessions[sessionId]=freshSession();s=next.sessions[sessionId];message='Treinamento desta sessão zerado. Nenhum ingresso real foi alterado.';
+    next.sessions[sessionId]=freshSession(sessionId);s=next.sessions[sessionId];message='Treinamento desta sessão zerado. Nenhum ingresso real foi alterado.';
   }else throw Error('Comando não reconhecido.');
   log(message);next.revision++;return {db:next,message};
 }
-module.exports={SESSIONS,LABELS,ROLES,ALLOWED,fresh,freshSession,active,wait,summarize,apply};
+module.exports={capacityFor,SESSIONS,LABELS,ROLES,ALLOWED,fresh,freshSession,active,wait,summarize,apply};

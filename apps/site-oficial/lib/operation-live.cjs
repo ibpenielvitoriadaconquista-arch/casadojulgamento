@@ -9,7 +9,7 @@ function admit(state, session, arrival, now=new Date().toISOString()) {
   const next=structuredClone(state),s=next.sessions[session];
   const id=String(arrival.registrationId);
   if (s.people.some(p=>p.id===id)) return {db:next,duplicate:true};
-  if(s.people.length>=300) throw Error('Sessão lotada. Encaminhar à coordenação.');
+  if(s.people.length>=ops.capacityFor(session).total) throw Error('Sessão lotada. Encaminhar à coordenação.');
   s.people.push({id,name:String(arrival.name).trim().slice(0,150),family:arrival.familyId?String(arrival.familyId):id,participantId:String(arrival.participantId),entryId:arrival.entryId?String(arrival.entryId):null,activityId:arrival.activityId?String(arrival.activityId):null,group:null,paperAt:null,arrivedAt:now});
   next.revision++;return {db:next,duplicate:false};
 }

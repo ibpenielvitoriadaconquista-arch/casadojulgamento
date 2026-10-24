@@ -1,5 +1,6 @@
 'use strict';
 const rules=require('./official-entries.cjs'),tickets=require('./entry-tickets.cjs'),live=require('./operation-live.cjs');
+const {capacityFor}=require('./session-capacity.cjs');
 const EVENT=tickets.EVENT_ID;
 const fail=(status,message)=>Object.assign(new Error(message),{status});
 function createService({query,transaction,even3,reconcile=async()=>{},now=()=>new Date().toISOString()}){
@@ -71,7 +72,7 @@ function createService({query,transaction,even3,reconcile=async()=>{},now=()=>ne
    const state=(await db.query('SELECT state FROM peniel_ops.session_state WHERE session_date=$1 FOR UPDATE',[session])).rows[0];
    if(!state)throw fail(503,'Fila oficial indisponível.');
    const reservations=(await db.query("SELECT count(*)::int AS total FROM peniel_ops.entry_checkins WHERE session_date=$1 AND status IN ('sending','uncertain','confirmed')",[session])).rows[0].total;
-   if(state.state.people.length+reservations>=300)throw fail(409,'Sessão lotada. Procure a Coordenação.');
+   if(state.state.people.length+reservations>=capacityFor(session).total)throw fail(409,'Sessão lotada. Procure a Coordenação.');
    const at=now();
    await db.query("INSERT INTO peniel_ops.entry_checkins(event_id,ticket_code,entry_id,attendee_id,participant_name,session_date,status,requested_at,requested_by) VALUES($1,$2,$3,$4,$5,$6,'sending',$7,$8)",[EVENT,code,entry.entryId,String(p.id_attendees),p.name,session,at,user.user_id]);
    return {at};
