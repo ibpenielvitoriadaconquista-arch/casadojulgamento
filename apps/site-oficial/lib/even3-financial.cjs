@@ -12,13 +12,32 @@ function details(reference,token=process.env.EVEN3_API_TOKEN){
   });req.setTimeout(8000,()=>req.destroy(Error('Payment details timeout')));req.on('error',reject);req.end(body);
  });
 }
+// V1 documents a complete list, not page parameters. Never accept a partial list.
+function paymentRows(response,even3){
+ const rows=even3.items(response);
+ if(!Array.isArray(response?.data)||!Number.isSafeInteger(Number(response.count))||Number(response.count)!==rows.length)throw Error('Incomplete payment list');
+ const ids=new Set(),refs=new Set();
+ for(const row of rows){
+  const id=String(row.id_payment||''),ref=String(row.reference_payment||'');
+  if(!id||!ref||ids.has(id)||refs.has(ref))throw Error('Ambiguous payment list');
+  ids.add(id);refs.add(ref);
+ }
+ return rows;
+}
+async function mapPayments(rows,read){
+ const output=new Array(rows.length);let next=0;
+ await Promise.all(Array.from({length:Math.min(4,rows.length)},async()=>{
+  while(next<rows.length){const index=next++;output[index]=await read(rows[index]);}
+ }));
+ return output;
+}
 function matches(item,p,entry){
  if(String(item.id_event)!==String(p.id_event))return false;
  if(item.checkin_code!=null)return String(item.checkin_code)===String(p.checkin_code)&&String(item.item||'').normalize('NFC').trim()===entry.category;
  if(item.id_attendees!=null)return String(item.id_attendees)===String(p.id_attendees)&&String(item.item||'').normalize('NFC').trim()===entry.category;
  return !!normalize(p.email)&&normalize(item.email_attendee)===normalize(p.email)&&normalize(item.attendee)===normalize(p.name)&&String(item.item||'').normalize('NFC').trim()===entry.category;
 }
-async function reconcile({p,entry,query,even3}){
+async function reconcile({p,entry,query,even3,readDetails=details}){
  const code=String(p.checkin_code),EVENT='798621';
  const prior=(await query('SELECT * FROM peniel_ops.entry_authorizations WHERE event_id=$1 AND ticket_code=$2',[EVENT,code])).rows[0];
  if(prior&&(prior.checked_in_at||prior.revoked_at||!prior.evidence_reference.startsWith('even3-payment:')))return;
@@ -26,9 +45,11 @@ async function reconcile({p,entry,query,even3}){
  const unique=await query('SELECT count(*)::int AS total FROM public.cdj_even3_api_attendees WHERE event_id=$1 AND lower(trim(participant_email))=$2 AND lower(trim(participant_name))=$3 AND category_name=$4',[EVENT,normalize(p.email),normalize(p.name),entry.category]);
  if(unique.rows[0]?.total!==1)return;
  try{
-  const payments=await even3.request('payments'),rows=even3.items(payments);
-  if(Number(payments.count)!==rows.length||rows.length>20)throw Error('Payment list requires dedicated reconciliation');
-  const all=await Promise.all(rows.map(async pay=>({pay,items:await details(pay.reference_payment)})));
+  const rows=paymentRows(await even3.request('payments'),even3);
+  // Existing evidence identifies the payment, but its current status must still be verified.
+  const candidates=prior?rows.filter(pay=>'even3-payment:'+String(pay.id_payment)+':'+String(pay.reference_payment)===prior.evidence_reference):rows;
+  if(prior&&candidates.length!==1)throw Error('Previously linked payment missing');
+  const all=await mapPayments(candidates,async pay=>({pay,items:await readDetails(pay.reference_payment)}));
   const found=all.flatMap(({pay,items})=>items.filter(item=>String(item.id_payment)===String(pay.id_payment)&&String(item.reference_payment)===String(pay.reference_payment)&&matches(item,p,entry)).map(item=>({pay,item})));
   if(found.length!==1)throw Error('Individual financial link is ambiguous');
   const {pay,item}=found[0];
@@ -45,10 +66,8 @@ async function reconcile({p,entry,query,even3}){
 // Management diagnostics expose only aggregate availability, never buyer data,
 // payment references, response bodies, or credentials.
 async function diagnostic(even3,readDetails=details){
- const response=await even3.request('payments'),rows=even3.items(response);
- if(Number(response.count)!==rows.length)return {status:'incomplete_payment_list'};
- if(rows.length>20)return {status:'reconciliation_capacity_exceeded',paymentCount:rows.length};
- const outcomes=await Promise.all(rows.map(async row=>{try{await readDetails(row.reference_payment);return 'OK';}catch(e){return /^HTTP_\d{3}$/.test(e.diagnosticCode||'')||e.diagnosticCode==='INCOMPLETE_RESPONSE'?e.diagnosticCode:'UNAVAILABLE';}}));
+ let rows;try{rows=paymentRows(await even3.request('payments'),even3);}catch{return {status:'incomplete_payment_list'};}
+ const outcomes=await mapPayments(rows,async row=>{try{await readDetails(row.reference_payment);return 'OK';}catch(e){return /^HTTP_\d{3}$/.test(e.diagnosticCode||'')||e.diagnosticCode==='INCOMPLETE_RESPONSE'?e.diagnosticCode:'UNAVAILABLE';}});
  return {status:outcomes.every(x=>x==='OK')?'details_available':'details_unavailable',paymentCount:rows.length,results:outcomes.reduce((counts,key)=>({...counts,[key]:(counts[key]||0)+1}),{})};
 }
 module.exports={details,matches,reconcile,diagnostic};
