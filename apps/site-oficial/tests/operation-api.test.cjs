@@ -23,3 +23,11 @@ test('API bloqueia comandos de simulação mesmo para geral',async()=>{
 test('API persiste comando permitido e incrementa revisão',async()=>{
  const r=await call({user:{user_id:'x',role:'geral'},body:{role:'geral',action:'pause'}});assert.equal(r.code,200);assert.equal(r.writes,1);assert.equal(r.body.db.revision,1);
 });
+
+test('todos os postos recusam leitura da API de outro perfil; gestão pode consultar todos',async()=>{
+ for(const role of Object.keys(ops.ROLES))for(const requested of Object.keys(ops.ROLES)){
+  const r=await call({user:{user_id:'role-test',role},method:'GET',body:{session:'2026-11-09',role:requested}});
+  assert.equal(r.code,role==='geral'||role===requested?200:403,role+' → '+requested);
+  assert.equal(r.writes,0);
+ }
+});

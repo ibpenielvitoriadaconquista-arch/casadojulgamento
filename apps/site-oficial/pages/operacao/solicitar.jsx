@@ -4,11 +4,12 @@ export default function Solicitar(){
  const [busy,setBusy]=useState(false),[notice,setNotice]=useState(''),[error,setError]=useState('');
  async function send(event){
   event.preventDefault();if(busy)return;setBusy(true);setError('');setNotice('');
-  const f=new FormData(event.currentTarget);
+  const form=event.currentTarget;
+  const f=new FormData(form);
   try{
    const r=await fetch('/api/operacao/solicitar',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.fromEntries(f)),signal:AbortSignal.timeout(15000)});
    const d=await r.json();if(!r.ok)throw Error(d.error||'Não foi possível registrar.');
-   setNotice(d.message);event.currentTarget.reset();
+   form.reset();setNotice(d.message);
   }catch(e){setError(e.message||'Serviço temporariamente indisponível.');}finally{setBusy(false);}
  }
  return <StaffShell title="Solicitar acesso à equipe">
