@@ -2,7 +2,7 @@ const test=require('node:test'),assert=require('node:assert/strict');
 const {createService}=require('../lib/official-admission.cjs');
 const rules=require('../lib/official-entries.cjs'),ops=require('../lib/operation-training.cjs');
 const p={id_event:'798621',id_attendees:'42',name:'Pessoa',checkin_code:'12345678',registration_category:rules.LOT.category,confirmed:true};
-const catalog={id_event:'798621',tickets:[{title:rules.LOT.category,prices:[{id_ticket:'968141',id_ticket_price:'1097995'}]}]};
+const catalog={id_event:'798621',tickets:[{title:rules.LOT.category,prices:[{id_ticket:'968141',id_ticket_price:'1104853'}]}]};
 function fixture({timeout=false,failFinalize=false}={}){
  const state={auth:{event_id:'798621',ticket_code:p.checkin_code,entry_id:rules.LOT.entryId,participant_id:'42',participant_name:p.name,registration_status:'confirmed',payment_status:'paid',evidence_reference:'receipt-1:item-1',verified_at:'2026-10-22'},attempt:null,session:ops.fresh().sessions[rules.LOT.session],revision:0,sends:0,failFinalize};
  let queue=Promise.resolve(),inside=false;
@@ -23,10 +23,13 @@ function fixture({timeout=false,failFinalize=false}={}){
  const even3={attendee:async()=>({...p}),event:async()=>catalog,checkin:async()=>{assert.equal(inside,false,'HTTP must be outside database transaction');state.sends++;await new Promise(r=>setTimeout(r,5));if(timeout)throw Error('timeout');return 'OK';}};
  return {state,even3,service:createService({query,transaction,even3,now:()=>new Date('2026-10-22T23:00:00-03:00').toISOString()})};
 }
-test('Lote 1 é oficial em 22 e 23; novembro permanece restrito a cada data',()=>{
+test('Lote 1 permite teste até 28/10; novembro permanece restrito a cada data',()=>{
  assert.equal(rules.ENTRIES.length,7);
- for(const day of ['2026-10-22','2026-10-23'])assert.equal(rules.validate(p,rules.LOT,day),null);
- assert.ok(rules.validate(p,rules.LOT,'2026-10-24'));
+ for(const day of ['2026-10-22','2026-10-23','2026-10-24','2026-10-25','2026-10-26','2026-10-27','2026-10-28'])assert.equal(rules.validate(p,rules.LOT,day),null);
+ assert.ok(rules.validate(p,rules.LOT,'2026-10-21'));
+ assert.ok(rules.validate(p,rules.LOT,'2026-10-29'));
+ assert.equal(rules.catalogMatches(catalog,rules.LOT),true);
+ assert.equal(rules.catalogMatches({...catalog,tickets:[{title:rules.LOT.category,prices:[{id_ticket:'968141',id_ticket_price:'1097995'}]}]},rules.LOT),false);
  for(const e of rules.ENTRIES.slice(1)){assert.equal(rules.validate({...p,registration_category:e.category},e,e.session),null);assert.ok(rules.validate({...p,registration_category:e.category},e,'2026-10-23'));}
 });
 test('cancelamento e divergência de categoria bloqueiam',()=>{assert.ok(rules.validate({...p,confirmed:false},rules.LOT,'2026-10-22'));assert.ok(rules.validate({...p,id_event:'1'},rules.LOT,'2026-10-22'));assert.equal(rules.catalogMatches({...catalog,id_event:'1'},rules.LOT),false);});
@@ -41,3 +44,5 @@ test('conciliação exige vínculo individual de evento, categoria, nome e email
  assert.equal(financial.matches(item,person,rules.LOT),true);
  for(const bad of [{id_event:'1'},{email_attendee:'outra@example.org'},{attendee:'Outro'},{item:'TESTE'}])assert.equal(financial.matches({...item,...bad},person,rules.LOT),false);
 });
+
+test('isenção comprovada permite consulta sem marcar como pago nem credenciar',async()=>{const {state,service}=fixture();state.auth.payment_status='exempt';state.auth.evidence_reference='even3-free:968141:1104853';const result=await service.lookup(p.checkin_code,rules.LOT.session);assert.equal(result.eligible,true);assert.equal(result.admitted,false);assert.equal(state.sends,0);assert.equal(state.attempt,null);});
