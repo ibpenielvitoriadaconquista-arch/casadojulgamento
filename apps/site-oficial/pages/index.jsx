@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import VideoConvite from '../components/VideoConvite';
+import {EVEN3_EVENT} from '../lib/even3-sessions';
 export default function Home(){
  return <main className="container home">
   <nav className="miniNav" aria-label="Navegação principal"><Link className="site-mark" href="/">CASA DO <span>JULGAMENTO</span></Link><div className="nav-mini"><Link href="/divulgacao">Divulgar</Link><Link href="/caravana">Caravana</Link></div></nav>
@@ -9,4 +10,4 @@ export default function Home(){
   </section>
   <section aria-labelledby="convite-video"><h2 id="convite-video" className="eyebrow" style={{textAlign:'center'}}>Seu convite começa aqui</h2><VideoConvite /></section>
   <p className="intro-message">Uma experiência que começa com um convite e continua com a sua decisão de participar.</p>
-  <Link className="btn" href="/ingressos">ESCOLHER DATA E COMPRAR INGRESSO <span aria-hidden="true">→</span></Link><div className="nav-mini" style={{justifyContent:'center',margin:'22px 0'}}><Link href="/divulgacao">Ajudar na divulgação</Link><Link href="/caravana">Organizar caravana</Link></div><section className="evnotice" style={{padding:20,textAlign:'center'}}><p><b>09 a 21 de novembro · Seis sessões</b></p><p>R$15 + 1 kg de alimento não perecível por pessoa. Eventuais taxas são apresentadas na Even3.</p><p>Igreja Batista Peniel · Rua Olavo Bilac, 94 · Centro · Vitória da Conquista.</p><p>O horário é de abertura dos portões. Os grupos são formados após a chegada e o check-in.</p><Link href="/ingressos">Consultar todas as datas</Link></section></main>}
+  <a className="btn" href={EVEN3_EVENT}>COMPRAR INGRESSOS <span aria-hidden="true">→</span></a><p className="caption" style={{textAlign:'center'}}>Na Even3, escolha o dia e a quantidade de ingressos antes de pagar.</p><div className="nav-mini" style={{justifyContent:'center',margin:'22px 0'}}><Link href="/divulgacao">Ajudar na divulgação</Link><Link href="/caravana">Organizar caravana</Link></div><section className="evnotice" style={{padding:20,textAlign:'center'}}><p><b>09 a 21 de novembro · Seis sessões</b></p><p>R$15 + 1 kg de alimento não perecível por pessoa. Eventuais taxas são apresentadas na Even3.</p><p>Igreja Batista Peniel · Rua Olavo Bilac, 94 · Centro · Vitória da Conquista.</p><p>O horário é de abertura dos portões. Os grupos são formados após a chegada e o check-in.</p><Link href="/ingressos">Consultar todas as datas</Link></section></main>}
