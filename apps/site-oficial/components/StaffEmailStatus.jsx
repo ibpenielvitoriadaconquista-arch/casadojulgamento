@@ -1,0 +1,9 @@
+import {useEffect,useState} from 'react';
+const labels={pending:'Aguardando envio',sending:'Envio em andamento ou aguardando conferência',accepted:'Solicitação aceita pelo provedor',failed:'Envio não confirmado'};
+export default function StaffEmailStatus(){
+ const [data,setData]=useState(null),[error,setError]=useState(''),[notice,setNotice]=useState(''),[busy,setBusy]=useState(false);
+ async function load(){const r=await fetch('/api/operacao/emails',{cache:'no-store',signal:AbortSignal.timeout(10000)}),d=await r.json();if(!r.ok)throw Error(d.error);setData(d);}
+ useEffect(()=>{load().catch(e=>setError(e.message));},[]);
+ async function retry(id){if(busy)return;setBusy(true);setError('');setNotice('');try{const r=await fetch('/api/operacao/emails',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id}),signal:AbortSignal.timeout(15000)}),d=await r.json();if(!r.ok)throw Error(d.error);setNotice(d.message);await load();}catch(e){setError(e.message);}finally{setBusy(false);}}
+ return <section><h2>Confirmações de solicitação por e-mail</h2><p>O cadastro permanece salvo mesmo quando o e-mail não chega. Este acompanhamento mostra a aceitação do envio, sem comprovar a entrega na caixa de entrada.</p>{data&&!data.configured&&<p className="error">O remetente de confirmação ainda precisa ser configurado. Novas solicitações ficam salvas para envio posterior.</p>}{error&&<p className="error" role="alert">{error}</p>}{notice&&<p role="status">{notice}</p>}{data?.emails.map(e=><div className="card" key={e.id}><strong>{e.full_name}</strong><small>{e.recipient} · {labels[e.status]||e.status}</small>{e.status!=='accepted'&&<button type="button" disabled={busy||!data.configured} onClick={()=>retry(e.id)}>Conferir e tentar enviar confirmação</button>}</div>)}{data&&!data.emails.length&&<p>Nenhuma confirmação de nova solicitação registrada.</p>}</section>;
+}

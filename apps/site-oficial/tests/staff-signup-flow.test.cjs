@@ -1,16 +1,17 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
 const read=p=>fs.readFileSync(path.join(__dirname,'..',p),'utf8');
 const ops=require('../lib/operation-training.cjs'),requests=require('../lib/staff-requests.cjs');
+const templates=require('../lib/staff-mail-templates.cjs');
 const fail=(status,message)=>Object.assign(Error(message),{status});
 const response=()=>({setHeader(){},status(code){this.code=code;return this},json(body){this.code||=200;this.body=body;return this}});
 const api=file=>read('pages/api/operacao/'+file).replace(/^import .*;\n/gm,'').replace('export const config=','const config=').replace('export default async function handler','return async function handler');
 test('solicitação salva cada posto como pendente sem criar conta ou enviar convite',async()=>{
  for(const role of ['guias','coordenacao','caixa','apoio','portaria']){
-  let saved;
-  const query=async(sql,args)=>{assert.match(sql,/INSERT INTO peniel_ops.access_requests/);saved=args;return {rows:[]}};
-  const handler=new Function('query','fail','sameOrigin','throttle','requests',api('solicitar.js'))(query,fail,()=>{},async()=>{},requests);
+  let saved,queued=0;
+  const query=async(sql,args)=>{if(sql.includes('INSERT INTO peniel_ops.access_requests'))saved=args;else {assert.match(sql,/INSERT INTO peniel_ops.staff_email_outbox/);queued++;}return {rows:[{id:'11111111-1111-4111-8111-111111111111'}]}};
+  const handler=new Function('query','transaction','fail','sameOrigin','throttle','requests','mail','templates',api('solicitar.js'))(query,fn=>fn({query}),fail,()=>{},async()=>{},requests,{createService:()=>({dispatch:async()=>({status:'pending'})})},templates);
   const res=response();await handler({method:'POST',body:{name:'Teste Equipe',email:'audit@example.com',whatsapp:'77000000000',role}},res);
-  assert.equal(res.code,202);assert.equal(saved[3],role);assert.equal(res.body.ok,true);
+  assert.equal(res.code,202);assert.equal(saved[3],role);assert.equal(res.body.ok,true);assert.equal(queued,1);
  }
 });
 test('solicitação rejeita cargo de gestão antes de gravar',async()=>{
