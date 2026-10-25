@@ -1,6 +1,7 @@
 import {useState,useEffect} from 'react';
 import Head from 'next/head';
 import GateTicketScanner from './GateTicketScanner';
+import CaravanGate from './CaravanGate';
 import official from '../lib/official-entries.cjs';
 import checkout from '../lib/even3-checkout.cjs';
 export default function CashierPanel(){
@@ -24,7 +25,7 @@ export default function CashierPanel(){
  return <><Head><title>Caixa · Casa do Julgamento 2026</title><meta name="robots" content="noindex,nofollow"/></Head>
  <main className="cash">
  <header><a href="/operacao/login">← Equipe</a><span>CASA DO JULGAMENTO 2026 · CAIXA OFICIAL</span></header>
- <h1>Caixa e portaria presencial</h1><section className="panel"><label>Entrada para credenciamento<select value={entrySession} onChange={e=>setEntrySession(e.target.value)}>{official.ENTRIES.map(e=><option key={e.entryId} value={e.session}>{e.label}</option>)}</select></label><GateTicketScanner session={entrySession}/></section>
+ <h1>Caixa e portaria presencial</h1><section className="panel"><label>Entrada para credenciamento<select value={entrySession} onChange={e=>setEntrySession(e.target.value)}>{official.ENTRIES.map(e=><option key={e.entryId} value={e.session}>{e.label}</option>)}</select></label><GateTicketScanner session={entrySession}/><CaravanGate key={entrySession} session={entrySession} role="caixa" cashier/></section>
  <section className="panel"><h2>Confirmar pagamento recebido na igreja</h2><p>Para ingresso individual já emitido na Even3: confira o participante e a data no leitor acima, registre o recebimento abaixo e consulte novamente para credenciar. Cada pessoa precisa de seu próprio QR. Não cobre novamente na Even3 um pagamento já recebido pela igreja.</p>
  <form onSubmit={confirmReceipt}>
  <label>Código do ingresso pago<input required value={receipt.code} onChange={e=>setReceipt(x=>({...x,code:e.target.value,received:false}))}/></label>

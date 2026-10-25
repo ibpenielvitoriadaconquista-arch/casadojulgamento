@@ -33,7 +33,11 @@ export default async function handler(req,res){
    }
    if(Number(r.rows[0].revision)!==revision)throw fail(409,'Outro colaborador atualizou a sessão. Atualize e confira a seleção antes de repetir.');
    let next;
-   try{next=live.command(wrap(r.rows[0]),session,role,action,arg);}catch(e){throw fail(422,e.message);}
+   if(action==='caravanAdmit'){
+    const reservations=await client.query("SELECT count(*)::int AS total FROM peniel_ops.entry_checkins WHERE session_date=$1 AND status IN ('sending','uncertain','confirmed')",[session]);
+    if(r.rows[0].state.people.length+reservations.rows[0].total>=ops.capacityFor(session).total)throw fail(409,'Sessão lotada ou com vagas reservadas para credenciamentos em andamento.');
+   }
+   try{next=live.command(wrap(r.rows[0]),session,role,action,{...arg,actorId:user.user_id});}catch(e){throw fail(422,e.message);}
    await client.query('UPDATE peniel_ops.session_state SET state=$2::jsonb,revision=$3,updated_at=now() WHERE session_date=$1',[session,JSON.stringify(next.db.sessions[session]),next.db.revision]);
    await client.query('INSERT INTO peniel_ops.command_log(session_date,actor_id,request_id,payload_hash,action,message,revision) VALUES($1,$2,$3,$4,$5,$6,$7)',[session,user.user_id,requestId,hash,action,next.message,next.db.revision]);
    return next;

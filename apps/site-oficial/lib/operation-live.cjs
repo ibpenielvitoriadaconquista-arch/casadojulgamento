@@ -3,8 +3,20 @@ const caravans = require('./caravans.cjs');
 function command(state, session, role, action, arg, now) {
   if (['scan','reset','takeover'].includes(action)) throw Error('Ação indisponível na operação real.');
   const s=state.sessions[session];
+  if(action==='caravanAdmit'){
+    if(!['portaria','geral'].includes(role))throw Error('Somente Portaria ou Gestão podem registrar esta entrada.');
+    const at=now||new Date().toISOString(),row=caravans.gateRows(s,session,at).find(m=>m.code===arg.code);
+    if(!row)throw Error('Integrante não localizado no cadastro direto desta data.');
+    if(row.admitted)throw Error('Este integrante já entrou. Não autorize outra entrada.');
+    if(!row.eligible)throw Error(row.authorized?'Entrada permitida somente no dia da apresentação.':'Aguarde autorização do Caixa ou da Gestão para esta caravana.');
+    const result=admit(state,session,{verified:true,participantId:row.code,registrationId:row.code,entryId:'caravan-native',name:row.name},at);
+    const p=result.db.sessions[session].people.find(p=>p.id===row.code);p.source='caravan';p.admittedBy=arg.actorId;
+    const message=row.name+' · '+row.caravanName+' · '+row.city+': entrada da caravana registrada. Encaminhar à Coordenação para '+row.group+'.';
+    const current=result.db.sessions[session];current.history.unshift({at,role:ops.ROLES[role],action,text:message});current.history=current.history.slice(0,500);
+    return {db:result.db,message};
+  }
   if(action.startsWith('caravan')){
-    if(!['geral','coordenacao'].includes(role))throw Error('Somente Gestão e Coordenação podem gerenciar caravanas.');
+    if(action==='caravanAuthorize'?!['geral','caixa'].includes(role):!['geral','coordenacao'].includes(role))throw Error(action==='caravanAuthorize'?'Somente Caixa e Gestão podem autorizar recebimento ou cortesia.':'Somente Gestão e Coordenação podem gerenciar caravanas.');
     const next=structuredClone(state),current=next.sessions[session],at=now||new Date().toISOString();
     const message=caravans.handle(current,session,action,arg,at);
     current.history.unshift({at,role:ops.ROLES[role],action,text:message});current.history=current.history.slice(0,500);

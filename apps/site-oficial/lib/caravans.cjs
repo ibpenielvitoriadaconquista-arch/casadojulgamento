@@ -5,6 +5,9 @@ const GROUPS=['G06','G07','G08'];
 const enabled=day=>DAYS.includes(day);
 const reserved=(s,day,id)=>enabled(day)&&GROUPS.includes(id)&&!(s.caravanReleased||[]).includes(id);
 const list=s=>s.caravans||[];
+const native=code=>/^CAR-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(code||''));
+const phone=value=>String(value||'').replace(/\D/g,'');
+const bahiaDay=now=>new Intl.DateTimeFormat('en-CA',{timeZone:'America/Bahia',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(now));
 function identity(s,code){
  const c=list(s).find(c=>c.members.some(m=>m.code===String(code)));
  return c?{id:c.id,name:c.name,city:c.city,group:c.group}:null;
@@ -27,12 +30,15 @@ function handle(s,day,action,arg,now){
   const group=s.groups.find(g=>g.id===arg.group);
   if(!group||!reserved(s,day,group.id)||group.status!=='forming')throw Error('Escolha G06, G07 ou G08 reservado e em formação.');
   if(!Array.isArray(arg.members)||!arg.members.length||arg.members.length>25)throw Error('Cadastre entre 1 e 25 integrantes por lista. Divida caravanas maiores entre os grupos.');
-  const members=arg.members.map(m=>({code:String(m.code||'').trim(),name:text(m.name,'o nome do integrante',150)}));
+  const members=arg.members.map(m=>({code:String(m.code||'').trim(),name:text(m.name,'o nome do integrante',150),phone:phone(m.phone),source:native(m.code)?'native':'even3'}));
   const codes=new Set();
   for(const m of members){
-   if(!/^[0-9]{6,20}$/.test(m.code)||codes.has(m.code))throw Error('Use números individuais de ingresso distintos, com 6 a 20 dígitos.');
+   if((!native(m.code)&&!/^[0-9]{6,20}$/.test(m.code))||codes.has(m.code))throw Error('Use identificadores individuais distintos e válidos.');
+   if(m.phone&&(m.phone.length<10||m.phone.length>15))throw Error('Informe telefone com DDD ou deixe vazio para usar o contato do responsável.');
    if(s.caravans.some(c=>c.id!==arg.id&&c.members.some(x=>x.code===m.code)))throw Error('Um ingresso já pertence a outra caravana nesta data.');
    const p=s.people.find(p=>p.id===m.code);
+   const before=old?.members.find(x=>x.code===m.code);
+   if(p&&before&&native(m.code)&&(before.name!==m.name||phone(before.phone)!==m.phone))throw Error('Não altere a identificação de quem já entrou.');
    if(p?.group&&p.group!==group.id)throw Error('Um integrante já está em outro grupo. Corrija a alocação antes de cadastrar.');
    codes.add(m.code);
   }
@@ -41,13 +47,23 @@ function handle(s,day,action,arg,now){
   const occupied=new Set([...others,...group.members,...codes]);
   if(occupied.size>25)throw Error('Este grupo já tem 25 vagas ocupadas ou reservadas. Escolha outro grupo de caravana.');
   const eta=String(arg.eta||'');if(eta&&!/^([01]\d|2[0-3]):[0-5]\d$/.test(eta))throw Error('Horário previsto inválido.');
-  const c={id:arg.id,name:text(arg.name,'o nome da caravana'),city:text(arg.city,'a cidade'),responsible:text(arg.responsible,'o responsável'),contact:text(arg.contact,'o contato',80,true),eta,group:group.id,members,updatedAt:now};
+  const unchanged=old&&members.length===old.members.length&&members.every(m=>old.members.some(x=>x.code===m.code&&x.name===m.name));
+  const c={id:arg.id,name:text(arg.name,'o nome da caravana'),city:text(arg.city,'a cidade'),responsible:text(arg.responsible,'o responsável'),contact:text(arg.contact,'o contato',80,true),eta,group:group.id,members,authorization:unchanged?old.authorization||null:null,authorizationHistory:old?.authorizationHistory||[],updatedAt:now};
   s.caravans=s.caravans.filter(c=>c.id!==arg.id);s.caravans.push(c);
   for(const p of s.people){const match=identity(s,p.id);if(match)p.caravan=match;}
   return c.name+' · '+c.city+': '+members.length+' integrante(s) reservado(s) em '+group.id+'. Cadastro não emite ingresso nem registra chegada.';
  }
+ if(action==='caravanAuthorize'){
+  const c=s.caravans.find(c=>c.id===arg.id);if(!c)throw Error('Caravana não localizada.');
+  if(!['dinheiro','pix_igreja','cortesia','revogar'].includes(arg.method))throw Error('Informe recebimento ou cortesia autorizada.');
+  if(!c.members.some(m=>native(m.code)))throw Error('Esta lista utiliza ingressos Even3.');
+  c.authorization={status:arg.method==='revogar'?'revoked':'authorized',method:arg.method,reference:text(arg.reference,'a referência ou justificativa',200),by:arg.actorId,at:now};
+  c.authorizationHistory??=[];c.authorizationHistory.push({...c.authorization,members:c.members.map(m=>({code:m.code,name:m.name}))});
+  return c.name+(arg.method==='revogar'?' com autorização revogada para novas entradas.':' com entrada autorizada pelo Caixa/Gestão para '+c.members.length+' integrante(s).');
+ }
  if(action==='caravanDelete'){
   const c=s.caravans.find(c=>c.id===arg.id);if(!c)throw Error('Caravana não localizada.');
+  if(c.authorizationHistory?.length)throw Error('Preserve esta lista: há histórico de recebimento ou autorização. Revogue a autorização se necessário.');
   if(c.members.some(m=>s.people.some(p=>p.id===m.code)))throw Error('Esta caravana já tem chegadas. Preserve o cadastro e o histórico.');
   s.caravans=s.caravans.filter(x=>x.id!==c.id);return 'Cadastro de '+c.name+' removido antes das chegadas.';
  }
@@ -82,4 +98,10 @@ function handle(s,day,action,arg,now){
  }
  throw Error('Comando de caravana inválido.');
 }
-module.exports={DAYS,GROUPS,enabled,reserved,list,identity,compatible,handle};
+function gateRows(s,day,now=new Date().toISOString()){
+ return list(s).flatMap(c=>c.members.filter(m=>native(m.code)).map(m=>{
+  const p=s.people.find(p=>p.id===m.code);
+  return {code:m.code,name:m.name,phone:m.phone||'',contact:c.contact||'',responsible:c.responsible,caravanId:c.id,caravanName:c.name,city:c.city,date:day,group:c.group,authorized:c.authorization?.status==='authorized',admitted:!!p,arrivedAt:p?.arrivedAt||null,eligible:!p&&day===bahiaDay(now)&&c.authorization?.status==='authorized'};
+ }));
+}
+module.exports={DAYS,GROUPS,enabled,reserved,list,identity,compatible,handle,native,bahiaDay,gateRows};
