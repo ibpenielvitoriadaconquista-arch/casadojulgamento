@@ -1,0 +1,56 @@
+import {useEffect,useRef,useState} from 'react';
+import Link from 'next/link';
+import StaffShell from '../../components/StaffShell';
+import {actor} from '../../lib/operation-auth';
+import caravans from '../../lib/caravans.cjs';
+import ops from '../../lib/operation-training.cjs';
+
+export async function getServerSideProps({req,res}){
+ res.setHeader('Cache-Control','private, no-store');
+ try{const u=await actor(req);if(!['geral','coordenacao'].includes(u.role))return {redirect:{destination:'/operacao/'+u.role,permanent:false}};return {props:{role:u.role}};}
+ catch{return {redirect:{destination:'/operacao/login',permanent:false}};}
+}
+const empty=()=>({id:'',name:'',city:'',responsible:'',contact:'',eta:'',group:'G06',members:[{name:'',code:''}]});
+export default function Caravans({role}){
+ const [session,setSession]=useState(caravans.DAYS[0]),[db,setDb]=useState(null),[draft,setDraft]=useState(empty),[busy,setBusy]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState(''),[online,setOnline]=useState(false);
+ const working=useRef(false),generation=useRef(0),latest=useRef(0),draftId=useRef('');
+ useEffect(()=>{const day=new URLSearchParams(window.location.search).get('sessao');if(caravans.enabled(day))setSession(day);},[]);
+ useEffect(()=>{
+  let stop=false,loading=false;const gen=++generation.current;
+  async function load(){if(working.current||loading)return;loading=true;const serial=latest.current;try{
+   const r=await fetch('/api/operacao?session='+session+'&role='+role,{cache:'no-store',signal:AbortSignal.timeout(10000)}),d=await r.json();if(!r.ok)throw Error(d.error);
+   if(!stop&&generation.current===gen&&latest.current===serial){setDb(d.db);setOnline(true);}
+  }catch(e){if(!stop&&latest.current===serial){setOnline(false);setError(e.message||'Sem conexão com a operação.');}}finally{loading=false;}}
+  setDb(null);setOnline(false);load();const timer=setInterval(load,4000);return()=>{stop=true;clearInterval(timer);};
+ },[session,role]);
+ const s=db?.sessions[session];
+ async function run(action,arg){
+  if(working.current||!online||!db)return false;working.current=true;++latest.current;setBusy(true);setError('');setNotice('');
+  try{const r=await fetch('/api/operacao',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({session,role,action,arg,revision:db.revision,requestId:crypto.randomUUID()}),signal:AbortSignal.timeout(12000)}),d=await r.json();if(!r.ok)throw Error(d.error);setDb(d.db);setNotice(d.message);return true;}
+  catch(e){setError(e.message||'Não foi possível confirmar. Confira a lista antes de tentar novamente.');return false;}
+  finally{working.current=false;setBusy(false);}
+ }
+ function reset(){setDraft(empty());draftId.current='';}
+ function changeDay(day){setSession(day);reset();setError('');setNotice('');const u=new URL(window.location.href);u.searchParams.set('sessao',day);history.replaceState({},'',u);}
+ function edit(c){setDraft(structuredClone(c));draftId.current=c.id;document.getElementById('caravan-form')?.scrollIntoView({behavior:'smooth'});}
+ function field(key,value){setDraft(d=>({...d,[key]:value}));}
+ function member(index,key,value){setDraft(d=>({...d,members:d.members.map((m,i)=>i===index?{...m,[key]:value}:m)}));}
+ async function save(e){e.preventDefault();draftId.current||=crypto.randomUUID();if(await run('caravanSave',{...draft,id:draftId.current}))reset();}
+ function control(action,g){const reason=window.prompt(action==='caravanDefer'?(g.caravanDeferred?'Motivo para retomar a prioridade:':'Motivo para adiar a chamada e deixar os demais grupos seguirem:'):'Motivo para alterar a reserva deste grupo:');if(reason?.trim())run(action,{group:g.id,reason});}
+ function transfer(m){const group=window.prompt('Novo grupo reservado para '+m.name+' (G06, G07 ou G08):');if(!group)return;const reason=window.prompt('Motivo do remanejamento:');if(reason?.trim())run('caravanTransfer',{code:m.code,group:group.trim().toUpperCase(),reason,id:crypto.randomUUID()});}
+ return <StaffShell title="Caravanas"><Link href={'/operacao/'+role+'?sessao='+session}>← Voltar ao meu painel</Link>
+  <p>G06, G07 e G08 estão reservados nas seis apresentações: até 75 pessoas por data, dentro da capacidade já existente. A chamada segue a ordem dos grupos. A Coordenação pode adiar uma caravana atrasada.</p>
+  <label>Data da apresentação<select value={session} disabled={busy} onChange={e=>changeDay(e.target.value)}>{ops.SESSIONS.filter(x=>caravans.enabled(x.id)).map(x=><option value={x.id} key={x.id}>{x.label}</option>)}</select></label>
+  {error&&<p className="error" role="alert">{error}</p>}{notice&&<p role="status">{notice}</p>}{!online&&<p role="status">Aguardando sincronização. Alterações bloqueadas.</p>}
+  {s&&<><div className="caravan-groups">{caravans.GROUPS.map(id=>{const g=s.groups.find(g=>g.id===id),expected=caravans.list(s).filter(c=>c.group===id).flatMap(c=>c.members),arrived=expected.filter(m=>s.people.some(p=>p.id===m.code)),reserved=caravans.reserved(s,session,id);return <section className="card" key={id}><h2>{id} · {reserved?'Caravanas':'Público geral'}</h2><p>{expected.length}/25 previstos · {arrived.length} chegaram · {expected.length-arrived.length} faltam<br/>{g.members.length}/25 alocados · {ops.LABELS[g.status]}{g.caravanDeferred?' · CHAMADA ADIADA':''}</p><div className="pair">{['forming','closed'].includes(g.status)&&reserved&&<button type="button" disabled={busy||!online} onClick={()=>control('caravanDefer',g)}>{g.caravanDeferred?'Retomar prioridade':'Adiar chamada'}</button>}{g.status==='forming'&&!g.members.length&&!expected.length&&<button type="button" disabled={busy||!online} onClick={()=>control('caravanRelease',g)}>{reserved?'Liberar reserva vazia':'Reservar novamente'}</button>}</div></section>;})}</div>
+  <form id="caravan-form" onSubmit={save}><h2>{draft.id?'Editar caravana':'Cadastrar caravana'}</h2><p>Cadastre os ingressos já emitidos na Even3 para esta data. Esta lista não comprova pagamento nem registra entrada. Divida caravanas maiores em listas de até 25 pessoas, escolhendo os grupos disponíveis.</p>
+   <div className="pair"><label>Nome da caravana<input required maxLength={100} value={draft.name} onChange={e=>field('name',e.target.value)}/></label><label>Cidade de origem<input required maxLength={100} value={draft.city} onChange={e=>field('city',e.target.value)}/></label></div>
+   <div className="pair"><label>Responsável<input required maxLength={100} value={draft.responsible} onChange={e=>field('responsible',e.target.value)}/></label><label>Contato do responsável<input maxLength={80} value={draft.contact} onChange={e=>field('contact',e.target.value)}/></label></div>
+   <div className="pair"><label>Chegada prevista<input type="time" value={draft.eta} onChange={e=>field('eta',e.target.value)}/></label><label>Grupo reservado<select value={draft.group} onChange={e=>field('group',e.target.value)}>{caravans.GROUPS.map(id=><option key={id} value={id} disabled={!caravans.reserved(s,session,id)||s.groups.find(g=>g.id===id).status!=='forming'}>{id}</option>)}</select></label></div>
+   <h3>Integrantes ({draft.members.length}/25)</h3>{draft.members.map((m,i)=><div className="member-row" key={i}><label>Nome do espectador {i+1}<input required minLength={2} maxLength={150} value={m.name} onChange={e=>member(i,'name',e.target.value)}/></label><label>Número individual do ingresso<input required inputMode="numeric" pattern="[0-9]{6,20}" maxLength={20} value={m.code} onChange={e=>member(i,'code',e.target.value)}/></label><button type="button" disabled={busy||draft.members.length===1} onClick={()=>setDraft(d=>({...d,members:d.members.filter((_,n)=>n!==i)}))}>Remover</button></div>)}
+   <div className="pair"><button type="button" disabled={busy||draft.members.length>=25} onClick={()=>setDraft(d=>({...d,members:[...d.members,{name:'',code:''}]}))}>Adicionar integrante</button><button type="submit" disabled={busy||!online}>{busy?'Salvando…':'Salvar caravana'}</button><button type="button" disabled={busy} onClick={reset}>Limpar formulário</button></div>
+  </form>
+  <h2>Caravanas desta data</h2>{!caravans.list(s).length&&<p>Nenhuma caravana cadastrada.</p>}{caravans.list(s).map(c=><section className="card" key={c.id}><h2>{c.name} · {c.group}</h2><p>{c.city} · Responsável: {c.responsible}{c.contact?' · '+c.contact:''}{c.eta?' · Chegada prevista: '+c.eta:''}</p><ul>{c.members.map(m=>{const p=s.people.find(p=>p.id===m.code);return <li key={m.code}><b>{m.name}</b> · {m.code} · {p?(p.group?'Alocado em '+p.group:'Chegou · aguardando Coordenação'):'Aguardando chegada'}{p&&p.name!==m.name?' · Nome na Even3: '+p.name:''}{!p?.group&&<button type="button" disabled={busy||!online} onClick={()=>transfer(m)}>Remanejar reserva</button>}</li>;})}</ul><div className="pair"><button type="button" disabled={busy||!online} onClick={()=>edit(c)}>Editar lista</button>{!c.members.some(m=>s.people.some(p=>p.id===m.code))&&<button type="button" disabled={busy||!online} onClick={()=>{if(window.confirm('Remover esta lista de caravana? Os ingressos da Even3 permanecem intactos.'))run('caravanDelete',{id:c.id});}}>Remover lista</button>}</div></section>)}</>}
+  <style jsx>{`.caravan-groups{display:grid;gap:12px;grid-template-columns:repeat(3,minmax(0,1fr));margin-top:24px}.caravan-groups .card{margin:0;padding:18px}.caravan-groups h2{font-size:18px}.member-row{display:grid;grid-template-columns:1fr 1fr auto;gap:12px;align-items:end;border-top:1px solid #62434d;padding-top:16px}li{margin-bottom:12px;overflow-wrap:anywhere}@media(max-width:700px){.caravan-groups{grid-template-columns:1fr}.member-row{grid-template-columns:1fr}.member-row button{justify-self:start}}`}</style>
+ </StaffShell>;
+}

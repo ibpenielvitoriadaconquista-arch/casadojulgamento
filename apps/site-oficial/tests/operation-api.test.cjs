@@ -31,3 +31,12 @@ test('todos os postos recusam leitura da API de outro perfil; gestão pode consu
   assert.equal(r.writes,0);
  }
 });
+
+test('caravan changes use role checks and reject stale revisions before persisting',async()=>{
+ const arg={id:'11111111-1111-4111-8111-111111111111',name:'Caravana teste',city:'Cidade teste',responsible:'Responsável',group:'G06',members:[{name:'Pessoa',code:'12345678'}]};
+ for(const role of ['geral','coordenacao','portaria','caixa','guias','apoio','telao']){
+  const r=await call({user:{user_id:'x',role},body:{role,action:'caravanSave',arg}});
+  const allowed=['geral','coordenacao'].includes(role);assert.equal(r.code,allowed?200:422,role);assert.equal(r.writes,allowed?1:0);
+ }
+ const stale=await call({rev:2,body:{action:'caravanSave',arg}});assert.equal(stale.code,409);assert.equal(stale.writes,0);
+});

@@ -54,16 +54,17 @@ function apply(db,sessionId,role,action,arg={},now=new Date().toISOString()){
   }else if(action==='close'){
     const g=group(arg.group);if(!g||g.status!=='forming'||!g.members.length)throw Error('O grupo precisa estar em formação e ter ao menos uma pessoa.');
     if(g.members.some(id=>!person(id).paperAt))throw Error('Confirme a entrega de todas as senhas antes de fechar o grupo.');
-    g.status='closed';message=g.id+' fechado com '+g.members.length+'/'+capacity.groupSize+'. Todos receberam senha.';
+    g.status='closed';message=g.id+' fechado com '+g.members.length+'/'+capacity.groupSize+'. Todos receberam senha.'+(arg.caravanMissingReason?' Fechamento sem todos os integrantes previstos: '+String(arg.caravanMissingReason).trim().slice(0,300):'');
   }else if(action==='reopen'){
     const g=group(arg.group);if(!g||g.status!=='closed')throw Error('Só é possível reabrir um grupo ainda fechado no salão.');
     g.status='forming';message=g.id+' reaberto no salão.';
   }else if(action==='call'){
     const g=group(arg.group);if(s.paused)throw Error('Movimentações pausadas pelo painel geral.');
     if(!g||g.status!=='closed')throw Error('Feche o grupo antes de chamar.');
+    if(g.caravanDeferred)throw Error('Retome a prioridade deste grupo antes de chamar.');
     if(wait(s))throw Error('A sala de espera já está reservada ou ocupada por '+wait(s).id+'.');
     if(g.members.some(id=>!person(id).paperAt))throw Error('Há senha pendente de entrega neste grupo.');
-    const earlier=s.groups.slice(0,s.groups.indexOf(g)).find(x=>x.members.length&&['forming','closed'].includes(x.status));
+    const earlier=s.groups.slice(0,s.groups.indexOf(g)).find(x=>!x.caravanDeferred&&x.members.length&&['forming','closed'].includes(x.status));
     if(earlier)throw Error(earlier.id+' ainda aguarda no salão. Respeite a ordem dos grupos.');
     g.status='called';g.calledAt=now;message=g.id+' chamado no telão. Sala de espera reservada.';
   }else if(action==='arrive'){
@@ -73,7 +74,7 @@ function apply(db,sessionId,role,action,arg={},now=new Date().toISOString()){
     const g=group(arg.group);if(s.paused)throw Error('Novas partidas pausadas.');if(!g||g.status!=='waiting')throw Error('Confirme o grupo na sala de espera primeiro.');
     if(!arg.physicallySafe)throw Error('O guia precisa confirmar as condições físicas de segurança.');
     if(active(s).length>=2)throw Error('Já existem dois grupos no circuito. Aguarde uma finalização.');
-    const previous=s.groups.slice(0,s.groups.indexOf(g)).filter(x=>x.members.length);
+    const previous=s.groups.slice(0,s.groups.indexOf(g)).filter(x=>x.members.length&&!x.caravanDeferred);
     if(previous.some(x=>!['safe','finished'].includes(x.status)))throw Error('O grupo anterior precisa confirmar o ponto seguro.');
     g.status='circuit';g.startedAt=now;message=g.id+' iniciou por confirmação do guia. Sala de espera LIVRE.';
   }else if(action==='safe'){

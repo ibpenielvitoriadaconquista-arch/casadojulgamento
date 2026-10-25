@@ -1,6 +1,7 @@
 'use strict';
 const rules=require('./official-entries.cjs'),tickets=require('./entry-tickets.cjs'),live=require('./operation-live.cjs');
 const {capacityFor}=require('./session-capacity.cjs');
+const caravans=require('./caravans.cjs');
 const EVENT=tickets.EVENT_ID;
 const fail=(status,message)=>Object.assign(new Error(message),{status});
 function createService({query,transaction,even3,reconcile=async()=>{},now=()=>new Date().toISOString()}){
@@ -33,7 +34,9 @@ function createService({query,transaction,even3,reconcile=async()=>{},now=()=>ne
   const auth=(await query('SELECT * FROM peniel_ops.entry_authorizations WHERE event_id=$1 AND ticket_code=$2',[EVENT,code])).rows[0];
   const reason=authorizationReason(auth,p,entry);
   if(reason)return result(p,entry,{message:reason,needsAuthorization:true});
-  return result(p,entry,{eligible:true,status:'ready',message:attempt?.status==='confirmed'?'Even3 já confirmou. Concluir encaminhamento à Coordenação.':'Ingresso validado. Confirme para credenciar na Even3 e liberar a entrada.'});
+  const queue=caravans.enabled(session)?(await query('SELECT state FROM peniel_ops.session_state WHERE session_date=$1',[session])).rows[0]?.state:null;
+  const caravan=queue?caravans.identity(queue,code):null;
+  return result(p,entry,{eligible:true,status:'ready',caravan,message:attempt?.status==='confirmed'?'Even3 já confirmou. Concluir encaminhamento à Coordenação.':'Ingresso validado. Confirme para credenciar na Even3 e liberar a entrada.'});
  }
  function authorizationReason(a,p,e){
   if(!a)return 'Pagamento e vínculo individual aguardam conferência da Gestão.';
@@ -58,7 +61,7 @@ function createService({query,transaction,even3,reconcile=async()=>{},now=()=>ne
    if(!next.duplicate)await db.query('UPDATE peniel_ops.session_state SET state=$2::jsonb,revision=$3,updated_at=now() WHERE session_date=$1',[entry.session,JSON.stringify(next.db.sessions[entry.session]),next.db.revision]);
    await db.query('UPDATE peniel_ops.entry_authorizations SET checked_in_at=now(),admitted_by=$3,updated_at=now() WHERE event_id=$1 AND ticket_code=$2',[EVENT,code,a.requested_by]);
    await db.query("UPDATE peniel_ops.entry_checkins SET status='admitted',admitted_at=now(),updated_at=now() WHERE event_id=$1 AND ticket_code=$2",[EVENT,code]);
-   return result(p,entry,{admitted:true,checkedIn:true,status:'admitted',even3Confirmed:true,message:'Credenciamento confirmado pela Even3. Entrada registrada e participante enviado à Coordenação.'});
+   return result(p,entry,{admitted:true,checkedIn:true,status:'admitted',even3Confirmed:true,caravan:caravans.identity(next.db.sessions[entry.session],code),message:'Credenciamento confirmado pela Even3. Entrada registrada e participante enviado à Coordenação.'});
   });
  }
  async function admit(code,session,user){

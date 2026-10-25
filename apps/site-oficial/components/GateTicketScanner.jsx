@@ -88,6 +88,7 @@ export default function GateTicketScanner({session,rehearsal=false,testLot=false
   {result&&<div className="result" role="status">
    <strong>{result.found?result.participantName||'Inscrição localizada':'Ingresso não encontrado'}</strong>
    {result.entry&&<p>Entrada: {result.entry.label}</p>}
+   {result.caravan&&<p className="warning"><b>CARAVANA · {result.caravan.name} · {result.caravan.city}</b><br/>Encaminhar à Coordenação para o grupo reservado {result.caravan.group}.</p>}
    <p className={result.admitted?'success':'warning'}>{result.message}</p>
    {result.checkedIn&&<p>Já consta uma chegada para este código.</p>}
    {canAdmit&&<button className="confirm" type="button" disabled={busy}
