@@ -1,7 +1,7 @@
 'use strict';
 const {capacityFor}=require('./session-capacity.cjs');
 const SESSIONS = [
-  {id:'2026-10-22',label:'Lote 1 · 22–23/10'},
+  {id:'2026-10-22',label:'Lote 1 · 22–28/10'},
   {id:'2026-11-09',label:'09/11 · 17h'}, {id:'2026-11-13',label:'13/11 · 20h'},
   {id:'2026-11-14',label:'14/11 · 18h'}, {id:'2026-11-19',label:'19/11 · 20h'},
   {id:'2026-11-20',label:'20/11 · 17h'}, {id:'2026-11-21',label:'21/11 · 18h'}
