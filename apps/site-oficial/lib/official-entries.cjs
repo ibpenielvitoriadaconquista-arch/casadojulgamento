@@ -12,4 +12,10 @@ function validate(p,entry,today=tickets.bahiaDay()){
  return null;
 }
 function catalogMatches(event,entry){return String(event?.id_event)===tickets.EVENT_ID&&Array.isArray(event.tickets)&&event.tickets.filter(t=>String(t.title||'').normalize('NFC').trim()===entry.category&&Array.isArray(t.prices)&&t.prices.some(p=>String(p.id_ticket)===entry.entryId&&String(p.id_ticket_price)===entry.priceId)).length===1;}
-module.exports={ENTRIES,LOT,bySession,byCategory,validate,catalogMatches};
+// Resolve the live title only through the exact configured entry and price IDs.
+function byCatalogCategory(event,name){
+ const category=String(name||'').normalize('NFC').trim();
+ const matches=ENTRIES.map(e=>({...e,category})).filter(e=>category&&catalogMatches(event,e));
+ return matches.length===1?matches[0]:null;
+}
+module.exports={ENTRIES,LOT,bySession,byCategory,byCatalogCategory,validate,catalogMatches};
