@@ -1,0 +1,15 @@
+const {test}=require('node:test'),assert=require('node:assert/strict');
+const request=require('../lib/caravan-requests.cjs');
+const sample={session:'2026-11-09',name:'Caravana Esperança',city:'Cidade',responsible:'Maria Silva',contact:'(77) 99999-9999',members:[{name:'Ana Silva',phone:''},{name:'João Silva',phone:'77999999999'}]};
+test('public request accepts a family list without individual emails',()=>{const r=request.input(sample);assert.equal(r.members.length,2);assert.equal(r.contact,'77999999999');assert.equal(r.members[0].phone,'');assert.equal(r.members[0].name,'Ana Silva');});
+test('requests reject invalid dates, contacts and oversized lists',()=>{for(const data of [{...sample,session:'2026-10-22'},{...sample,contact:'123'},{...sample,members:[]},{...sample,members:Array(26).fill(sample.members[0])}])assert.throws(()=>request.input(data));});
+test('names are treated as text and invalid markup is rejected',()=>{assert.throws(()=>request.input({...sample,members:[{name:'<script>',phone:''}]}));});
+test('import requires management and saves the roster plus confirmed authorization atomically',async()=>{
+ const fs=require('node:fs'),ops=require('../lib/operation-training.cjs'),live=require('../lib/operation-live.cjs'),{randomUUID}=require('node:crypto');
+ const code=fs.readFileSync(require('node:path').join(__dirname,'../pages/api/operacao/caravana-solicitacoes.js'),'utf8').replace(/^import .*;\n/gm,'').replace('export const config=','const config=').replace('export default async function handler','return async function handler');
+ let session={state:ops.fresh().sessions[sample.session],revision:0},requestRow={id:1,status:'pending',payload:sample},writes=0;
+ const dbQuery=async(sql,args)=>{if(sql.startsWith('SELECT * FROM peniel_ops.caravan_requests'))return {rows:[{...requestRow}]};if(sql.startsWith('SELECT state'))return {rows:[structuredClone(session)]};if(sql.startsWith('UPDATE peniel_ops.session_state')){session={state:JSON.parse(args[1]),revision:args[2]};writes++;return {rows:[]};}if(sql.startsWith('UPDATE peniel_ops.caravan_requests')){requestRow.status='imported';return {rows:[]};}throw Error(sql);};
+ const invoke=async role=>{const handler=new Function('randomUUID','query','transaction','actor','fail','sameOrigin','live','requests',code)(randomUUID,dbQuery,async fn=>fn({query:dbQuery}),async()=>({role,user_id:'manager'}),(status,message)=>Object.assign(Error(message),{status}),()=>{},live,request);const res={setHeader(){},status(n){this.code=n;return this;},json(v){this.body=v;this.code||=200;}};await handler({method:'POST',body:{id:1,group:'G06',method:'pix_igreja',reference:'Pix conferido 123',confirmed:true}},res);return res;};
+ assert.equal((await invoke('coordenacao')).code,403);assert.equal(writes,0);
+ assert.equal((await invoke('geral')).code,200);assert.equal(session.state.caravans[0].members.length,2);assert.equal(session.state.caravans[0].authorization.status,'authorized');assert.equal(requestRow.status,'imported');assert.equal((await invoke('geral')).code,409);assert.equal(writes,1);
+});
