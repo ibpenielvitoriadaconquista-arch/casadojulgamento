@@ -40,6 +40,13 @@ function matches(item,p,entry){
 async function reconcile({p,entry,query,even3,readDetails=details}){
  const code=String(p.checkin_code),EVENT='798621';
  const prior=(await query('SELECT * FROM peniel_ops.entry_authorizations WHERE event_id=$1 AND ticket_code=$2',[EVENT,code])).rows[0];
+ // Organizer designated this specific training lot free for 22–28 October.
+ // The caller has already verified the individual registration, date and current catalog.
+ // Never replace an existing authorization, including a revoked one.
+ if(entry.entryId==='968141' && entry.priceId==='1104853' && entry.category==='Ingresso Geral - 1º Lote'){
+  if(!prior)await query(`INSERT INTO peniel_ops.entry_authorizations(event_id,ticket_code,entry_id,participant_id,participant_name,registration_status,payment_status,evidence_reference,verified_at) VALUES($1,$2,$3,$4,$5,'confirmed','exempt',$6,now()) ON CONFLICT(event_id,ticket_code) DO NOTHING`,[EVENT,code,entry.entryId,String(p.id_attendees),p.name,'organizer-free-training-lot:22-28-10-2026']);
+  return;
+ }
  if(prior&&(prior.checked_in_at||prior.revoked_at||!prior.evidence_reference.startsWith('even3-payment:')))return;
  // Composite matches are accepted only when the imported identity/category is unique.
  const unique=await query('SELECT count(*)::int AS total FROM public.cdj_even3_api_attendees WHERE event_id=$1 AND lower(trim(participant_email))=$2 AND lower(trim(participant_name))=$3 AND category_name=$4',[EVENT,normalize(p.email),normalize(p.name),entry.category]);
