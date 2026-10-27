@@ -5,8 +5,14 @@ const caravans=require('./caravans.cjs');
 const EVENT=tickets.EVENT_ID;
 const fail=(status,message)=>Object.assign(new Error(message),{status});
 function createService({query,transaction,even3,reconcile=async()=>{},now=()=>new Date().toISOString()}){
+ async function validOverride(db,code,source,target){
+  const rows=(await db.query('SELECT action,evidence FROM peniel_ops.entry_financial_audit WHERE event_id=$1 AND ticket_code=$2 ORDER BY id DESC LIMIT 1',[EVENT,code])).rows;
+  if(!rows.length||rows[0].action!=='authorize_date')return false;
+  let evidence;try{evidence=typeof rows[0].evidence==='string'?JSON.parse(rows[0].evidence):rows[0].evidence;}catch{return false;}
+  return evidence?.session===target.session&&evidence?.sourceEntryId===source.entryId&&evidence?.day===tickets.bahiaDay(new Date(now()));
+ }
  async function load(code,session){
-  const entry=rules.bySession(session);if(!entry)throw fail(400,'Selecione uma entrada oficial.');
+  const destination=rules.bySession(session);if(!destination)throw fail(400,'Selecione uma entrada oficial.');
   const cached=await query('SELECT attendee_id FROM public.cdj_even3_api_attendees WHERE event_id=$1 AND checkin_code=$2',[EVENT,code]);
   if(cached.rows.length>1)throw fail(409,'QR associado a mais de uma inscrição. Procure a Gestão.');
   let attendeeId=cached.rows[0]?.attendee_id;
@@ -20,14 +26,19 @@ function createService({query,transaction,even3,reconcile=async()=>{},now=()=>ne
   }
   const [p,event]=await Promise.all([even3.attendee(attendeeId),even3.event()]);
   if(String(p.checkin_code)!==code)throw fail(409,'O QR diverge da inscrição Even3.');
-  const reason=rules.validate(p,entry,tickets.bahiaDay(new Date(now())));if(reason)throw fail(409,reason);
+  const entry=rules.byCatalogCategory(event,p.registration_category);
+  if(!entry)throw fail(409,'Categoria do ingresso não reconhecida. Procure a Gestão.');
+  const today=tickets.bahiaDay(new Date(now()));
+  const reason=rules.validate(p,entry,entry.days[0]);if(reason)throw fail(409,reason);
+  if(!destination.days.includes(today))throw fail(409,'Selecione a sessão correspondente à data de hoje.');
+  if((entry.session!==destination.session||!entry.days.includes(today))&&!await validOverride({query},code,entry,destination))throw fail(409,'Ingresso de outra data. A Gestão deve conferir e autorizar a exceção.');
   if(!rules.catalogMatches(event,entry))throw fail(409,'Categoria não corresponde ao catálogo atual da Even3.');
   await reconcile({p,entry,query,even3});
-  return {p,entry};
+  return {p,entry,destination};
  }
  const result=(p,entry,extra={})=>({found:true,participantName:p.name,entry:{id:entry.entryId,date:entry.session,label:entry.label},session:entry.session,admitted:false,eligible:false,checkedIn:false,status:'blocked',...extra});
  async function lookup(code,session){
-  const {p,entry}=await load(code,session);
+  const {p,entry,destination}=await load(code,session);
   const attempt=(await query('SELECT status FROM peniel_ops.entry_checkins WHERE event_id=$1 AND ticket_code=$2',[EVENT,code])).rows[0];
   if(attempt?.status==='admitted')return result(p,entry,{checkedIn:true,message:'Ingresso já utilizado. Não autorize outra entrada.'});
   if(attempt&&['sending','uncertain'].includes(attempt.status))return result(p,entry,{message:'Credenciamento em processamento ou aguardando conferência da Gestão. Não repita a entrada.'});
@@ -36,7 +47,7 @@ function createService({query,transaction,even3,reconcile=async()=>{},now=()=>ne
   if(reason)return result(p,entry,{message:reason,needsAuthorization:true});
   const queue=caravans.enabled(session)?(await query('SELECT state FROM peniel_ops.session_state WHERE session_date=$1',[session])).rows[0]?.state:null;
   const caravan=queue?caravans.identity(queue,code):null;
-  return result(p,entry,{eligible:true,status:'ready',caravan,message:attempt?.status==='confirmed'?'Even3 já confirmou. Concluir encaminhamento à Coordenação.':'Ingresso validado. Confirme para credenciar na Even3 e liberar a entrada.'});
+  return result(p,entry,{eligible:true,status:'ready',caravan,entry:{id:entry.entryId,date:destination.session,label:entry.label+(entry.session!==destination.session?' → '+destination.label:'')},message:attempt?.status==='confirmed'?'Even3 já confirmou. Concluir encaminhamento à Coordenação.':'Ingresso validado. Confirme para credenciar na Even3 e liberar a entrada.'});
  }
  function authorizationReason(a,p,e){
   if(!a)return 'Pagamento e vínculo individual aguardam conferência da Gestão.';
@@ -50,18 +61,21 @@ function createService({query,transaction,even3,reconcile=async()=>{},now=()=>ne
    const auth=(await db.query('SELECT * FROM peniel_ops.entry_authorizations WHERE event_id=$1 AND ticket_code=$2 FOR UPDATE',[EVENT,code])).rows[0];
    const a=(await db.query('SELECT * FROM peniel_ops.entry_checkins WHERE event_id=$1 AND ticket_code=$2 FOR UPDATE',[EVENT,code])).rows[0];
    if(!a||!['confirmed','admitted'].includes(a.status))throw fail(409,'Even3 ainda não confirmou este credenciamento.');
-   const entry=rules.bySession(a.session_date instanceof Date?a.session_date.toISOString().slice(0,10):String(a.session_date).slice(0,10));
+   const destination=rules.bySession(a.session_date instanceof Date?a.session_date.toISOString().slice(0,10):String(a.session_date).slice(0,10));
+   const entry=rules.ENTRIES.find(e=>e.entryId===a.entry_id);
+   if(!entry||!destination)throw fail(409,'Entrada ou sessão não reconhecida.');
    const p={name:a.participant_name,id_attendees:a.attendee_id};
    if(a.status==='admitted')return result(p,entry,{checkedIn:true,message:'Ingresso já utilizado. Não autorize outra entrada.'});
    const reason=authorizationReason(auth,p,entry);if(reason)throw fail(409,reason);
-   if(!entry.days.includes(tickets.bahiaDay(new Date(now()))))throw fail(409,'A data de admissão terminou. Procure a Gestão.');
-   const row=(await db.query('SELECT state,revision FROM peniel_ops.session_state WHERE session_date=$1 FOR UPDATE',[entry.session])).rows[0];
+   if(!destination.days.includes(tickets.bahiaDay(new Date(now()))))throw fail(409,'A data de admissão terminou. Procure a Gestão.');
+   if((entry.session!==destination.session||!entry.days.includes(tickets.bahiaDay(new Date(now()))))&&!await validOverride(db,code,entry,destination))throw fail(409,'Exceção de data não autorizada ou expirada.');
+   const row=(await db.query('SELECT state,revision FROM peniel_ops.session_state WHERE session_date=$1 FOR UPDATE',[destination.session])).rows[0];
    if(!row)throw fail(503,'Fila oficial indisponível.');
-   const next=live.admit({schema:5,revision:Number(row.revision),sessions:{[entry.session]:row.state}},entry.session,{verified:true,participantId:a.attendee_id,registrationId:code,entryId:entry.entryId,name:a.participant_name},a.requested_at);
-   if(!next.duplicate)await db.query('UPDATE peniel_ops.session_state SET state=$2::jsonb,revision=$3,updated_at=now() WHERE session_date=$1',[entry.session,JSON.stringify(next.db.sessions[entry.session]),next.db.revision]);
+   const next=live.admit({schema:5,revision:Number(row.revision),sessions:{[destination.session]:row.state}},destination.session,{verified:true,participantId:a.attendee_id,registrationId:code,entryId:entry.entryId,name:a.participant_name},a.requested_at);
+   if(!next.duplicate)await db.query('UPDATE peniel_ops.session_state SET state=$2::jsonb,revision=$3,updated_at=now() WHERE session_date=$1',[destination.session,JSON.stringify(next.db.sessions[destination.session]),next.db.revision]);
    await db.query('UPDATE peniel_ops.entry_authorizations SET checked_in_at=now(),admitted_by=$3,updated_at=now() WHERE event_id=$1 AND ticket_code=$2',[EVENT,code,a.requested_by]);
    await db.query("UPDATE peniel_ops.entry_checkins SET status='admitted',admitted_at=now(),updated_at=now() WHERE event_id=$1 AND ticket_code=$2",[EVENT,code]);
-   return result(p,entry,{admitted:true,checkedIn:true,status:'admitted',even3Confirmed:true,caravan:caravans.identity(next.db.sessions[entry.session],code),message:'Credenciamento confirmado pela Even3. Entrada registrada e participante enviado à Coordenação.'});
+   return result(p,entry,{admitted:true,checkedIn:true,status:'admitted',even3Confirmed:true,caravan:caravans.identity(next.db.sessions[destination.session],code),message:'Credenciamento confirmado pela Even3. Entrada registrada e participante enviado à Coordenação.'});
   });
  }
  async function admit(code,session,user){
