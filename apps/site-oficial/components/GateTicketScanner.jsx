@@ -2,11 +2,12 @@ import {useState,useRef,useEffect} from 'react';
 import tickets from '../lib/official-entries.cjs';
 
 // No browser-side validation grants admission. The server is authoritative.
-export default function GateTicketScanner({session,rehearsal=false,testLot=false}){
+export default function GateTicketScanner({session,rehearsal=false,testLot=false,viewerRole=''}){
  const [code,setCode]=useState(''),[busy,setBusy]=useState(false),[result,setResult]=useState(null),[error,setError]=useState('');
  const [camera,setCamera]=useState(false),[cameraError,setCameraError]=useState('');
  const video=useRef(null),stream=useRef(null),detector=useRef(null),reading=useRef(false),active=useRef(false),canvas=useRef(null),decoder=useRef(null);
  const [selectedCode,setSelectedCode]=useState('');
+ const [overrideOpen,setOverrideOpen]=useState(false),[overrideEvidence,setOverrideEvidence]=useState(''),[overridePayment,setOverridePayment]=useState('paid'),[overrideConfirmed,setOverrideConfirmed]=useState(false);
  const sessionData=tickets.ENTRIES.find(e=>e.session===session);
  useEffect(()=>{setResult(null);setCode('');setError('');},[session]);
  useEffect(()=>()=>{stream.current?.getTracks().forEach(t=>t.stop());},[]);
@@ -71,6 +72,10 @@ export default function GateTicketScanner({session,rehearsal=false,testLot=false
   return()=>clearInterval(timer);
  },[camera,session]);
  const canAdmit=result?.eligible&&result?.entry?.date===session&&!result?.checkedIn;
+ async function authorizeException(e){
+  e.preventDefault();if(busy||!overrideConfirmed)return;setBusy(true);setError('');
+  try{const r=await fetch('/api/operacao/autorizacoes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:code.trim(),action:'authorize_date',session,paymentStatus:overridePayment,evidence:overrideEvidence,confirmed:true})});const data=await r.json();if(!r.ok)throw Error(data.error||'Não foi possível autorizar.');setOverrideOpen(false);setOverrideEvidence('');setOverrideConfirmed(false);setBusy(false);await send(code.trim());return;}catch(err){setError(err.message||'Não foi possível autorizar.');}finally{setBusy(false);}
+ }
  return <section className="scanner" aria-label="Leitor de ingressos da portaria">
   <div className="head"><strong>Leitura do ingresso Even3</strong><span>{rehearsal?'CONSULTA':'CREDENCIAMENTO OFICIAL'}</span></div>
   {rehearsal&&<p role="status" className="warning"><b>{testLot?'INGRESSO GERAL - 1º LOTE · ENSAIO 22–28/10. Entrada somente na fila de treinamento.':'ENSAIO — sem pagamento validado e sem credenciamento real.'}</b></p>}
@@ -85,6 +90,13 @@ export default function GateTicketScanner({session,rehearsal=false,testLot=false
     <button type="submit" disabled={busy||!code.trim()}>{busy?'Consultando…':'Consultar'}</button></div>
   </form>
   {error&&<p role="alert" className="warning">{error}</p>}
+  {viewerRole==='geral'&&!rehearsal&&code.trim()&&<div className="result"><button type="button" className="camera-button" onClick={()=>setOverrideOpen(!overrideOpen)}>Gestão: autorizar exceção de data</button>{overrideOpen&&<form onSubmit={authorizeException}>
+   <p>Confira na Even3 a inscrição, o pagamento ou cortesia e a data. A autorização vale para a sessão selecionada hoje; a entrada ainda será credenciada individualmente.</p>
+   <label>Comprovação<select value={overridePayment} onChange={e=>setOverridePayment(e.target.value)}><option value="paid">Pagamento comprovado</option><option value="exempt">Cortesia ou ingresso gratuito</option></select></label>
+   <label>Motivo e referência da conferência<textarea required minLength={10} maxLength={500} value={overrideEvidence} onChange={e=>setOverrideEvidence(e.target.value)} /></label>
+   <label><input type="checkbox" required checked={overrideConfirmed} onChange={e=>setOverrideConfirmed(e.target.checked)}/> Conferi o ingresso e o pagamento ou cortesia na Even3 e autorizo a exceção.</label>
+   <button className="confirm" disabled={busy} type="submit">Registrar autorização da Gestão</button>
+  </form>}</div>}
   {result&&<div className="result" role="status">
    <strong>{result.found?result.participantName||'Inscrição localizada':'Ingresso não encontrado'}</strong>
    {result.entry&&<p>Entrada: {result.entry.label}</p>}
