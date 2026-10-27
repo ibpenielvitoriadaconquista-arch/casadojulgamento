@@ -6,6 +6,7 @@ const SESSIONS = [
   {id:'2026-11-14',label:'14/11 · 18h'}, {id:'2026-11-19',label:'19/11 · 20h'},
   {id:'2026-11-20',label:'20/11 · 17h'}, {id:'2026-11-21',label:'21/11 · 18h'}
 ];
+const CIRCUIT_LIMIT=3;
 const LABELS={forming:'Em formação',closed:'Fechado no salão',called:'Chamado para espera',waiting:'Na sala de espera',circuit:'No circuito',safe:'No ponto seguro',finished:'Finalizado'};
 const ROLES={geral:'Painel geral',portaria:'Portaria',caixa:'Caixa',coordenacao:'Coordenação',guias:'Guias',apoio:'Apoio',telao:'Telão'};
 const ALLOWED={geral:['scan','assign','deliver','undoDelivery','move','close','reopen','call','arrive','start','safe','finish','pause','takeover','guide','reset'],portaria:['scan'],caixa:[],coordenacao:['assign','deliver','undoDelivery','move','close','reopen','call'],guias:['arrive','start','safe','finish'],telao:[],apoio:[]};
@@ -73,7 +74,7 @@ function apply(db,sessionId,role,action,arg={},now=new Date().toISOString()){
   }else if(action==='start'){
     const g=group(arg.group);if(s.paused)throw Error('Novas partidas pausadas.');if(!g||g.status!=='waiting')throw Error('Confirme o grupo na sala de espera primeiro.');
     if(!arg.physicallySafe)throw Error('O guia precisa confirmar as condições físicas de segurança.');
-    if(active(s).length>=2)throw Error('Já existem dois grupos no circuito. Aguarde uma finalização.');
+    if(active(s).length>=CIRCUIT_LIMIT)throw Error('Já existem três grupos no circuito. Aguarde uma finalização.');
     const previous=s.groups.slice(0,s.groups.indexOf(g)).filter(x=>x.members.length&&!x.caravanDeferred);
     if(previous.some(x=>!['safe','finished'].includes(x.status)))throw Error('O grupo anterior precisa confirmar o ponto seguro.');
     g.status='circuit';g.startedAt=now;message=g.id+' iniciou por confirmação do guia. Sala de espera LIVRE.';
@@ -95,4 +96,4 @@ function apply(db,sessionId,role,action,arg={},now=new Date().toISOString()){
   }else throw Error('Comando não reconhecido.');
   log(message);next.revision++;return {db:next,message};
 }
-module.exports={capacityFor,SESSIONS,LABELS,ROLES,ALLOWED,fresh,freshSession,active,wait,summarize,apply};
+module.exports={capacityFor,CIRCUIT_LIMIT,SESSIONS,LABELS,ROLES,ALLOWED,fresh,freshSession,active,wait,summarize,apply};
