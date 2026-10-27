@@ -4,6 +4,7 @@ import StaffShell from '../../components/StaffShell';
 import {actor} from '../../lib/operation-auth';
 import caravans from '../../lib/caravans.cjs';
 import ops from '../../lib/operation-training.cjs';
+import CaravanRequests from '../../components/CaravanRequests';
 
 export async function getServerSideProps({req,res}){
  res.setHeader('Cache-Control','private, no-store');
@@ -44,6 +45,7 @@ export default function Caravans({role}){
   <p>G06, G07 e G08 estão reservados nas seis apresentações: até 75 pessoas por data, dentro da capacidade já existente. A chamada segue a ordem dos grupos. A Coordenação pode adiar uma caravana atrasada.</p>
   <label>Data da apresentação<select value={session} disabled={busy} onChange={e=>changeDay(e.target.value)}>{ops.SESSIONS.filter(x=>caravans.enabled(x.id)).map(x=><option value={x.id} key={x.id}>{x.label}</option>)}</select></label>
   {error&&<p className="error" role="alert">{error}</p>}{notice&&<p role="status">{notice}</p>}{!online&&<p role="status">Aguardando sincronização. Alterações bloqueadas.</p>}
+  <CaravanRequests role={role} session={session} onImported={()=>setNotice('Caravana importada. Aguarde a atualização da lista.')}/>
   {s&&<><div className="caravan-groups">{caravans.GROUPS.map(id=>{const g=s.groups.find(g=>g.id===id),expected=caravans.list(s).filter(c=>c.group===id).flatMap(c=>c.members),arrived=expected.filter(m=>s.people.some(p=>p.id===m.code)),reserved=caravans.reserved(s,session,id);return <section className="card" key={id}><h2>{id} · {reserved?'Caravanas':'Público geral'}</h2><p>{expected.length}/25 previstos · {arrived.length} chegaram · {expected.length-arrived.length} faltam<br/>{g.members.length}/25 alocados · {ops.LABELS[g.status]}{g.caravanDeferred?' · CHAMADA ADIADA':''}</p><div className="pair">{['forming','closed'].includes(g.status)&&reserved&&<button type="button" disabled={busy||!online} onClick={()=>control('caravanDefer',g)}>{g.caravanDeferred?'Retomar prioridade':'Adiar chamada'}</button>}{g.status==='forming'&&!g.members.length&&!expected.length&&<button type="button" disabled={busy||!online} onClick={()=>control('caravanRelease',g)}>{reserved?'Liberar reserva vazia':'Reservar novamente'}</button>}</div></section>;})}</div>
   <form id="caravan-form" onSubmit={save}><h2>{draft.id?'Editar caravana':'Cadastrar caravana'}</h2><p>Cadastre os nomes e telefones diretamente na igreja. Não é necessário e-mail nem ingresso Even3. Antes da chegada, Caixa ou Gestão deve registrar recebimento ou cortesia autorizada. Divida caravanas maiores em listas de até 25 pessoas, escolhendo os grupos disponíveis.</p>
    <div className="pair"><label>Nome da caravana<input required maxLength={100} value={draft.name} onChange={e=>field('name',e.target.value)}/></label><label>Cidade de origem<input required maxLength={100} value={draft.city} onChange={e=>field('city',e.target.value)}/></label></div>
