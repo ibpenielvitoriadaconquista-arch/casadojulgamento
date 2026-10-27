@@ -20,8 +20,18 @@ const {reconcile}=require('../lib/even3-financial.cjs');
 const payments=Array.from({length:55},(_,i)=>({id_event:798621,id_payment:i+1,reference_payment:'ref-'+i,status_payment:'Pago'}));
 const person={id_event:798621,id_attendees:100,name:'Maria',email:'familia@example.org',checkin_code:'12345678'};
 const entry={category:'Entrada',entryId:'968577'};
+const lot=require('../lib/official-entries.cjs').LOT;
 const item=(p=person)=>({id_event:798621,id_payment:55,reference_payment:'ref-54',attendee:p.name,email_attendee:p.email,item:'Entrada',amount:15});
 function database(prior){const writes=[];return {writes,query:async(sql,args)=>{if(sql.startsWith('SELECT *'))return {rows:prior?[prior]:[]};if(sql.startsWith('SELECT count'))return {rows:[{total:1}]};writes.push({sql,args});return {rows:[]};}};}
+test('training lot is recorded as exempt without consulting payments',async()=>{
+ const db=database();await reconcile({p:person,entry:lot,query:db.query,even3:{request:()=>{throw Error('must not query payments');}}});
+ assert.equal(db.writes.length,1);assert.match(db.writes[0].sql,/'exempt'/);assert.match(db.writes[0].sql,/DO NOTHING/);assert.equal(db.writes[0].args[1],person.checkin_code);
+});
+test('training lot never replaces revoked or existing authorization',async()=>{
+ for(const prior of [{revoked_at:'2026-10-27'}, {checked_in_at:'2026-10-27'}, {payment_status:'paid'}]){
+  const db=database(prior);await reconcile({p:person,entry:lot,query:db.query,even3:{}});assert.equal(db.writes.length,0);
+ }
+});
 test('55 payments use at most four simultaneous requests',async()=>{
  let active=0,max=0,calls=0;
  const result=await diagnostic(api(payments),async()=>{calls++;active++;max=Math.max(max,active);await new Promise(r=>setImmediate(r));active--;return [];});
