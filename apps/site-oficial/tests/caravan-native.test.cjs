@@ -5,6 +5,16 @@ const draft={id,name:'Caravana direta',city:'Outra cidade',responsible:'Líder d
 const run=(db,role,action,arg,now=at)=>live.command(db,day,role,action,{...arg,actorId:'operator'},now).db;
 const saved=()=>run(ops.fresh(),'coordenacao','caravanSave',draft);
 const authorized=()=>run(saved(),'caixa','caravanAuthorize',{id,method:'dinheiro',reference:'Recebimento conferido pelo operador'});
+test('management training permission is limited to this roster and today; admission remains unique',()=>{
+ const before='2026-10-31T15:00:00Z';
+ for(const role of ['portaria','coordenacao','caixa','guias'])assert.throws(()=>run(authorized(),role,'caravanTraining',{id,confirmed:true,reference:'Treinamento da equipe'},before),/Gestão/);
+ const allowed=run(authorized(),'geral','caravanTraining',{id,confirmed:true,reference:'Treinamento da equipe'},before);
+ assert.equal(caravans.gateRows(allowed.sessions[day],day,before)[0].eligible,true);
+ assert.equal(caravans.gateRows(allowed.sessions[day],day,'2026-11-01T15:00:00Z')[0].eligible,false);
+ const entered=run(allowed,'portaria','caravanAdmit',{code},before);assert.equal(entered.sessions[day].people[0].training,true);
+ assert.throws(()=>run(entered,'portaria','caravanAdmit',{code},before),/já entrou/);
+ const revoked=run(allowed,'geral','caravanAuthorize',{id,method:'revogar',reference:'Revogar autorização'},before);assert.equal(caravans.gateRows(revoked.sessions[day],day,before)[0].eligible,false);
+});
 test('direct roster needs no email or Even3 ticket and accepts shared or absent phones',()=>{
  const db=saved(),rows=caravans.gateRows(db.sessions[day],day,at);
  assert.equal(rows.length,2);assert.equal(rows[0].phone,'77999999999');assert.equal(rows[1].phone,'');assert.equal(rows[1].contact,'77999999999');
