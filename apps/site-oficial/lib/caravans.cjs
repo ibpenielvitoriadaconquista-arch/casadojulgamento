@@ -24,6 +24,15 @@ function compatible(s,day,p,group){
 function handle(s,day,action,arg,now){
  if(!enabled(day))throw Error('Caravanas disponíveis nas seis apresentações de novembro.');
  s.caravans??=[];
+ if(action==='caravanTraining'){
+  const c=s.caravans.find(c=>c.id===arg.id);
+  if(!c||c.authorization?.status!=='authorized')throw Error('Confirme primeiro o recebimento ou cortesia desta lista.');
+  if(arg.confirmed!==true||!c.members.every(m=>native(m.code))||c.members.some(m=>s.people.some(p=>p.id===m.code)))throw Error('Treinamento exige lista direta ainda sem chegadas e confirmação explícita.');
+  const reference=text(arg.reference,'o motivo do treinamento',200);
+  if(reference.length<10)throw Error('Descreva o motivo do treinamento com pelo menos 10 caracteres.');
+  c.trainingOverride={day:bahiaDay(now),by:arg.actorId,at:now,reference,codes:c.members.map(m=>m.code)};
+  return c.name+': treinamento autorizado somente em '+c.trainingOverride.day+'. As entradas de teste consomem este cadastro.';
+ }
  if(action==='caravanSave'){
   const old=s.caravans.find(c=>c.id===arg.id);
   if(!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(arg.id||'')))throw Error('Identificador da caravana inválido.');
@@ -101,7 +110,8 @@ function handle(s,day,action,arg,now){
 function gateRows(s,day,now=new Date().toISOString()){
  return list(s).flatMap(c=>c.members.filter(m=>native(m.code)).map(m=>{
   const p=s.people.find(p=>p.id===m.code);
-  return {code:m.code,name:m.name,phone:m.phone||'',contact:c.contact||'',responsible:c.responsible,caravanId:c.id,caravanName:c.name,city:c.city,date:day,group:c.group,authorized:c.authorization?.status==='authorized',admitted:!!p,arrivedAt:p?.arrivedAt||null,eligible:!p&&day===bahiaDay(now)&&c.authorization?.status==='authorized'};
+  const training=c.trainingOverride?.day===bahiaDay(now)&&c.trainingOverride?.codes?.includes(m.code);
+  return {code:m.code,name:m.name,phone:m.phone||'',contact:c.contact||'',responsible:c.responsible,caravanId:c.id,caravanName:c.name,city:c.city,date:day,group:c.group,training:!!training,authorized:c.authorization?.status==='authorized',admitted:!!p,arrivedAt:p?.arrivedAt||null,eligible:!p&&(day===bahiaDay(now)||training)&&c.authorization?.status==='authorized'};
  }));
 }
 module.exports={DAYS,GROUPS,enabled,reserved,list,identity,compatible,handle,native,bahiaDay,gateRows};
