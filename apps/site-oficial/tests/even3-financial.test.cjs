@@ -1,6 +1,14 @@
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const {diagnostic}=require('../lib/even3-financial.cjs');
+test('payment details uses the documented reference path and no GET body',async()=>{
+ const {EventEmitter}=require('node:events');let called=false;
+ const request=(url,options,callback)=>{
+  assert.equal(url,'https://www.even3.com.br/api/v1/payments/details/ABC%2F123');assert.equal(options.method,'GET');assert.equal(options.headers['Content-Length'],undefined);
+  const req=new EventEmitter();req.setTimeout=()=>{};req.end=body=>{assert.equal(body,undefined);called=true;const res=new EventEmitter();res.statusCode=200;callback(res);queueMicrotask(()=>{res.emit('data',JSON.stringify({data:[{id_payment:1}],count:1}));res.emit('end');});};return req;
+ };
+ const rows=await require('../lib/even3-financial.cjs').details('ABC/123','test-placeholder',request);assert.equal(called,true);assert.equal(rows.length,1);
+});
 const api=rows=>({request:async()=>({data:rows.map((r,i)=>({id_payment:i+1,...r})),count:rows.length}),items:x=>x.data});
 test('financial diagnostic returns aggregate errors without exposing payment data',async()=>{
  const rows=[{reference_payment:'private-reference',buyer:'private-name'},{reference_payment:'another-reference'}];
