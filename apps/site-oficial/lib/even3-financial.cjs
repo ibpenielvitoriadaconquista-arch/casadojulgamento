@@ -1,15 +1,15 @@
 'use strict';
 const https=require('node:https');
 const normalize=s=>String(s||'').normalize('NFC').trim().toLowerCase();
-// The documented V1 details endpoint uses a GET request body (not a query parameter).
-function details(reference,token=process.env.EVEN3_API_TOKEN){
+// Current endpoint reference: /api/v1/payments/details/{reference_payment}.
+function details(reference,token=process.env.EVEN3_API_TOKEN,request=https.request){
  return new Promise((resolve,reject)=>{
   if(!token)return reject(Error('Even3 credential missing'));
-  const body=JSON.stringify({reference});
-  const req=https.request('https://www.even3.com.br/api/v1/payments/details',{method:'GET',headers:{'Authorization-Token':token,'Content-Type':'application/json',Accept:'application/json','Content-Length':Buffer.byteLength(body)}},res=>{
+  if(typeof reference!=='string'||!reference.trim()||reference.length>200)return reject(Error('Invalid payment reference'));
+  const req=request('https://www.even3.com.br/api/v1/payments/details/'+encodeURIComponent(reference),{method:'GET',headers:{'Authorization-Token':token,Accept:'application/json'}},res=>{
    let raw='';res.on('data',chunk=>{raw+=chunk;if(raw.length>1000000)req.destroy(Error('Response too large'));});res.on('error',reject);
    res.on('end',()=>{try{if(res.statusCode!==200)throw Object.assign(Error('Payment details unavailable'),{diagnosticCode:'HTTP_'+res.statusCode});const x=JSON.parse(raw);if(!Array.isArray(x.data)||Number(x.count)!==x.data.length)throw Object.assign(Error('Incomplete payment details'),{diagnosticCode:'INCOMPLETE_RESPONSE'});resolve(x.data);}catch(e){reject(e);}});
-  });req.setTimeout(8000,()=>req.destroy(Error('Payment details timeout')));req.on('error',reject);req.end(body);
+  });req.setTimeout(8000,()=>req.destroy(Error('Payment details timeout')));req.on('error',reject);req.end();
  });
 }
 // V1 documents a complete list, not page parameters. Never accept a partial list.
