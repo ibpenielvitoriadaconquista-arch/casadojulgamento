@@ -3,9 +3,8 @@ import {query,transaction} from '../../../lib/db';
 import tickets from '../../../lib/entry-tickets.cjs';
 import admission from '../../../lib/official-admission.cjs';
 import even3 from '../../../lib/even3-client.cjs';
-import financial from '../../../lib/even3-financial.cjs';
 export const config={api:{bodyParser:{sizeLimit:'3kb'}}};
-const service=admission.createService({query,transaction,even3,reconcile:financial.reconcile});
+const service=admission.createService({query,transaction,even3});
 export default async function handler(req,res){
  res.setHeader('Cache-Control','private,no-store');
  try{
