@@ -2,9 +2,10 @@
 const rules=require('./official-entries.cjs'),tickets=require('./entry-tickets.cjs'),live=require('./operation-live.cjs');
 const {capacityFor}=require('./session-capacity.cjs');
 const caravans=require('./caravans.cjs');
+const entitlement=require('./even3-entitlement.cjs');
 const EVENT=tickets.EVENT_ID;
 const fail=(status,message)=>Object.assign(new Error(message),{status});
-function createService({query,transaction,even3,reconcile=async()=>{},now=()=>new Date().toISOString()}){
+function createService({query,transaction,even3,now=()=>new Date().toISOString()}){
  async function validOverride(db,code,source,target){
   const rows=(await db.query('SELECT action,evidence FROM peniel_ops.entry_financial_audit WHERE event_id=$1 AND ticket_code=$2 ORDER BY id DESC LIMIT 1',[EVENT,code])).rows;
   if(!rows.length||rows[0].action!=='authorize_date')return false;
@@ -33,7 +34,7 @@ function createService({query,transaction,even3,reconcile=async()=>{},now=()=>ne
   if(!destination.days.includes(today))throw fail(409,'Selecione a sessão correspondente à data de hoje.');
   if((entry.session!==destination.session||!entry.days.includes(today))&&!await validOverride({query},code,entry,destination))throw fail(409,'Ingresso de outra data. A Gestão deve conferir e autorizar a exceção.');
   if(!rules.catalogMatches(event,entry))throw fail(409,'Categoria não corresponde ao catálogo atual da Even3.');
-  await reconcile({p,entry,query,even3});
+  await entitlement.authorize({p,entry,query});
   return {p,entry,destination};
  }
  const result=(p,entry,extra={})=>({found:true,participantName:p.name,entry:{id:entry.entryId,date:entry.session,label:entry.label},session:entry.session,admitted:false,eligible:false,checkedIn:false,status:'blocked',...extra});
@@ -50,9 +51,9 @@ function createService({query,transaction,even3,reconcile=async()=>{},now=()=>ne
   return result(p,entry,{eligible:true,status:'ready',caravan,entry:{id:entry.entryId,date:destination.session,label:entry.label+(entry.session!==destination.session?' → '+destination.label:'')},message:attempt?.status==='confirmed'?'Even3 já confirmou. Concluir encaminhamento à Coordenação.':'Ingresso validado. Confirme para credenciar na Even3 e liberar a entrada.'});
  }
  function authorizationReason(a,p,e){
-  if(!a)return 'Pagamento e vínculo individual aguardam conferência da Gestão.';
+  if(!a)return 'Autorização individual não localizada. Procure a Gestão.';
   if(a.checked_in_at)return 'Ingresso já utilizado.';
-  if(a.revoked_at||a.registration_status!=='confirmed'||!['paid','exempt'].includes(a.payment_status)||String(a.participant_id)!==String(p.id_attendees)||a.entry_id!==e.entryId||!a.verified_at||!a.evidence_reference)return 'Autorização financeira revogada ou divergente. Procure a Gestão.';
+  if(a.revoked_at||a.registration_status!=='confirmed'||(!['paid','exempt'].includes(a.payment_status)&&!entitlement.confirmedBasis(a,p,e))||String(a.participant_id)!==String(p.id_attendees)||a.entry_id!==e.entryId||!a.verified_at||!a.evidence_reference)return 'Autorização revogada ou divergente. Procure a Gestão.';
   return null;
  }
  async function finalize(code){
