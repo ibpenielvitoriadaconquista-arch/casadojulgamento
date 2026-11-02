@@ -4,7 +4,7 @@ import StaffShell from '../../components/StaffShell';
 import {actor} from '../../lib/operation-auth';
 import caravans from '../../lib/caravans.cjs';
 import ops from '../../lib/operation-training.cjs';
-import CaravanRequests from '../../components/CaravanRequests';
+import CaravanRequests,{CaravanRequestNotice} from '../../components/CaravanRequests';
 
 export async function getServerSideProps({req,res}){
  res.setHeader('Cache-Control','private, no-store');
@@ -44,7 +44,7 @@ export default function Caravans({role}){
  function training(c){if(!window.confirm('Somente para lista de teste: as entradas serão reais nesta sessão, aparecerão na Coordenação e impedirão reutilizar estes cadastros no evento. Autorizar treinamento desta caravana hoje?'))return;const reference=window.prompt('Motivo do treinamento (mínimo 10 caracteres):');if(reference?.trim())run('caravanTraining',{id:c.id,confirmed:true,reference:reference.trim()});}
  function control(action,g){const reason=window.prompt(action==='caravanDefer'?(g.caravanDeferred?'Motivo para retomar a prioridade:':'Motivo para adiar a chamada e deixar os demais grupos seguirem:'):'Motivo para alterar a reserva deste grupo:');if(reason?.trim())run(action,{group:g.id,reason});}
  function transfer(m){const group=window.prompt('Novo grupo reservado para '+m.name+' (G06, G07 ou G08):');if(!group)return;const reason=window.prompt('Motivo do remanejamento:');if(reason?.trim())run('caravanTransfer',{code:m.code,group:group.trim().toUpperCase(),reason,id:crypto.randomUUID()});}
- return <StaffShell title="Caravanas"><Link href={'/operacao/'+role+'?sessao='+session}>← Voltar ao meu painel</Link>
+ return <StaffShell title="Caravanas"><CaravanRequestNotice/><Link href={'/operacao/'+role+'?sessao='+session}>← Voltar ao meu painel</Link>
   <p><b>1. Receber solicitação → 2. Conferir e autorizar → 3. Registrar chegadas na Portaria.</b></p><p>G06, G07 e G08 estão reservados nas seis apresentações: até 75 pessoas por data, dentro da capacidade já existente. A chamada segue a ordem dos grupos. A Coordenação pode adiar uma caravana atrasada.</p>
   <label>Data da apresentação<select value={session} disabled={busy} onChange={e=>changeDay(e.target.value)}>{ops.SESSIONS.filter(x=>caravans.enabled(x.id)).map(x=><option value={x.id} key={x.id}>{x.label}</option>)}</select></label>
   {error&&<p className="error" role="alert">{error}</p>}{notice&&<p role="status">{notice}</p>}{!online&&<p role="status">Aguardando sincronização. Alterações bloqueadas.</p>}
