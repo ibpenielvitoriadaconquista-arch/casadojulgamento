@@ -9,6 +9,10 @@ export default async function handler(req,res){
  try{
   const user=await actor(req);if(!['geral','coordenacao'].includes(user.role))throw fail(403,'Acesso restrito à Gestão e Coordenação.');
   if(req.method==='GET'){
+   if(req.query.summary==='1'){
+    const summary=await query("SELECT session_date,count(*)::int AS count FROM peniel_ops.caravan_requests WHERE status='pending' GROUP BY session_date ORDER BY session_date");
+    return res.json({days:summary.rows.map(r=>({session:String(r.session_date).slice(0,10),count:Number(r.count)}))});
+   }
    const rows=await query("SELECT id,session_date,payload,created_at FROM peniel_ops.caravan_requests WHERE status='pending' ORDER BY created_at LIMIT 200");
    return res.json({requests:rows.rows});
   }
