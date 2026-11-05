@@ -8,7 +8,7 @@ const register=()=>command(ops.fresh(),'caravanSave',draft);
 const arrival=(db,code=member.code,name=member.name)=>live.admit(db,day,{verified:true,participantId:'p-'+code,registrationId:code,entryId:'968577',name,caravan:{group:'G01'}}).db;
 test('all six dates reserve exactly three groups without increasing published capacity',()=>{
  for(const date of caravans.DAYS){const db=ops.fresh(),s=db.sessions[date];assert.deepEqual(s.groups.filter(g=>caravans.reserved(s,date,g.id)).map(g=>g.id),['G06','G07','G08']);assert.equal(s.groups.length*25,ops.capacityFor(date).total);}
- assert.equal(caravans.enabled('2026-10-22'),false);
+ assert.equal(caravans.enabled('2026-10-22'),true);
 });
 test('roster creates no admission; verified arrival gets caravan from stored ticket identity',()=>{
  const db=register();assert.equal(db.sessions[day].people.length,0);
