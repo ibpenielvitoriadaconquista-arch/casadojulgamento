@@ -2,7 +2,7 @@
 // Stored in the existing session JSON; mutations share its revision and row lock.
 const DAYS=['2026-11-09','2026-11-13','2026-11-14','2026-11-19','2026-11-20','2026-11-21'];
 const GROUPS=['G06','G07','G08'];
-const enabled=day=>DAYS.includes(day);
+const enabled=day=>DAYS.includes(day)||day==='2026-10-22';
 const reserved=(s,day,id)=>enabled(day)&&GROUPS.includes(id)&&!(s.caravanReleased||[]).includes(id);
 const list=s=>s.caravans||[];
 const native=code=>/^CAR-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(code||''));
@@ -22,7 +22,7 @@ function compatible(s,day,p,group){
  return c?reserved(s,day,group)&&c.group===group:!reserved(s,day,group);
 }
 function handle(s,day,action,arg,now){
- if(!enabled(day))throw Error('Caravanas disponíveis nas seis apresentações de novembro.');
+ if(!enabled(day))throw Error('Selecione uma apresentação de novembro ou a sessão Lote 1 de testes.');
  s.caravans??=[];
  if(action==='caravanTraining'){
   const c=s.caravans.find(c=>c.id===arg.id);
