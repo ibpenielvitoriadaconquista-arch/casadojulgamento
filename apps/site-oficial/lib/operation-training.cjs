@@ -8,8 +8,8 @@ const SESSIONS = [
 ];
 const CIRCUIT_LIMIT=3;
 const LABELS={forming:'Em formação',closed:'Fechado no salão',called:'Chamado para espera',waiting:'Na sala de espera',circuit:'No circuito',safe:'No ponto seguro',finished:'Finalizado'};
-const ROLES={geral:'Painel geral',portaria:'Portaria',caixa:'Caixa',coordenacao:'Coordenação',guias:'Guias',apoio:'Apoio',telao:'Telão'};
-const ALLOWED={geral:['scan','assign','deliver','undoDelivery','move','close','reopen','call','arrive','start','safe','finish','pause','takeover','guide','reset'],portaria:['scan'],caixa:[],coordenacao:['assign','deliver','undoDelivery','move','close','reopen','call'],guias:['arrive','start','safe','finish'],telao:[],apoio:[]};
+const ROLES={geral:'Painel geral',portaria:'Portaria',caixa:'Caixa',coordenacao:'Coordenação',guias:'Guias',apoio:'Apoio',telao:'Telão',caravanas:'Administrador de caravanas'};
+const ALLOWED={geral:['scan','assign','deliver','undoDelivery','move','close','reopen','call','arrive','start','safe','finish','pause','takeover','guide','reset'],portaria:['scan'],caixa:[],caravanas:[],coordenacao:['assign','deliver','undoDelivery','move','close','reopen','call'],guias:['arrive','start','safe','finish'],telao:[],apoio:[]};
 function freshSession(sessionId=SESSIONS[0].id){return {counter:0,paused:false,coordinator:'Titular',people:[],groups:Array.from({length:capacityFor(sessionId).groups},(_,i)=>({id:'G'+String(i+1).padStart(2,'0'),status:'forming',guide:'',members:[]})),history:[],lastAssignment:null};}
 function fresh(){return {schema:5,revision:0,sessions:Object.fromEntries(SESSIONS.map(s=>[s.id,freshSession(s.id)]))};}
 function active(s){return s.groups.filter(g=>['circuit','safe'].includes(g.status));}
