@@ -79,6 +79,7 @@ export default function GateTicketScanner({session,rehearsal=false,testLot=false
  return <section className="scanner" aria-label="Leitor de ingressos da portaria">
   <div className="head"><strong>Leitura do ingresso Even3</strong><span>{rehearsal?'CONSULTA':'CREDENCIAMENTO OFICIAL'}</span></div>
   {rehearsal&&<p role="status" className="warning"><b>{testLot?'INGRESSO GERAL - 1º LOTE · ENSAIO 22–28/10. Entrada somente na fila de treinamento.':'ENSAIO — sem pagamento validado e sem credenciamento real.'}</b></p>}
+  {session==='2026-10-22'&&<p className="warning">Códigos CDJTESTE são fictícios: registram somente o treinamento, sem credenciar na Even3.</p>}
   <p>A leitura pela câmera credencia o ingresso válido na Even3 e registra a entrada. Para conferir antes, digite o código abaixo. Entrada selecionada: <b>{sessionData?.label||session}</b>.</p>
   {camera&&<div className="camera"><video ref={video} muted playsInline autoPlay aria-label="Câmera de leitura QR"/><button type="button" onClick={stopCamera}>Fechar câmera</button></div>}
   <button type="button" className="camera-button" disabled={busy} onClick={camera?stopCamera:startCamera}>{camera?'Desligar câmera':'Ler QR com câmera'}</button>
@@ -90,7 +91,7 @@ export default function GateTicketScanner({session,rehearsal=false,testLot=false
     <button type="submit" disabled={busy||!code.trim()}>{busy?'Consultando…':'Consultar'}</button></div>
   </form>
   {error&&<p role="alert" className="warning">{error}</p>}
-  {viewerRole==='geral'&&!rehearsal&&code.trim()&&<div className="result"><button type="button" className="camera-button" onClick={()=>setOverrideOpen(!overrideOpen)}>Gestão: autorizar exceção de data</button>{overrideOpen&&<form onSubmit={authorizeException}>
+  {viewerRole==='geral'&&!rehearsal&&!code.trim().startsWith('CDJTESTE-')&&code.trim()&&<div className="result"><button type="button" className="camera-button" onClick={()=>setOverrideOpen(!overrideOpen)}>Gestão: autorizar exceção de data</button>{overrideOpen&&<form onSubmit={authorizeException}>
    <p>Confira na Even3 a inscrição, o pagamento ou cortesia e a data. A autorização vale para a sessão selecionada hoje; a entrada ainda será credenciada individualmente.</p>
    <label>Comprovação<select value={overridePayment} onChange={e=>setOverridePayment(e.target.value)}><option value="paid">Pagamento comprovado</option><option value="exempt">Cortesia ou ingresso gratuito</option></select></label>
    <label>Motivo e referência da conferência<textarea required minLength={10} maxLength={500} value={overrideEvidence} onChange={e=>setOverrideEvidence(e.target.value)} /></label>
@@ -105,7 +106,7 @@ export default function GateTicketScanner({session,rehearsal=false,testLot=false
    {result.checkedIn&&<p>Já consta uma chegada para este código.</p>}
    {canAdmit&&<button className="confirm" type="button" disabled={busy}
     onClick={()=>{if(window.confirm(rehearsal?'Confirmar chegada APENAS NO ENSAIO? Não registra entrada real.':'Confirma a entrada física deste participante?'))send(selectedCode,'admit');}}>
-    {rehearsal?(testLot?'Liberar entrada no ensaio e enviar à Coordenação':'Enviar à Coordenação (SOMENTE ENSAIO)'):'Credenciar na Even3 e liberar entrada'}
+    {result.training?'Registrar teste e enviar à Coordenação':rehearsal?(testLot?'Liberar entrada no ensaio e enviar à Coordenação':'Enviar à Coordenação (SOMENTE ENSAIO)'):'Credenciar na Even3 e liberar entrada'}
    </button>}
   </div>}
   <p className="foot">A Portaria exige inscrição confirmada na Even3, data válida e ingresso não utilizado. O recebimento das vendas presenciais é responsabilidade do Caixa. Divergências vão para Gestão Geral.</p>
