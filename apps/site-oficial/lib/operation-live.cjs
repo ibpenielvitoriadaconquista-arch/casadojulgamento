@@ -29,7 +29,7 @@ function command(state, session, role, action, arg, now) {
   }
   if(caravans.enabled(session)&&['assign','move'].includes(action)){
     const ids=action==='assign'?(arg.ids||[]):[arg.id];
-    for(const id of ids){const p=s.people.find(p=>p.id===id);if(p&&!caravans.compatible(s,session,p,arg.group))throw Error('Integrantes de caravana devem ir ao seu grupo reservado. G06, G07 e G08 são exclusivos para caravanas enquanto reservados.');}
+    for(const id of ids){const p=s.people.find(p=>p.id===id);if(p&&!caravans.compatible(s,session,p,arg.group))throw Error('Integrantes de caravana devem ir ao seu grupo reservado. Os grupos reservados são exclusivos para caravanas.');}
   }
   if(caravans.enabled(session)&&action==='close'){
     const g=s.groups.find(g=>g.id===arg.group);
@@ -53,10 +53,10 @@ function admit(state, session, arrival, now=new Date().toISOString()) {
 function project(state, role) {
   const next=structuredClone(state);
   if(!['geral','coordenacao','caravanas'].includes(role))for(const s of Object.values(next.sessions)){delete s.caravans;delete s.caravanReleased;}
-  if(role==='caravanas')for(const s of Object.values(next.sessions)){
+  if(role==='caravanas')for(const [day,s] of Object.entries(next.sessions)){
     const codes=new Set(caravans.list(s).flatMap(c=>c.members.map(m=>m.code)));
     s.people=s.people.filter(p=>codes.has(p.id)).map(p=>({id:p.id,name:p.name,group:p.group,arrivedAt:p.arrivedAt}));
-    s.groups=s.groups.filter(g=>caravans.GROUPS.includes(g.id)).map(g=>({...g,guide:null}));
+    s.groups=s.groups.filter(g=>caravans.groupsFor(day).includes(g.id)).map(g=>({...g,guide:null}));
     s.history=[];s.lastAssignment=null;
   }
   if(role==='guias') for(const s of Object.values(next.sessions)) {
