@@ -86,7 +86,7 @@ test('dedicated caravan page redirects every unauthorized role and anonymous use
  const source=fs.readFileSync(path.join(__dirname,'../pages/operacao/caravanas.jsx'),'utf8').split('const empty=')[0].replace(/^import .*;\n/gm,'').replace('export async function getServerSideProps','return async function getServerSideProps');
  for(const role of Object.keys(ops.ROLES)){
   const result=await new Function('actor',source)(async()=>({role}))({req:{},res:{setHeader(){}}});
-  if(['geral','coordenacao'].includes(role))assert.equal(result.props.role,role);else assert.equal(result.redirect.destination,'/operacao/'+role);
+  if(['geral','coordenacao','caravanas'].includes(role))assert.equal(result.props.role,role);else assert.equal(result.redirect.destination,'/operacao/'+role);
  }
  const result=await new Function('actor',source)(async()=>{throw Error('anonymous');})({req:{},res:{setHeader(){}}});assert.equal(result.redirect.destination,'/operacao/login');
 });
