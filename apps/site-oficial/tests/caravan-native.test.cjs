@@ -103,3 +103,30 @@ test('Lote 1 caravan training admits only authorized roster on the selected trai
  assert.equal(entered.sessions['2026-11-09'].people.length,0);
  assert.throws(()=>live.command(entered,lot,'portaria','caravanAdmit',{code,actorId:'gate'},today),/já entrou/);
 });
+test('three Lote 1 caravan groups complete gate, coordination, paper, call and guide flow independently',()=>{
+ const lot='2026-10-22',today='2026-11-05T15:00:00Z';let db=ops.fresh();
+ const command=(role,action,arg)=>{db=live.command(db,lot,role,action,{...arg,actorId:role},today).db;};
+ for(const [index,group] of ['G07','G08','G09'].entries()){
+  const caravanId='aaaaaaa'+index+'-1111-4111-8111-111111111111';
+  const members=Array.from({length:5},(_,n)=>({code:'CAR-bbbbbbb'+index+'-1111-4111-8111-'+String(n+1).padStart(12,'0'),name:'Pessoa teste '+index+' '+n,phone:''}));
+  command('geral','caravanSave',{...draft,id:caravanId,group,members});
+  command('geral','caravanAuthorize',{id:caravanId,method:'dinheiro',reference:'Pagamento simulado da apresentação'});
+  command('geral','caravanTraining',{id:caravanId,confirmed:true,reference:'Apresentação de treinamento hoje'});
+  for(const m of members.slice(0,4))command('portaria','caravanAdmit',{code:m.code});
+  command('coordenacao','assign',{ids:members.slice(0,4).map(m=>m.code),group});
+  command('coordenacao','deliver',{ids:members.slice(0,4).map(m=>m.code)});
+  assert.throws(()=>command('coordenacao','close',{group}),/Faltam/);
+  command('portaria','caravanAdmit',{code:members[4].code});
+  command('coordenacao','assign',{ids:[members[4].code],group});
+  assert.throws(()=>command('coordenacao','close',{group}),/senhas/);
+  command('coordenacao','deliver',{ids:[members[4].code]});
+  command('coordenacao','close',{group});command('coordenacao','call',{group});
+  assert.equal(db.sessions[lot].groups.find(g=>g.id===group).status,'called');
+  assert.equal(live.project(db,'guias').sessions[lot].people.length,5);
+  const board=JSON.stringify(live.project(db,'telao'));assert.ok(!board.includes('Pessoa teste'));
+  command('guias','arrive',{group});command('guias','start',{group,physicallySafe:true});command('guias','safe',{group});command('guias','finish',{group});
+  assert.equal(db.sessions[lot].groups.find(g=>g.id===group).status,'finished');
+ }
+ assert.equal(db.sessions[lot].people.length,15);assert.equal(db.sessions['2026-11-09'].people.length,0);
+ for(const day of caravans.DAYS)assert.equal(caravans.reserved(db.sessions[day],day,'G09'),false);
+});
