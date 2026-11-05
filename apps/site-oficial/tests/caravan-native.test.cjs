@@ -74,3 +74,22 @@ test('dedicated gate query is authenticated and reveals no records to other role
   if(res.code!==200)assert.equal(res.body.members,undefined);
  }
 });
+test('dedicated caravan administrator manages paid rosters but cannot grant other operation powers',()=>{
+ let db=run(ops.fresh(),'caravanas','caravanSave',draft);
+ db=run(db,'caravanas','caravanAuthorize',{id,method:'dinheiro',reference:'Recebimento sob minha responsabilidade'});
+ assert.equal(db.sessions[day].caravans[0].authorization.by,'operator');
+ assert.equal(db.sessions[day].caravans[0].authorization.method,'dinheiro');
+ for(const action of ['assign','pause','start','caravanTraining','caravanAdmit','caravanRelease','caravanDefer'])assert.throws(()=>run(db,'caravanas',action,{id,code,group:'G06'}),/somente|Somente|acesso/);
+ assert.throws(()=>run(db,'caravanas','caravanAuthorize',{id,method:'cortesia',reference:'Cortesia sem permissão'}),/Gestão/);
+ assert.equal(db.sessions[day].people.length,0);
+ const full={...draft,members:Array.from({length:25},(_,i)=>({name:'Pessoa '+i,code:'CAR-'+String(i).padStart(8,'0')+'-1111-4111-8111-111111111111'}))};
+ const filled=run(ops.fresh(),'caravanas','caravanSave',full);
+ assert.throws(()=>run(filled,'caravanas','caravanSave',{...draft,id:'33333333-3333-4333-8333-333333333333'}),/25 vagas/);
+});
+test('caravan administrator projection hides general attendees, history and guide assignments',()=>{
+ let db=authorized();db=live.admit(db,day,{verified:true,participantId:'public',registrationId:'99999999',entryId:'968577',name:'Pessoa privada'}).db;
+ db.sessions[day].history.push({text:'informação restrita'});
+ const view=live.project(db,'caravanas').sessions[day];
+ assert.equal(view.caravans.length,1);assert.equal(view.people.length,0);assert.equal(view.groups.length,3);assert.deepEqual(view.history,[]);assert.equal(view.lastAssignment,null);
+ assert.ok(!JSON.stringify(view).includes('Pessoa privada'));
+});
