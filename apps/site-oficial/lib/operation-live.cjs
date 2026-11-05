@@ -3,6 +3,10 @@ const caravans = require('./caravans.cjs');
 function command(state, session, role, action, arg, now) {
   if (['scan','reset','takeover'].includes(action)) throw Error('Ação indisponível na operação real.');
   const s=state.sessions[session];
+  if(role==='caravanas'){
+    if(!['caravanSave','caravanDelete','caravanTransfer','caravanAuthorize'].includes(action))throw Error('Este acesso administra somente cadastros e recebimentos de caravanas.');
+    if(action==='caravanAuthorize'&&!['dinheiro','pix_igreja','revogar'].includes(arg.method))throw Error('Somente Gestão autoriza cortesias.');
+  }
   if(action==='caravanAdmit'){
     if(!['portaria','geral'].includes(role))throw Error('Somente Portaria ou Gestão podem registrar esta entrada.');
     const at=now||new Date().toISOString(),row=caravans.gateRows(s,session,at).find(m=>m.code===arg.code);
@@ -17,7 +21,7 @@ function command(state, session, role, action, arg, now) {
   }
   if(action.startsWith('caravan')){
     if(action==='caravanTraining'&&role!=='geral')throw Error('Somente Gestão pode autorizar treinamento fora da data.');
-    if(action==='caravanAuthorize'?!['geral','caixa'].includes(role):!['geral','coordenacao'].includes(role))throw Error(action==='caravanAuthorize'?'Somente Caixa e Gestão podem autorizar recebimento ou cortesia.':'Somente Gestão e Coordenação podem gerenciar caravanas.');
+    if(action==='caravanAuthorize'?!['geral','caixa','caravanas'].includes(role):!['geral','coordenacao','caravanas'].includes(role))throw Error(action==='caravanAuthorize'?'Somente Caixa e Gestão podem autorizar recebimento ou cortesia.':'Somente Gestão e Coordenação podem gerenciar caravanas.');
     const next=structuredClone(state),current=next.sessions[session],at=now||new Date().toISOString();
     const message=caravans.handle(current,session,action,arg,at);
     current.history.unshift({at,role:ops.ROLES[role],action,text:message});current.history=current.history.slice(0,500);
@@ -48,7 +52,13 @@ function admit(state, session, arrival, now=new Date().toISOString()) {
 }
 function project(state, role) {
   const next=structuredClone(state);
-  if(!['geral','coordenacao'].includes(role))for(const s of Object.values(next.sessions)){delete s.caravans;delete s.caravanReleased;}
+  if(!['geral','coordenacao','caravanas'].includes(role))for(const s of Object.values(next.sessions)){delete s.caravans;delete s.caravanReleased;}
+  if(role==='caravanas')for(const s of Object.values(next.sessions)){
+    const codes=new Set(caravans.list(s).flatMap(c=>c.members.map(m=>m.code)));
+    s.people=s.people.filter(p=>codes.has(p.id)).map(p=>({id:p.id,name:p.name,group:p.group,arrivedAt:p.arrivedAt}));
+    s.groups=s.groups.filter(g=>caravans.GROUPS.includes(g.id)).map(g=>({...g,guide:null}));
+    s.history=[];s.lastAssignment=null;
+  }
   if(role==='guias') for(const s of Object.values(next.sessions)) {
     // Guides may see only the participant names of groups called to the waiting area or circuit.
     const visible=new Set(s.groups.filter(g=>['called','waiting','circuit','safe'].includes(g.status)).flatMap(g=>g.members));
