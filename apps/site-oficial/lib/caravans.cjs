@@ -2,8 +2,9 @@
 // Stored in the existing session JSON; mutations share its revision and row lock.
 const DAYS=['2026-11-09','2026-11-13','2026-11-14','2026-11-19','2026-11-20','2026-11-21'];
 const GROUPS=['G06','G07','G08'];
+const groupsFor=day=>day==='2026-10-22'?[...GROUPS,'G09']:GROUPS;
 const enabled=day=>DAYS.includes(day)||day==='2026-10-22';
-const reserved=(s,day,id)=>enabled(day)&&GROUPS.includes(id)&&!(s.caravanReleased||[]).includes(id);
+const reserved=(s,day,id)=>enabled(day)&&groupsFor(day).includes(id)&&!(s.caravanReleased||[]).includes(id);
 const list=s=>s.caravans||[];
 const native=code=>/^CAR-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(code||''));
 const phone=value=>String(value||'').replace(/\D/g,'');
@@ -37,7 +38,7 @@ function handle(s,day,action,arg,now){
   const old=s.caravans.find(c=>c.id===arg.id);
   if(!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(arg.id||'')))throw Error('Identificador da caravana inválido.');
   const group=s.groups.find(g=>g.id===arg.group);
-  if(!group||!reserved(s,day,group.id)||group.status!=='forming')throw Error('Escolha G06, G07 ou G08 reservado e em formação.');
+  if(!group||!reserved(s,day,group.id)||group.status!=='forming')throw Error('Escolha um grupo de caravana reservado e em formação.');
   if(!Array.isArray(arg.members)||!arg.members.length||arg.members.length>25)throw Error('Cadastre entre 1 e 25 integrantes por lista. Divida caravanas maiores entre os grupos.');
   const members=arg.members.map(m=>({code:String(m.code||'').trim(),name:text(m.name,'o nome do integrante',150),phone:phone(m.phone),source:native(m.code)?'native':'even3'}));
   const codes=new Set();
@@ -92,7 +93,7 @@ function handle(s,day,action,arg,now){
   return m.name+': reserva de '+c.group+' remanejada para '+to.id+'. Motivo: '+reason;
  }
  const g=s.groups.find(g=>g.id===arg.group);
- if(!g||!GROUPS.includes(g.id)||!['forming','closed'].includes(g.status))throw Error('Escolha um grupo de caravana ainda no salão.');
+ if(!g||!groupsFor(day).includes(g.id)||!['forming','closed'].includes(g.status))throw Error('Escolha um grupo de caravana ainda no salão.');
  const reason=text(arg.reason,'o motivo',300);
  if(action==='caravanDefer'){
   if(!reserved(s,day,g.id))throw Error('Este grupo foi liberado para público geral.');
@@ -114,4 +115,4 @@ function gateRows(s,day,now=new Date().toISOString()){
   return {code:m.code,name:m.name,phone:m.phone||'',contact:c.contact||'',responsible:c.responsible,caravanId:c.id,caravanName:c.name,city:c.city,date:day,group:c.group,training:!!training,authorized:c.authorization?.status==='authorized',admitted:!!p,arrivedAt:p?.arrivedAt||null,eligible:!p&&(day===bahiaDay(now)||training)&&c.authorization?.status==='authorized'};
  }));
 }
-module.exports={DAYS,GROUPS,enabled,reserved,list,identity,compatible,handle,native,bahiaDay,gateRows};
+module.exports={DAYS,GROUPS,groupsFor,enabled,reserved,list,identity,compatible,handle,native,bahiaDay,gateRows};
