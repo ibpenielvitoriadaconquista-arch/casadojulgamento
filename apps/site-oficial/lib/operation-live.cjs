@@ -52,6 +52,7 @@ function admit(state, session, arrival, now=new Date().toISOString()) {
 }
 function project(state, role) {
   const next=structuredClone(state);
+  for(const s of Object.values(next.sessions))delete s.trainingTickets;
   if(!['geral','coordenacao','caravanas'].includes(role))for(const s of Object.values(next.sessions)){delete s.caravans;delete s.caravanReleased;}
   if(role==='caravanas')for(const [day,s] of Object.entries(next.sessions)){
     const codes=new Set(caravans.list(s).flatMap(c=>c.members.map(m=>m.code)));
