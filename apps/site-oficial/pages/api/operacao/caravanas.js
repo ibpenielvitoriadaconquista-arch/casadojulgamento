@@ -6,7 +6,7 @@ export default async function handler(req,res){
  try{
   if(req.method!=='GET')throw fail(405,'Método não permitido.');
   const user=await actor(req);if(!['portaria','geral','caixa'].includes(user.role))throw fail(403,'Consulta restrita à Portaria, Caixa e Gestão.');
-  const {session}=req.query;if(!caravans.enabled(session))throw fail(400,'Selecione uma apresentação de novembro.');
+  const {session}=req.query;if(!caravans.enabled(session))throw fail(400,'Selecione uma apresentação ou o Lote 1 de testes.');
   const r=await query('SELECT state,revision FROM peniel_ops.session_state WHERE session_date=$1',[session]);
   if(!r.rows[0])throw fail(503,'Sessão não preparada.');
   return res.json({revision:Number(r.rows[0].revision),members:caravans.gateRows(r.rows[0].state,session)});
