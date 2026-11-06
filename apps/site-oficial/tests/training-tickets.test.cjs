@@ -20,3 +20,8 @@ test('arrival stores one test person in coordination without an Even3 dependency
 });
 test('simultaneous operators cannot admit the same fictitious code twice',async()=>{const f=fixture();const results=await Promise.allSettled(['a','b'].map(user_id=>f.service.admit(code,session,{role:'portaria',user_id})));assert.equal(results.filter(r=>r.status==='fulfilled').length,1);assert.equal(f.state().people.length,1);});
 test('cashier and other roles cannot use test codes to admit; consumed codes survive a cleared queue',async()=>{const f=fixture();for(const role of ['caixa','caravanas','coordenacao','guias'])await assert.rejects(f.service.admit(code,session,{role,user_id:role}),/Somente/);await f.service.admit(code,session,{role:'geral',user_id:'manager'});const s=f.state();s.people=[];f.set(s);await assert.rejects(f.service.admit(code,session,{role:'geral',user_id:'manager'}),/já utilizado/);const projected=live.project({sessions:{[session]:s}},'portaria');assert.equal(projected.sessions[session].trainingTickets,undefined);});
+
+test('mobile copies normalize lowercase, spaces, compact tokens and typographic hyphens without accepting real numbers',()=>{
+ for(const value of ['cdjteste-0511-001',' CDJTESTE - 0511 - 001 ','CDJTESTE–0511–001','CDJTESTE0511001','`CDJTESTE-0511-001`'])assert.equal(training.parse(value),code);
+ for(const value of ['0511001','12345678','https://example.com/CDJTESTE-0511-001','CDJTESTE-0511-001-extra'])assert.equal(training.parse(value),null);
+});

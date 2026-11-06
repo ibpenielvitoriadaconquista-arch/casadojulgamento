@@ -1,7 +1,12 @@
 'use strict';
 const live=require('./operation-live.cjs'),tickets=require('./entry-tickets.cjs');
 const SESSION='2026-10-22';
-const parse=raw=>typeof raw==='string'&&/^CDJTESTE-[0-9]{4}-[0-9]{3}$/.test(raw.trim())?raw.trim():null;
+function parse(raw){
+ if(typeof raw!=='string'||raw.length>512)return null;
+ const value=raw.normalize('NFKC').trim().replace(/^`|`$/g,'').replace(/[\u2010-\u2015\u2212]/g,'-').replace(/\s/g,'').toUpperCase();
+ const match=/^CDJTESTE-?([0-9]{4})-?([0-9]{3})$/.exec(value);
+ return match?'CDJTESTE-'+match[1]+'-'+match[2]:null;
+}
 const fail=(status,message)=>Object.assign(new Error(message),{status});
 function inspect(state,code,session,at){
  if(session!==SESSION)throw fail(403,'Ingresso fictício permitido somente no Lote 1 de treinamento.');

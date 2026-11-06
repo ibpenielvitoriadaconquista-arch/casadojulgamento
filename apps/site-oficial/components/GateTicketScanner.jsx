@@ -87,7 +87,7 @@ export default function GateTicketScanner({session,rehearsal=false,testLot=false
   <form onSubmit={e=>{e.preventDefault();send(code.trim());}}>
    <label htmlFor="ticket-input">Ou digite o código individual</label>
    <div className="entry"><input id="ticket-input" name="ticket" value={code} onChange={e=>{setCode(e.target.value);setResult(null);}}
-     autoComplete="off" placeholder="Código do ingresso" maxLength={512} disabled={busy} required/>
+     autoComplete="off" autoCapitalize="off" autoCorrect="off" spellCheck={false} placeholder="Código do ingresso" maxLength={512} disabled={busy} required/>
     <button type="submit" disabled={busy||!code.trim()}>{busy?'Consultando…':'Consultar'}</button></div>
   </form>
   {error&&<p role="alert" className="warning">{error}</p>}
