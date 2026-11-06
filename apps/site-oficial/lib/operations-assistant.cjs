@@ -71,7 +71,11 @@ async function chat({message,history=[],session,user,threadId,tools,apiKey,model
  const ctx={user,session,threadId,proposals:[]},used=[];let input=[...selected,{role:'user',content:message}];
  for(let step=0;step<4;step++){
   const r=await fetcher('https://api.openai.com/v1/responses',{method:'POST',headers:{Authorization:'Bearer '+apiKey,'Content-Type':'application/json'},body:JSON.stringify({model,instructions,input,tools:definitions,parallel_tool_calls:false,store:false,max_output_tokens:1800,...(/^gpt-[56]/.test(model)?{reasoning:{effort:'low'}}:{})}),signal:AbortSignal.timeout(25000)});
-  if(!r.ok)throw fail(503,r.status===401?'A credencial OpenAI precisa ser revisada na configuração do servidor.':r.status===429?'A API OpenAI atingiu um limite de uso ou cobrança. Use o painel manual.':r.status===403||r.status===404?'O modelo configurado não está disponível para esta credencial.':'O serviço de IA está temporariamente indisponível. Use as consultas rápidas.');
+  if(!r.ok){
+   let code='';try{code=String((await r.json())?.error?.code||'');}catch{}
+   const quota=['insufficient_quota','billing_hard_limit_reached','billing_not_active'].includes(code);
+   throw fail(503,r.status===401?'A credencial OpenAI precisa ser revisada na configuração do servidor.':quota?'A API OpenAI bloqueou a chamada por saldo ou cota de cobrança (insufficient_quota). Confira Billing e Limits do projeto OpenAI. A configuração da Vercel foi carregada.':r.status===429?'A API OpenAI limitou temporariamente as requisições. Aguarde antes de tentar novamente; confira os limites do projeto.':r.status===403||r.status===404?'O modelo ou a permissão Responses não está disponível para esta credencial.':'O serviço de IA está temporariamente indisponível. Use as consultas rápidas.');
+  }
   const response=await r.json(),output=response.output||[],calls=output.filter(x=>x.type==='function_call');
   if(!calls.length){const text=output.filter(x=>x.type==='message').flatMap(m=>m.content||[]).filter(c=>c.type==='output_text').map(c=>c.text).join('\n').slice(0,7000);if(!text)throw fail(503,'A IA não retornou uma resposta completa. Use as consultas rápidas.');return {text,proposals:ctx.proposals,sources:used,model};}
   input.push(...output);

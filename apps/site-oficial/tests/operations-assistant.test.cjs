@@ -29,3 +29,6 @@ test('uncertain result is consumed without retry and non-manager cannot authoriz
  assert.equal((await confirmation.confirm(params)).status,'uncertain');assert.equal(status,'uncertain');assert.equal(requests,1);
  await assert.rejects(confirmation.confirm({...params,user:{role:'portaria',user_id:'x'}}),e=>e.status===403);
 });
+test('provider quota and temporary rate limits have distinct safe messages',async()=>{
+ for(const [code,pattern] of [['insufficient_quota',/saldo ou cota de cobrança/],['rate_limit_exceeded',/temporariamente/]])await assert.rejects(ai.chat({user,session,message:'Teste',apiKey:'fake',model:'test-model',tools:{},fetcher:async()=>({ok:false,status:429,json:async()=>({error:{code,message:'UNTRUSTED SECRET PROVIDER BODY'}})})}),e=>pattern.test(e.message)&&!e.message.includes('UNTRUSTED'));
+});
