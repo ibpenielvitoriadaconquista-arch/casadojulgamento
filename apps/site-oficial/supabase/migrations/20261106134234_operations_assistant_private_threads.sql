@@ -1,0 +1,10 @@
+CREATE TABLE peniel_ops.assistant_threads(id uuid PRIMARY KEY,owner_id uuid NOT NULL REFERENCES auth.users(id),busy_until timestamptz,created_at timestamptz NOT NULL DEFAULT now(),updated_at timestamptz NOT NULL DEFAULT now());
+CREATE INDEX assistant_threads_owner ON peniel_ops.assistant_threads(owner_id,updated_at DESC);
+CREATE TABLE peniel_ops.assistant_messages(id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,thread_id uuid NOT NULL REFERENCES peniel_ops.assistant_threads(id),role text NOT NULL CHECK(role IN ('user','assistant')),content text NOT NULL,metadata jsonb NOT NULL DEFAULT '{}',created_at timestamptz NOT NULL DEFAULT now());
+CREATE INDEX assistant_messages_thread ON peniel_ops.assistant_messages(thread_id,id);
+CREATE TABLE peniel_ops.assistant_proposals(id uuid PRIMARY KEY,thread_id uuid NOT NULL REFERENCES peniel_ops.assistant_threads(id),owner_id uuid NOT NULL REFERENCES auth.users(id),payload jsonb NOT NULL,expires_at timestamptz NOT NULL,status text NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','processing','authorized','rejected','uncertain')),used_at timestamptz);
+ALTER TABLE peniel_ops.assistant_threads ENABLE ROW LEVEL SECURITY;
+ALTER TABLE peniel_ops.assistant_messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE peniel_ops.assistant_proposals ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON peniel_ops.assistant_threads,peniel_ops.assistant_messages,peniel_ops.assistant_proposals FROM anon,authenticated;
+REVOKE ALL ON SEQUENCE peniel_ops.assistant_messages_id_seq FROM anon,authenticated;
