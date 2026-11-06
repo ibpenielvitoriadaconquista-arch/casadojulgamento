@@ -7,4 +7,25 @@ test('draft is temporary and never authorizes entry',async()=>{let inserts=0;con
 test('unconfirmed and used tickets cannot generate draft',async()=>{for(const result of [{needsDateAuthorization:true,registrationConfirmed:false},{needsDateAuthorization:true,registrationConfirmed:true,checkedIn:true}]){const tools=ai.createTools({query:async()=>{throw Error('must not insert');},admission:{lookup:async()=>result}});await assert.rejects(tools.run('preparar_excecao_data',{codigo:'77772709',sessao:session},{user,session,threadId:'thread',proposals:[]}),e=>e.status===409);}});
 test('Responses API tool roundtrip uses fixed endpoint and store false',async()=>{let calls=0;const fetcher=async(url,opts)=>{assert.equal(url,'https://api.openai.com/v1/responses');const body=JSON.parse(opts.body);assert.equal(body.store,false);assert.equal(body.parallel_tool_calls,false);assert.equal(body.tools.length,7);calls++;return {ok:true,json:async()=>calls===1?{output:[{type:'function_call',name:'consultar_manual',arguments:'{"assunto":"caravana"}',call_id:'one'}]}:{output:[{type:'message',content:[{type:'output_text',text:'Consulte a portaria.'}]}]}};};const r=await ai.chat({user,session,threadId:'t',message:'Como funciona?',apiKey:'secret',model:'test-model',fetcher,tools:{run:async()=>({queriedAt:'now',data:{version:'1'}})}});assert.equal(calls,2);assert.equal(r.text,'Consulte a portaria.');assert.equal(r.sources.length,1);});
 test('missing API config never attempts network',async()=>{await assert.rejects(ai.chat({user,session,message:'Teste',tools:{},fetcher:()=>{throw Error('network');}}),e=>e.status===503);});
-test('endpoint contains ownership, single use and existing authorization guards',()=>{const s=fs.readFileSync('pages/api/operacao/assistente.js','utf8');assert.match(s,/assistant.requireManager\(user\)/);assert.match(s,/sameOrigin\(req\)/);assert.match(s,/owner_id=\$2 AND status='pending' AND expires_at>now\(\)/);assert.match(s,/status='processing',used_at=now\(\)/);assert.match(s,/action:'authorize_date'/);assert.doesNotMatch(s,/\.admit\(/);});
+test('endpoint contains ownership, single use and existing authorization guards',()=>{const s=fs.readFileSync('pages/api/operacao/assistente.js','utf8');assert.match(s,/assistant.requireManager\(user\)/);assert.match(s,/sameOrigin\(req\)/);const helper=fs.readFileSync('lib/assistant-confirmation.cjs','utf8');assert.match(helper,/owner_id=\$2 AND status='pending' AND expires_at>now\(\)/);assert.match(helper,/status='processing',used_at=now\(\)/);assert.match(helper,/action:'authorize_date'/);assert.doesNotMatch(s,/\.admit\(/);});
+const confirmation=require('../lib/assistant-confirmation.cjs');
+test('chat authorization parses explicit code, payment and evidence only',()=>{
+ assert.equal(confirmation.parse('sim confirmo'),null);assert.equal(confirmation.parse('libere Maria'),null);
+ assert.deepEqual(confirmation.parse('LIBERAR 77772709 PAGO Conferi na Even3 agora'),{code:'77772709',paymentStatus:'paid',evidence:'Conferi na Even3 agora'});
+ assert.equal(confirmation.parse('LIBERAR 77772709 CORTESIA Conferida autorização da gestão').paymentStatus,'exempt');
+ assert.throws(()=>confirmation.parse('LIBERAR 77772709 PAGO ok'));
+});
+test('chat confirmation requires one current draft in same owner/thread/session',async()=>{
+ for(const rows of [[],[{id:'a'},{id:'b'}]])await assert.rejects(confirmation.findProposal({query:async()=>({rows}),user,threadId:'t',session,command:{code:'77772709'}}));
+ const id=await confirmation.findProposal({query:async(sql,args)=>{assert.match(sql,/owner_id=\$1 AND thread_id=\$2/);assert.equal(args[3],session);return {rows:[{id:'draft'}]};},user,threadId:'t',session,command:{code:'77772709'}});assert.equal(id,'draft');
+});
+test('chat authorization executes once and reuses existing validation endpoint',async()=>{
+ let available=true,requests=0;const query=async(sql,args)=>{if(sql.includes('RETURNING payload')){const rows=available?[{payload:{code:'77772709',target:session}}]:[];available=false;return {rows};}return {rows:[]};};
+ const params={query,user,proposalId:'p',paymentStatus:'paid',evidence:'Conferido com comprovante',token:'fake',fetcher:async(url,opts)=>{requests++;assert.equal(url,'https://www.ibpeniel.com/api/operacao/autorizacoes');assert.equal(JSON.parse(opts.body).action,'authorize_date');return {ok:true,json:async()=>({ok:true})};}};
+ assert.equal((await confirmation.confirm(params)).status,'authorized');await assert.rejects(confirmation.confirm(params));assert.equal(requests,1);
+});
+test('uncertain result is consumed without retry and non-manager cannot authorize',async()=>{
+ let status,requests=0;const params={query:async(sql,args)=>{if(sql.includes('RETURNING payload'))return {rows:[{payload:{code:'77772709',target:session}}]};status=args[1];return {rows:[]};},user,proposalId:'p',paymentStatus:'paid',evidence:'Comprovante conferido agora',token:'fake',fetcher:async()=>{requests++;throw Error('timeout');}};
+ assert.equal((await confirmation.confirm(params)).status,'uncertain');assert.equal(status,'uncertain');assert.equal(requests,1);
+ await assert.rejects(confirmation.confirm({...params,user:{role:'portaria',user_id:'x'}}),e=>e.status===403);
+});

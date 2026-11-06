@@ -1,6 +1,6 @@
 # Assistente da Operação - Casa do Julgamento 2026
 
-Versão 1.0.0 · Atualizado em 2026-11-06
+Versão 1.1.0 · Atualizado em 2026-11-06
 
 ## Missão e limites
 
@@ -62,7 +62,7 @@ Coordenação e Gestão podem autorizar exceção de data nos controles atuais; 
 
 No chat: consultar o código exato e a sessão; conferir inscrição, uso e revogação; consultar capacidade; preparar_excecao_data cria somente uma ficha temporária vinculada à conversa e ao gestor. Ela expira em cinco minutos e não reserva vaga por si só.
 
-O gestor deve revisar nome, código, origem, destino, vagas e evidência do recebimento ou cortesia. Somente o botão de confirmação envia authorize_date à rota existente /api/operacao/autorizacoes. Dizer “confirmo” na conversa não substitui esse botão.
+O gestor revisa nome, código, origem, destino, vagas e evidência. Para confirmar no próprio chat, envia LIBERAR CODIGO PAGO referência da conferência, ou LIBERAR CODIGO CORTESIA referência da autorização. Exemplo fictício: LIBERAR 77772709 PAGO Conferi na Even3 a venda presencial recebida. O servidor exige uma única ficha vigente para esse código, gestor, conversa e sessão e envia authorize_date à rota existente. Não é preciso botão adicional. Um simples sim ou confirmo não executa a autorização. O botão da ficha continua como alternativa.
 
 O servidor confere novamente data, inscrição e capacidade, incluindo credenciamentos pendentes e reservas de exceções já aprovadas. A autorização é registrada na auditoria com o gestor real. Ainda não há chegada: a Portaria precisa concluir o credenciamento.
 
@@ -116,7 +116,7 @@ Apoio: o código vigente tem painel de cronômetros e os controles gerais de pau
 
 buscar_inscricoes: busca limitada por nome/código no evento oficial; no máximo dez resultados; informa origem e última coleta. consultar_ingresso: consulta a situação do ingresso para uma sessão, sem registrar chegada. consultar_operacao: resumo de fila, fichas, espera, circuito e grupos.
 
-consultar_caravanas: listas, chegadas e solicitações pendentes por sessão. consultar_sincronizacao: última execução, contagens e diagnóstico do catálogo. consultar_manual: seção do documento por assunto. preparar_excecao_data: somente cria a ficha de revisão, sujeita às condições do servidor.
+consultar_caravanas: listas, chegadas e solicitações pendentes por sessão. consultar_sincronizacao: última execução, contagens e diagnóstico do catálogo. consultar_manual: seção do documento por assunto. preparar_excecao_data: cria a ficha de revisão. A mensagem explícita LIBERAR CODIGO PAGO ou CORTESIA, seguida da evidência, confirma a ficha pelo servidor e registra auditoria.
 
 Não há ferramenta de SQL livre, shell, navegador, envio de e-mail, criação de colaborador, mudança de senha, liberação de capacidade, check-in, pagamento, exclusão ou deploy. A função do modelo nunca determina a permissão do usuário.
 
@@ -154,7 +154,7 @@ O diagnóstico antigo /api/operacao/even3-status pode comparar títulos estátic
 
 ## Homologação e responsabilidade
 
-Antes de ativar a IA: validar chave/modelo, acesso somente da Gestão, isolamento entre gestores, busca de homônimos, dados fora da data, sessão cheia, ingresso revogado/usado e resposta incerta. Uma ficha deve expirar e nunca permitir duas confirmações.
+Antes de ativar a IA: validar chave/modelo, acesso somente da Gestão, isolamento entre gestores, busca de homônimos, dados fora da data, sessão cheia, ingresso revogado/usado e resposta incerta. Uma ficha deve expirar e nunca permitir duas confirmações. Validar confirmação pelo chat com código, status e evidência, recusa sem ficha ou com fichas ambíguas e bloqueio após falha incerta.
 
 Testar primeiro no Lote 1 com dados fictícios. A validação de ferramentas simuladas não prova uma resposta real do modelo nem uma admissão oficial em 09/11. Registrar separadamente o que foi testado localmente, no servidor, no celular e com API OpenAI real.
 
