@@ -9,3 +9,10 @@ test('cashier confirms received cash and church Pix only',()=>{
  for(const role of ['portaria','guia','coordenacao',undefined])assert.equal(allowed(role,'POST',receipt),false);
 });
 test('management retains financial review and external reconciliation',()=>assert.equal(allowed('geral','POST',{action:'confirm_external'}),true));
+
+test('coordination may only authorize a confirmed date exception, never financial or reconciliation actions',()=>{
+ assert.equal(allowed('coordenacao','POST',{action:'authorize_date',confirmed:true}),true);
+ assert.equal(allowed('coordenacao','POST',{action:'authorize_date',confirmed:false}),false);
+ for(const action of ['authorize','revoke','confirm_external','retry_external'])assert.equal(allowed('coordenacao','POST',{action,confirmed:true}),false);
+ assert.equal(allowed('coordenacao','GET',{}),false);
+});

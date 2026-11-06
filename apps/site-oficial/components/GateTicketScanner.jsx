@@ -9,7 +9,7 @@ export default function GateTicketScanner({session,rehearsal=false,testLot=false
  const [selectedCode,setSelectedCode]=useState('');
  const [overrideOpen,setOverrideOpen]=useState(false),[overrideEvidence,setOverrideEvidence]=useState(''),[overridePayment,setOverridePayment]=useState('paid'),[overrideConfirmed,setOverrideConfirmed]=useState(false);
  const sessionData=tickets.ENTRIES.find(e=>e.session===session);
- useEffect(()=>{setResult(null);setCode('');setError('');},[session]);
+ useEffect(()=>{setResult(null);setCode('');setError('');setOverrideOpen(false);setOverrideEvidence('');setOverrideConfirmed(false);},[session]);
  useEffect(()=>()=>{stream.current?.getTracks().forEach(t=>t.stop());},[]);
  function stopCamera(){stream.current?.getTracks().forEach(t=>t.stop());stream.current=null;active.current=false;setCamera(false);}
  async function send(ticket,action='lookup'){
@@ -20,7 +20,7 @@ export default function GateTicketScanner({session,rehearsal=false,testLot=false
     body:JSON.stringify({code:ticket,session,action}),signal:AbortSignal.timeout(45000)});
    const data=await r.json();
    if(!r.ok)throw Error(data.error||'Não foi possível validar o ingresso.');
-   setSelectedCode(ticket);setResult(data);
+   setSelectedCode(ticket);setResult(data);return data;
   }catch(e){setError(e.name==='TimeoutError'?'Conexão demorou. Não libere a entrada.':e.message||'Falha na consulta.');}
   finally{reading.current=false;setBusy(false);}
  }
@@ -65,13 +65,13 @@ export default function GateTicketScanner({session,rehearsal=false,testLot=false
       const w=el.videoWidth,h=el.videoHeight;
       if(w&&h){const c=canvas.current||(canvas.current=document.createElement('canvas'));c.width=Math.min(w,960);c.height=Math.round(h*c.width/w);const ctx=c.getContext('2d',{willReadFrequently:true});ctx.drawImage(el,0,0,c.width,c.height);const pixels=ctx.getImageData(0,0,c.width,c.height);value=decoder.current(pixels.data,c.width,c.height,{inversionAttempts:'attemptBoth'})?.data||null;}
     }
-    if(value){stopCamera();setCode(value);await send(value,rehearsal?'lookup':'admit');}
+    if(value){stopCamera();setCode(value);const found=await send(value,'lookup');if(!rehearsal&&viewerRole!=='coordenacao'&&found?.eligible)await send(value,'admit');}
    }catch{/* A failed frame must never admit someone. */}
    finally{detecting=false;}
   },500);
   return()=>clearInterval(timer);
  },[camera,session]);
- const canAdmit=result?.eligible&&result?.entry?.date===session&&!result?.checkedIn;
+ const canAdmit=viewerRole!=='coordenacao'&&result?.eligible&&result?.entry?.date===session&&!result?.checkedIn;
  async function authorizeException(e){
   e.preventDefault();if(busy||!overrideConfirmed)return;setBusy(true);setError('');
   try{const r=await fetch('/api/operacao/autorizacoes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:code.trim(),action:'authorize_date',session,paymentStatus:overridePayment,evidence:overrideEvidence,confirmed:true})});const data=await r.json();if(!r.ok)throw Error(data.error||'Não foi possível autorizar.');setOverrideOpen(false);setOverrideEvidence('');setOverrideConfirmed(false);setBusy(false);await send(code.trim());return;}catch(err){setError(err.message||'Não foi possível autorizar.');}finally{setBusy(false);}
@@ -80,7 +80,7 @@ export default function GateTicketScanner({session,rehearsal=false,testLot=false
   <div className="head"><strong>Leitura do ingresso Even3</strong><span>{rehearsal?'CONSULTA':'CREDENCIAMENTO OFICIAL'}</span></div>
   {rehearsal&&<p role="status" className="warning"><b>{testLot?'INGRESSO GERAL - 1º LOTE · ENSAIO 22–28/10. Entrada somente na fila de treinamento.':'ENSAIO — sem pagamento validado e sem credenciamento real.'}</b></p>}
   {session==='2026-10-22'&&<p className="warning">Códigos CDJTESTE são fictícios: registram somente o treinamento, sem credenciar na Even3.</p>}
-  <p>A leitura pela câmera credencia o ingresso válido na Even3 e registra a entrada. Para conferir antes, digite o código abaixo. Entrada selecionada: <b>{sessionData?.label||session}</b>.</p>
+  <p>A câmera consulta e registra automaticamente apenas o ingresso apto. Se houver bloqueio, mostra os dados para conferência. Pelo código digitado, confirme a entrada após consultar. Entrada selecionada: <b>{sessionData?.label||session}</b>.</p>
   {camera&&<div className="camera"><video ref={video} muted playsInline autoPlay aria-label="Câmera de leitura QR"/><button type="button" onClick={stopCamera}>Fechar câmera</button></div>}
   <button type="button" className="camera-button" disabled={busy} onClick={camera?stopCamera:startCamera}>{camera?'Desligar câmera':'Ler QR com câmera'}</button>
   {cameraError&&<p role="status" className="warning">{cameraError}</p>}
@@ -91,16 +91,18 @@ export default function GateTicketScanner({session,rehearsal=false,testLot=false
     <button type="submit" disabled={busy||!code.trim()}>{busy?'Consultando…':'Consultar'}</button></div>
   </form>
   {error&&<p role="alert" className="warning">{error}</p>}
-  {viewerRole==='geral'&&!rehearsal&&!code.trim().startsWith('CDJTESTE-')&&code.trim()&&<div className="result"><button type="button" className="camera-button" onClick={()=>setOverrideOpen(!overrideOpen)}>Gestão: autorizar exceção de data</button>{overrideOpen&&<form onSubmit={authorizeException}>
+  {['geral','coordenacao'].includes(viewerRole)&&result?.needsDateAuthorization&&!rehearsal&&!code.trim().startsWith('CDJTESTE-')&&code.trim()&&<div className="result"><button type="button" className="camera-button" disabled={busy||result.availability?.remaining===0} onClick={()=>setOverrideOpen(!overrideOpen)}>Autorizar exceção de data · conferir vagas</button>{overrideOpen&&<form onSubmit={authorizeException}>
    <p>Confira na Even3 a inscrição, o pagamento ou cortesia e a data. A autorização vale para a sessão selecionada hoje; a entrada ainda será credenciada individualmente.</p>
    <label>Comprovação<select value={overridePayment} onChange={e=>setOverridePayment(e.target.value)}><option value="paid">Pagamento comprovado</option><option value="exempt">Cortesia ou ingresso gratuito</option></select></label>
    <label>Motivo e referência da conferência<textarea required minLength={10} maxLength={500} value={overrideEvidence} onChange={e=>setOverrideEvidence(e.target.value)} /></label>
-   <label><input type="checkbox" required checked={overrideConfirmed} onChange={e=>setOverrideConfirmed(e.target.checked)}/> Conferi o ingresso e o pagamento ou cortesia na Even3 e autorizo a exceção.</label>
-   <button className="confirm" disabled={busy} type="submit">Registrar autorização da Gestão</button>
+   <label><input type="checkbox" required checked={overrideConfirmed} onChange={e=>setOverrideConfirmed(e.target.checked)}/> Conferi o ingresso, o recebimento ou cortesia e as vagas da sessão em atendimento. Autorizo a exceção.</label>
+   <button className="confirm" disabled={busy} type="submit">Confirmar autorização de data</button>
   </form>}</div>}
   {result&&<div className="result" role="status">
    <strong>{result.found?result.participantName||'Inscrição localizada':'Ingresso não encontrado'}</strong>
-   {result.entry&&<p>Entrada: {result.entry.label}</p>}
+   {result.entry&&<p>Entrada original: {result.entry.label}</p>}
+   {result.availability&&<p>Vagas de admissão na sessão selecionada: <b>{result.availability.remaining}</b> de {result.availability.limit}. A capacidade será conferida novamente ao autorizar.</p>}
+   {result.registrationConfirmed!==undefined&&<p>Even3: {result.registrationConfirmed?'inscrição confirmada':'inscrição não confirmada'}</p>}
    {result.caravan&&<p className="warning"><b>CARAVANA · {result.caravan.name} · {result.caravan.city}</b><br/>Encaminhar à Coordenação para o grupo reservado {result.caravan.group}.</p>}
    <p className={result.admitted?'success':'warning'}>{result.message}</p>
    {result.checkedIn&&<p>Já consta uma chegada para este código.</p>}

@@ -29,7 +29,7 @@ function fixture({timeout=false,failFinalize=false,entry=rules.LOT,caravan=false
 test('date exception requires the exact ticket source, destination and day; admits only once',async()=>{
  const source=rules.ENTRIES[1],destination=rules.ENTRIES[2];
  const f=fixture({entry:source,destination});
- await assert.rejects(f.service.lookup(p.checkin_code,destination.session),/Gestão/);
+ const blocked=await f.service.lookup(p.checkin_code,destination.session);assert.equal(blocked.found,true);assert.equal(blocked.eligible,false);assert.equal(blocked.needsDateAuthorization,true);assert.equal(f.state.sends,0);
  f.state.override={action:'authorize_date',evidence:JSON.stringify({sourceEntryId:source.entryId,session:destination.session,day:destination.days[0]})};
  assert.equal((await f.service.lookup(p.checkin_code,destination.session)).eligible,true);
  const r=await Promise.allSettled([f.service.admit(p.checkin_code,destination.session,{user_id:'u1'}),f.service.admit(p.checkin_code,destination.session,{user_id:'u2'})]);
@@ -82,4 +82,24 @@ test('November caravan identity follows lookup, official check-in and coordinati
  assert.equal(result.admitted,true);assert.equal(result.caravan.name,'Caravana teste');assert.equal(state.sends,1);
  assert.equal(state.session.people[0].caravan.group,'G06');assert.equal(state.session.people[0].group,null);
  assert.equal(state.attempt.status,'admitted');
+});
+
+test('inspection before the event shows ticket identity without creating admission or date authorization',async()=>{
+ const entry=rules.ENTRIES[2],f=fixture({entry});
+ const now=()=>new Date('2026-11-05T20:00:00-03:00').toISOString();
+ const service=createService({query:async sql=>{
+  if(sql.startsWith('SELECT attendee_id'))return {rows:[{attendee_id:'42'}]};
+  if(sql.includes('entry_checkins'))return {rows:[]};
+  if(sql.includes('entry_authorizations'))return {rows:[]};
+  throw Error('Unexpected mutation or query: '+sql);
+ },transaction:async()=>{throw Error('No admission transaction expected');},even3:f.even3,now});
+ const result=await service.lookup(p.checkin_code,entry.session);
+ assert.equal(result.found,true);assert.equal(result.participantName,p.name);assert.equal(result.registrationConfirmed,true);assert.equal(result.eligible,false);assert.equal(result.needsDateAuthorization,false);assert.equal(f.state.sends,0);
+ await assert.rejects(service.admit(p.checkin_code,entry.session,{user_id:'u'}),/data de atendimento/);
+});
+test('cancelled tickets remain visible but cannot receive a date exception or admission',async()=>{
+ const f=fixture();f.even3.attendee=async()=>({...p,confirmed:false});
+ const result=await f.service.lookup(p.checkin_code,rules.LOT.session);
+ assert.equal(result.found,true);assert.equal(result.registrationConfirmed,false);assert.equal(result.eligible,false);assert.equal(result.needsDateAuthorization,false);
+ await assert.rejects(f.service.admit(p.checkin_code,rules.LOT.session,{user_id:'u'}));assert.equal(f.state.sends,0);
 });

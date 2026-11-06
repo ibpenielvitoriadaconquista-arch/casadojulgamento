@@ -12,8 +12,9 @@ export default async function handler(req,res){
  try{
   if(req.method!=='POST')throw fail(405,'Método não permitido.');
   sameOrigin(req);const user=await actor(req);
-  if(!['portaria','caixa','geral'].includes(user.role))throw fail(403,'Somente Portaria, Caixa ou Gestão Geral.');
+  if(!['portaria','caixa','geral','coordenacao'].includes(user.role))throw fail(403,'Somente Portaria, Caixa ou Gestão Geral.');
   const {code:raw,session,action='lookup'}=req.body||{},code=tickets.parseTicketCode(raw);
+  if(user.role==='coordenacao'&&action!=='lookup')throw fail(403,'A Coordenação consulta e autoriza; a Portaria registra a entrada.');
   const trainingCode=training.parse(raw);
   if(trainingCode){if(!['lookup','admit'].includes(action))throw fail(400,'Ação inválida.');return res.json(await (action==='admit'?trainingService.admit(trainingCode,session,user):trainingService.lookup(trainingCode,session)));}
   if(!code||!['lookup','admit'].includes(action))throw fail(400,'Código ou ação inválidos.');

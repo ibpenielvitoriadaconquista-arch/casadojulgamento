@@ -3,6 +3,7 @@ const rules=require('./official-entries.cjs'),tickets=require('./entry-tickets.c
 const {capacityFor}=require('./session-capacity.cjs');
 const caravans=require('./caravans.cjs');
 const entitlement=require('./even3-entitlement.cjs');
+const capacity=require('./admission-capacity.cjs');
 const EVENT=tickets.EVENT_ID;
 const fail=(status,message)=>Object.assign(new Error(message),{status});
 function createService({query,transaction,even3,now=()=>new Date().toISOString()}){
@@ -12,7 +13,7 @@ function createService({query,transaction,even3,now=()=>new Date().toISOString()
   let evidence;try{evidence=typeof rows[0].evidence==='string'?JSON.parse(rows[0].evidence):rows[0].evidence;}catch{return false;}
   return evidence?.session===target.session&&evidence?.sourceEntryId===source.entryId&&evidence?.day===tickets.bahiaDay(new Date(now()));
  }
- async function load(code,session){
+ async function load(code,session,{forLookup=false}={}){
   const destination=rules.bySession(session);if(!destination)throw fail(400,'Selecione uma entrada oficial.');
   const cached=await query('SELECT attendee_id FROM public.cdj_even3_api_attendees WHERE event_id=$1 AND checkin_code=$2',[EVENT,code]);
   if(cached.rows.length>1)throw fail(409,'QR associado a mais de uma inscrição. Procure a Gestão.');
@@ -30,20 +31,33 @@ function createService({query,transaction,even3,now=()=>new Date().toISOString()
   const entry=rules.byCatalogCategory(event,p.registration_category);
   if(!entry)throw fail(409,'Categoria do ingresso não reconhecida. Procure a Gestão.');
   const today=tickets.bahiaDay(new Date(now()));
-  const reason=rules.validate(p,entry,entry.days[0]);if(reason)throw fail(409,reason);
-  if(!destination.days.includes(today))throw fail(409,'Selecione a sessão correspondente à data de hoje.');
-  if((entry.session!==destination.session||!entry.days.includes(today))&&!await validOverride({query},code,entry,destination))throw fail(409,'Ingresso de outra data. A Gestão deve conferir e autorizar a exceção.');
+  const invalid=rules.validate(p,entry,entry.days[0]);
   if(!rules.catalogMatches(event,entry))throw fail(409,'Categoria não corresponde ao catálogo atual da Even3.');
-  await entitlement.authorize({p,entry,query});
-  return {p,entry,destination};
+  const destinationOpen=destination.days.includes(today);
+  const otherDate=entry.session!==destination.session||!entry.days.includes(today);
+  const override=destinationOpen&&otherDate&&!invalid?await validOverride({query},code,entry,destination):false;
+  const blockedReason=invalid||(!destinationOpen?'Sessão selecionada fora da data de atendimento. A consulta está disponível, mas a entrada permanece bloqueada.':otherDate&&!override?'Ingresso de outra data. Coordenação ou Gestão devem conferir as vagas e autorizar a exceção.':null);
+  if(blockedReason&&!forLookup)throw fail(409,blockedReason);
+  if(!blockedReason)await entitlement.authorize({p,entry,query});
+  return {p,entry,destination,blockedReason,needsDateAuthorization:!invalid&&destinationOpen&&otherDate&&!override};
  }
- const result=(p,entry,extra={})=>({found:true,participantName:p.name,entry:{id:entry.entryId,date:entry.session,label:entry.label},session:entry.session,admitted:false,eligible:false,checkedIn:false,status:'blocked',...extra});
+ const result=(p,entry,extra={})=>({found:true,participantName:p.name,registrationConfirmed:p.confirmed===true,entry:{id:entry.entryId,date:entry.session,label:entry.label},session:entry.session,admitted:false,eligible:false,checkedIn:false,status:'blocked',...extra});
  async function lookup(code,session){
-  const {p,entry,destination}=await load(code,session);
+  const {p,entry,destination,blockedReason,needsDateAuthorization}=await load(code,session,{forLookup:true});
   const attempt=(await query('SELECT status FROM peniel_ops.entry_checkins WHERE event_id=$1 AND ticket_code=$2',[EVENT,code])).rows[0];
   if(attempt?.status==='admitted')return result(p,entry,{checkedIn:true,message:'Ingresso já utilizado. Não autorize outra entrada.'});
   if(attempt&&['sending','uncertain'].includes(attempt.status))return result(p,entry,{message:'Credenciamento em processamento ou aguardando conferência da Gestão. Não repita a entrada.'});
   const auth=(await query('SELECT * FROM peniel_ops.entry_authorizations WHERE event_id=$1 AND ticket_code=$2',[EVENT,code])).rows[0];
+  if(auth?.checked_in_at)return result(p,entry,{checkedIn:true,message:'Ingresso já utilizado.'});
+  if(auth?.revoked_at)return result(p,entry,{message:'Autorização revogada. Procure a Gestão.'});
+  if(blockedReason){
+   let availability;
+   if(needsDateAuthorization){
+    const queue=(await query('SELECT state FROM peniel_ops.session_state WHERE session_date=$1',[session])).rows[0];
+    if(queue){const reserved=await capacity.reservations({query},EVENT,session,tickets.bahiaDay(new Date(now())),code),limit=capacityFor(session).total;availability={limit,arrived:queue.state.people.length,reserved,remaining:Math.max(0,limit-queue.state.people.length-reserved)};}
+   }
+   return result(p,entry,{needsDateAuthorization,availability,message:blockedReason});
+  }
   const reason=authorizationReason(auth,p,entry);
   if(reason)return result(p,entry,{message:reason,needsAuthorization:true});
   const queue=caravans.enabled(session)?(await query('SELECT state FROM peniel_ops.session_state WHERE session_date=$1',[session])).rows[0]?.state:null;
@@ -89,7 +103,7 @@ function createService({query,transaction,even3,now=()=>new Date().toISOString()
    if(old)throw fail(409,'Já existe uma tentativa de credenciamento. Procure a Gestão para conferir o resultado.');
    const state=(await db.query('SELECT state FROM peniel_ops.session_state WHERE session_date=$1 FOR UPDATE',[session])).rows[0];
    if(!state)throw fail(503,'Fila oficial indisponível.');
-   const reservations=(await db.query("SELECT count(*)::int AS total FROM peniel_ops.entry_checkins WHERE session_date=$1 AND status IN ('sending','uncertain','confirmed')",[session])).rows[0].total;
+   const reservations=await capacity.reservations(db,EVENT,session,tickets.bahiaDay(new Date(now())),code);
    if(state.state.people.length+reservations>=capacityFor(session).total)throw fail(409,'Sessão lotada. Procure a Coordenação.');
    const at=now();
    await db.query("INSERT INTO peniel_ops.entry_checkins(event_id,ticket_code,entry_id,attendee_id,participant_name,session_date,status,requested_at,requested_by) VALUES($1,$2,$3,$4,$5,$6,'sending',$7,$8)",[EVENT,code,entry.entryId,String(p.id_attendees),p.name,session,at,user.user_id]);

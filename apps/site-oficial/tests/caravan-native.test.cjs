@@ -59,7 +59,7 @@ test('two concurrent gate requests persist one native arrival and audit the real
  // Fix only the clock while using the real command and API logic.
  const clocked={...live,command:(db,session,role,action,arg)=>live.command(db,session,role,action,arg,at)};
  async function call(user){
-  const handler=new Function('createHash','query','transaction','actor','fail','sameOrigin','ops','live',source)(createHash,query,transaction,async()=>({role:'portaria',user_id:user}),fail,()=>{},ops,clocked);
+  const handler=new Function('createHash','query','transaction','actor','fail','sameOrigin','ops','live','capacity','tickets',source)(createHash,query,transaction,async()=>({role:'portaria',user_id:user}),fail,()=>{},ops,clocked,require('../lib/admission-capacity.cjs'),tickets);
   const res={setHeader(){},status(n){this.code=n;return this;},json(body){this.body=body;this.code||=200;}};
   await handler({method:'POST',body:{session:day,role:'portaria',action:'caravanAdmit',arg:{code,actorId:'forged'},revision:initial.revision,requestId:'55555555-5555-4555-8555-555555555555'}},res);return res;
  }

@@ -3,6 +3,8 @@ import {query,transaction} from '../../../lib/db';
 import {actor,fail,sameOrigin} from '../../../lib/operation-auth';
 import ops from '../../../lib/operation-training.cjs';
 import live from '../../../lib/operation-live.cjs';
+import capacity from '../../../lib/admission-capacity.cjs';
+import tickets from '../../../lib/entry-tickets.cjs';
 export const config={api:{bodyParser:{sizeLimit:'16kb'}}};
 export default async function handler(req,res){
  res.setHeader('Cache-Control','no-store');
@@ -34,8 +36,8 @@ export default async function handler(req,res){
    if(Number(r.rows[0].revision)!==revision)throw fail(409,'Outro colaborador atualizou a sessão. Atualize e confira a seleção antes de repetir.');
    let next;
    if(action==='caravanAdmit'){
-    const reservations=await client.query("SELECT count(*)::int AS total FROM peniel_ops.entry_checkins WHERE session_date=$1 AND status IN ('sending','uncertain','confirmed')",[session]);
-    if(r.rows[0].state.people.length+reservations.rows[0].total>=ops.capacityFor(session).total)throw fail(409,'Sessão lotada ou com vagas reservadas para credenciamentos em andamento.');
+    const reservations=await capacity.reservations(client,tickets.EVENT_ID,session,tickets.bahiaDay());
+    if(r.rows[0].state.people.length+reservations>=ops.capacityFor(session).total)throw fail(409,'Sessão lotada ou com vagas reservadas para credenciamentos em andamento.');
    }
    try{next=live.command(wrap(r.rows[0]),session,role,action,{...arg,actorId:user.user_id});}catch(e){throw fail(422,e.message);}
    await client.query('UPDATE peniel_ops.session_state SET state=$2::jsonb,revision=$3,updated_at=now() WHERE session_date=$1',[session,JSON.stringify(next.db.sessions[session]),next.db.revision]);
