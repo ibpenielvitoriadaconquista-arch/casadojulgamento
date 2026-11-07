@@ -8,8 +8,8 @@ const SESSIONS = [
 ];
 const CIRCUIT_LIMIT=3;
 const LABELS={forming:'Em formação',closed:'Fechado no salão',called:'Chamado para espera',waiting:'Na sala de espera',circuit:'No circuito',safe:'No ponto seguro',finished:'Finalizado'};
-const ROLES={geral:'Painel geral',portaria:'Portaria',caixa:'Caixa',coordenacao:'Coordenação',guias:'Guias',apoio:'Apoio',telao:'Telão',caravanas:'Administrador de caravanas'};
-const ALLOWED={geral:['scan','assign','deliver','undoDelivery','move','close','reopen','call','arrive','start','safe','finish','pause','takeover','guide','reset'],portaria:['scan'],caixa:[],caravanas:[],coordenacao:['assign','deliver','undoDelivery','move','close','reopen','call'],guias:['arrive','start','safe','finish'],telao:[],apoio:[]};
+const ROLES={geral:'Painel geral',portaria:'Portaria',caixa:'Caixa',coordenacao:'Coordenação',apoio:'Apoio',telao:'Telão',caravanas:'Administrador de caravanas'};
+const ALLOWED={geral:['scan','assign','deliver','undoDelivery','move','close','reopen','call','arrive','start','safe','finish','pause','takeover','guide','reset'],portaria:['scan'],caixa:[],caravanas:[],coordenacao:['assign','deliver','undoDelivery','move','close','reopen','call'],apoio:['arrive','start','safe','finish'],telao:[]};
 function freshSession(sessionId=SESSIONS[0].id){return {counter:0,paused:false,coordinator:'Titular',people:[],groups:Array.from({length:capacityFor(sessionId).groups},(_,i)=>({id:'G'+String(i+1).padStart(2,'0'),status:'forming',guide:'',members:[]})),history:[],lastAssignment:null};}
 function fresh(){return {schema:5,revision:0,sessions:Object.fromEntries(SESSIONS.map(s=>[s.id,freshSession(s.id)]))};}
 function active(s){return s.groups.filter(g=>['circuit','safe'].includes(g.status));}
@@ -70,25 +70,25 @@ function apply(db,sessionId,role,action,arg={},now=new Date().toISOString()){
     g.status='called';g.calledAt=now;message=g.id+' chamado no telão. Sala de espera reservada.';
   }else if(action==='arrive'){
     const g=group(arg.group);if(s.paused)throw Error('Movimentações pausadas.');if(!g||g.status!=='called')throw Error('Aguarde a chamada da Coordenação.');
-    g.status='waiting';message=g.id+' recebido pelo guia na sala de espera.';
+    g.status='waiting';message=g.id+' recebido pelo apoio na sala de espera.';
   }else if(action==='start'){
     const g=group(arg.group);if(s.paused)throw Error('Novas partidas pausadas.');if(!g||g.status!=='waiting')throw Error('Confirme o grupo na sala de espera primeiro.');
-    if(!arg.physicallySafe)throw Error('O guia precisa confirmar as condições físicas de segurança.');
+    if(!arg.physicallySafe)throw Error('O apoio precisa confirmar as condições físicas de segurança.');
     if(active(s).length>=CIRCUIT_LIMIT)throw Error('Já existem três grupos no circuito. Aguarde uma finalização.');
     const previous=s.groups.slice(0,s.groups.indexOf(g)).filter(x=>x.members.length&&!x.caravanDeferred);
     if(previous.some(x=>!['safe','finished'].includes(x.status)))throw Error('O grupo anterior precisa confirmar o ponto seguro.');
-    g.status='circuit';g.startedAt=now;message=g.id+' iniciou por confirmação do guia. Sala de espera LIVRE.';
+    g.status='circuit';g.startedAt=now;message=g.id+' iniciou por confirmação do apoio. Sala de espera LIVRE.';
   }else if(action==='safe'){
     const g=group(arg.group);if(!g||g.status!=='circuit')throw Error('Grupo não está em percurso.');
     g.status='safe';g.safeAt=now;message=g.id+' no ponto seguro. Continua ocupando uma vaga do circuito.';
   }else if(action==='finish'){
     const g=group(arg.group);if(!g||g.status!=='safe')throw Error('Registre o ponto seguro antes de finalizar.');
-    g.status='finished';g.finishedAt=now;message=g.id+' finalizado pelo guia. Vaga do circuito liberada.';
+    g.status='finished';g.finishedAt=now;message=g.id+' finalizado pelo apoio. Vaga do circuito liberada.';
   }else if(action==='guide'){
-    const g=group(arg.group);if(!g||!['forming','closed'].includes(g.status))throw Error('Defina o guia antes da chamada.');
-    const name=String(arg.name||'').trim().slice(0,60);if(!name)throw Error('Informe um nome de guia fictício.');g.guide=name;message=g.id+' atribuído a '+name+'.';
+    const g=group(arg.group);if(!g||!['forming','closed'].includes(g.status))throw Error('Defina o apoio antes da chamada.');
+    const name=String(arg.name||'').trim().slice(0,60);if(!name)throw Error('Informe um nome do apoio fictício.');g.guide=name;message=g.id+' atribuído a '+name+'.';
   }else if(action==='pause'){
-    s.paused=!s.paused;message=s.paused?'Novos deslocamentos PAUSADOS. Grupos no circuito continuam assistidos pelos guias.':'Movimentos retomados após conferência da equipe.';
+    s.paused=!s.paused;message=s.paused?'Novos deslocamentos PAUSADOS. Grupos no circuito continuam assistidos pela equipe de apoio.':'Movimentos retomados após conferência da equipe.';
   }else if(action==='takeover'){
     s.coordinator=s.coordinator==='Titular'?'Substituto':'Titular';s.paused=true;message=s.coordinator+' assumiu. Movimentos pausados até conferência.';
   }else if(action==='reset'){

@@ -2,14 +2,14 @@ const test=require('node:test'),assert=require('node:assert/strict'),fs=require(
 const base=path.resolve(__dirname,'..');
 const read=f=>fs.readFileSync(path.join(base,f),'utf8');
 const {cleanInput}=require('../lib/staff-requests.cjs');
-test('cadastro normaliza nome, WhatsApp e função Guia',()=>{
- const out=cleanInput({name:' Ana  Silva ',email:'ANA@EXEMPLO.COM',whatsapp:'(77) 99999-9999',role:'guia'});
- assert.deepEqual(out,{name:'Ana Silva',email:'ana@exemplo.com',whatsapp:'77999999999',role:'guias'});
+test('cadastro normaliza nome, WhatsApp e função Apoio',()=>{
+ const out=cleanInput({name:' Ana  Silva ',email:'ANA@EXEMPLO.COM',whatsapp:'(77) 99999-9999',role:'apoio'});
+ assert.deepEqual(out,{name:'Ana Silva',email:'ana@exemplo.com',whatsapp:'77999999999',role:'apoio'});
 });
 test('cadastro rejeita função geral, contato inválido e entradas vazias',()=>{
- for(const role of ['geral','telao','admin',''])assert.throws(()=>cleanInput({name:'Ana Silva',email:'ana@exemplo.com',whatsapp:'77999999999',role}));
- assert.throws(()=>cleanInput({name:'Ana Silva',email:'sem-email',whatsapp:'77999999999',role:'guias'}));
- assert.throws(()=>cleanInput({name:'Ana Silva',email:'ana@exemplo.com',whatsapp:'1234',role:'guias'}));
+ for(const role of ['geral','telao','admin','guias','guia',''])assert.throws(()=>cleanInput({name:'Ana Silva',email:'ana@exemplo.com',whatsapp:'77999999999',role}));
+ assert.throws(()=>cleanInput({name:'Ana Silva',email:'sem-email',whatsapp:'77999999999',role:'apoio'}));
+ assert.throws(()=>cleanInput({name:'Ana Silva',email:'ana@exemplo.com',whatsapp:'1234',role:'apoio'}));
 });
 test('papel Caixa existe sem ação de admissão fictícia',()=>{
  const ops=require('../lib/operation-training.cjs');

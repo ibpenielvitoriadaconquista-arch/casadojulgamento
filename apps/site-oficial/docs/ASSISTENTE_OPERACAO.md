@@ -1,6 +1,6 @@
 # Assistente da Operação - Casa do Julgamento 2026
 
-Versão 1.2.0 · Atualizado em 2026-11-06
+Versão 1.3.0 · 2026-11-07
 
 ## Missão e limites
 
@@ -10,6 +10,12 @@ Não é uma cópia automática da conversa do ChatGPT. O modelo recebe este manu
 
 O assistente não cria entradas na Portaria, não credencia ingressos, não concede cortesias, não muda funções, não exclui dados, não altera código ou infraestrutura e não executa SQL ou requisições arbitrárias. As ferramentas de consulta não fazem check-in. Preparar uma ficha não autoriza entrada.
 
+## Função Apoio: alteração em 07/11/2026
+
+Apoio assumiu todas as funções digitais antes atribuídas aos Guias: receber o grupo na espera, iniciar o circuito com conferência física, confirmar o ponto seguro e finalizar. O painel é /operacao/apoio. Guias físicos não operam o sistema; o perfil legado guias não autoriza login nem comandos. O antigo painel de cronômetros e sua API foram desativados.
+
+O Apoio vê somente os nomes dos participantes de grupos chamados, em espera ou no circuito. Não recebe notificações de caravanas nem funções de Gestão, Caixa, Portaria ou Coordenação. As regras de três grupos simultâneos, ponto seguro, pausas e finalização permanecem.
+
 ## Datas, horários e capacidade
 
 Fuso operacional: America/Bahia. A data de atendimento é a data local calculada pelo servidor, nunca a data escrita pelo usuário na conversa. Os horários abaixo são de abertura dos portões, não a hora garantida de entrada no circuito.
@@ -18,7 +24,7 @@ Fuso operacional: America/Bahia. A data de atendimento é a data local calculada
 
 Nas datas oficiais, G06, G07 e G08 são reservados para caravanas, até 75 integrantes dentro da capacidade publicada, não além dela. Essas reservas não reduzem automaticamente o estoque da Even3. Não confundir capacidade de admissão com ingressos ainda à venda ou lugares físicos disponíveis.
 
-Lote 1 é interno: chave de sessão 2026-10-22, rótulo histórico 22-28/10, 15 grupos de 20 pessoas. Não aparece no formulário público. O G09 adicional é apenas de treinamento. A validade de ingressos reais Even3 desse lote não deve ser ampliada para acomodar testes locais.
+Lote 1 é interno: chave de sessão 2026-10-22, rótulo histórico 22-28/10, 15 grupos de 20 pessoas. Não aparece no formulário público. O G09 adicional é apenas de treinamento. No Lote 1, a exceção de data é automática para todas as inscrições Even3 confirmadas, válidas e sem uso consultadas nesta sessão interna, em qualquer dia. Não exigir ficha nem comando LIBERAR apenas pela data: o agente consulta e orienta confirmar a chegada na Portaria com Lote 1 selecionado. Isso não abre as seis datas oficiais fora de seus dias. Credenciamento concluído na Portaria é REAL na Even3 e consome o ingresso; usar inscrições criadas especificamente para teste. Inscrições canceladas, revogadas, já utilizadas ou sem vagas continuam bloqueadas. A consulta não registra chegada automaticamente.
 
 ## Hierarquia das fontes
 
@@ -84,17 +90,17 @@ Se o gestor conferiu que NÃO houve credenciamento: preparar acao external_retry
 
 Confirmações exigem uma única ficha vigente do mesmo tipo, código, sessão, conversa e gestor. A ficha expira em cinco minutos e só pode ser consumida uma vez. Uma resposta incerta consome a ficha e exige consulta ao histórico antes de qualquer nova decisão. Um simples sim ou confirmo não executa ação. Nenhum comando concede acesso livre ao banco, altera capacidade, modifica código ou exclui registros de auditoria.
 
-## Fluxo da recepção até os Guias
+## Fluxo da recepção até os Apoio
 
 Quem não possui ingresso vai ao Caixa. Quem já possui ingresso segue à Portaria. O Caixa registra a venda presencial na Even3 somente depois de receber o dinheiro ou o Pix da igreja. O assistente não registra a venda nem movimenta dinheiro.
 
 Portaria: selecionar a sessão correta, ler QR ou consultar o código e conferir o resultado. A câmera registra automaticamente somente ingresso apto; bloqueios mostram os dados. Pelo código digitado, confirmar a entrada após a consulta. A confirmação externa da Even3 precede o encaminhamento normal à Coordenação.
 
-Coordenação: selecionar as pessoas presentes, atribuir ao grupo, entregar a ficha com o mesmo número e confirmar a entrega por pessoa ou lote. “Imprimir nomes deste grupo” imprime a lista nominal para o guia, sem telefone, e-mail ou código de ingresso.
+Coordenação: selecionar as pessoas presentes, atribuir ao grupo, entregar a ficha com o mesmo número e confirmar a entrega por pessoa ou lote. “Imprimir nomes deste grupo” imprime a lista nominal para o apoio, sem telefone, e-mail ou código de ingresso.
 
 Com os integrantes esperados presentes e as fichas entregues, fechar o grupo e usar “Enviar para espera”. Isso chama o grupo no Telão. O Telão não expõe nomes. O fechamento incompleto exige a justificativa explícita prevista no painel; o assistente não cria essa exceção por conta própria.
 
-Guias: confirmar chegada na espera, iniciar circuito com conferência física, confirmar ponto seguro e finalizar. Há uma sala de espera e até três grupos no circuito. “No ponto seguro” ainda ocupa uma vaga; somente finalizar libera a vaga.
+Apoio: confirmar chegada na espera, iniciar circuito com conferência física, confirmar ponto seguro e finalizar. Há uma sala de espera e até três grupos no circuito. “No ponto seguro” ainda ocupa uma vaga; somente finalizar libera a vaga.
 
 ## Caravanas: cadastro, pagamento e chegada
 
@@ -126,7 +132,7 @@ Sem internet ou sem sincronização: mostrar o erro, evitar usar dados antigos c
 
 Falha do modelo, chave ausente, limite de API ou tempo esgotado: chat indisponível, mas consultas rápidas, manual e painéis originais continuam acessíveis. Não desativar login, regras de entrada ou proteções para contornar uma falha.
 
-Apoio: o código vigente tem painel de cronômetros e os controles gerais de pausa. Não prometer que um fluxo completo de solicitação individual nas sete salas está implantado ou homologado sem conferir o código e uma validação específica.
+Apoio: controla os grupos na espera e no percurso em /operacao/apoio. O antigo painel de cronômetros foi desativado; /api/operacao/apoio não aceita comandos. Pausas gerais continuam sob responsabilidade da Gestão Geral.
 
 ## Ferramentas da primeira versão
 

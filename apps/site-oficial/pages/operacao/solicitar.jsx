@@ -20,7 +20,6 @@ export default function Solicitar(){
    <label>WhatsApp com DDD<input name="whatsapp" type="tel" autoComplete="tel" placeholder="(77) 99999-9999" maxLength={24} required/></label>
    <label>Função desejada<select name="role" defaultValue="" required>
     <option value="" disabled>Selecione sua função</option>
-    <option value="guias">Guia</option>
     <option value="coordenacao">Coordenação</option>
     <option value="caixa">Caixa</option>
     <option value="apoio">Apoio</option>

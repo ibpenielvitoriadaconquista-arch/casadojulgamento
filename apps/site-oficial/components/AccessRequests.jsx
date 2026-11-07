@@ -1,5 +1,5 @@
 import {useEffect,useState} from 'react';
-const roles={guias:'Guia',coordenacao:'Coordenação',caixa:'Caixa',apoio:'Apoio',portaria:'Portaria'};
+const roles={guias:'Guia (função desativada)',coordenacao:'Coordenação',caixa:'Caixa',apoio:'Apoio',portaria:'Portaria'};
 export default function AccessRequests(){
  const [requests,setRequests]=useState([]),[error,setError]=useState(''),[notice,setNotice]=useState(''),[link,setLink]=useState(''),[busy,setBusy]=useState('');
  async function load(){
@@ -30,7 +30,7 @@ export default function AccessRequests(){
   {!pending.length?<p>Nenhuma solicitação pendente.</p>:pending.map(item=><div className="card" key={item.id}>
    <strong>{item.full_name}</strong>
    <small>{item.email} · WhatsApp: {item.whatsapp} · Função: {roles[item.requested_role]||item.requested_role}</small>
-   <div className="pair"><button disabled={!!busy} onClick={()=>review(item.id,'approve')}>Aprovar e enviar e-mail</button>
+   <div className="pair"><button disabled={!!busy||item.requested_role==='guias'} onClick={()=>review(item.id,'approve')}>Aprovar e enviar e-mail</button>
     <button disabled={!!busy} onClick={()=>review(item.id,'reject')}>Recusar solicitação</button></div>
   </div>)}
  </section>;

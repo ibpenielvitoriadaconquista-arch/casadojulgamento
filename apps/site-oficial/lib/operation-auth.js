@@ -19,6 +19,7 @@ export async function actor(req){
   const user=await r.json();
   const result=await query('SELECT user_id, role FROM peniel_ops.staff WHERE user_id=$1 AND active=true',[user.id]);
   if(!result.rows[0])throw fail(403,'Conta sem permissão de colaborador.');
+  if(result.rows[0].role==='guias')throw fail(403,'A função Guia foi desativada. Solicite à Gestão a definição do seu posto.');
   return result.rows[0];
 }
 export function cookie(token,seconds){return `peniel_session=${encodeURIComponent(token)}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${seconds}${process.env.NODE_ENV==='production'?'; Secure':''}`;}

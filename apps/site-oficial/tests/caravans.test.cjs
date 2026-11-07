@@ -17,7 +17,7 @@ test('roster creates no admission; verified arrival gets caravan from stored tic
  assert.equal(arrival(db,'88888888','Pedro').sessions[day].people[0].caravan,undefined);
 });
 test('only management and coordination can register, delete, defer, release or transfer',()=>{
- for(const role of ['portaria','caixa','guias','apoio','telao'])for(const action of ['caravanSave','caravanDelete','caravanDefer','caravanRelease','caravanTransfer'])assert.throws(()=>command(ops.fresh(),action,draft,role),/Somente/);
+ for(const role of ['portaria','caixa','apoio','apoio','telao'])for(const action of ['caravanSave','caravanDelete','caravanDefer','caravanRelease','caravanTransfer'])assert.throws(()=>command(ops.fresh(),action,draft,role),/Somente/);
  assert.equal(command(ops.fresh(),'caravanSave',draft,'geral').sessions[day].caravans.length,1);
 });
 test('duplicate codes and overbooking are rejected before mutations',()=>{
@@ -65,10 +65,10 @@ test('deferred caravan does not block later groups; resume preserves circuit saf
  assert.throws(()=>command(db,'call',{group:'G09'}),/G06/);
  db=command(db,'caravanDefer',{group:'G06',reason:'Aguardar ônibus'});
  assert.throws(()=>command(db,'call',{group:'G06'}),/Retome/);
- db=command(db,'call',{group:'G09'});db=command(db,'arrive',{group:'G09'},'guias');db=command(db,'start',{group:'G09',physicallySafe:true},'guias');
- db=command(db,'caravanDefer',{group:'G06',reason:'Integrantes reunidos'});db=command(db,'call',{group:'G06'});db=command(db,'arrive',{group:'G06'},'guias');
- assert.throws(()=>command(db,'start',{group:'G06',physicallySafe:true},'guias'),/ponto seguro/);
- db=command(db,'safe',{group:'G09'},'guias');db=command(db,'start',{group:'G06',physicallySafe:true},'guias');assert.equal(ops.active(db.sessions[day]).length,2);
+ db=command(db,'call',{group:'G09'});db=command(db,'arrive',{group:'G09'},'apoio');db=command(db,'start',{group:'G09',physicallySafe:true},'apoio');
+ db=command(db,'caravanDefer',{group:'G06',reason:'Integrantes reunidos'});db=command(db,'call',{group:'G06'});db=command(db,'arrive',{group:'G06'},'apoio');
+ assert.throws(()=>command(db,'start',{group:'G06',physicallySafe:true},'apoio'),/ponto seguro/);
+ db=command(db,'safe',{group:'G09'},'apoio');db=command(db,'start',{group:'G06',physicallySafe:true},'apoio');assert.equal(ops.active(db.sessions[day]).length,2);
 });
 test('late unassigned member can be transferred atomically to another caravan group',()=>{
  let db=arrival(register());db=command(db,'caravanTransfer',{code:member.code,group:'G07',id:other,reason:'Grupo original já partiu'});
@@ -78,7 +78,7 @@ test('late unassigned member can be transferred atomically to another caravan gr
 });
 test('contacts and full rosters stay restricted; board and support have no personal identifiers',()=>{
  const db=arrival(register());
- for(const role of ['guias','portaria','apoio','telao','caixa']){const out=JSON.stringify(live.project(db,role));assert.doesNotMatch(out,/CONTATO-PRIVADO|Responsável reservado/);}
+ for(const role of ['apoio','portaria','apoio','telao','caixa']){const out=JSON.stringify(live.project(db,role));assert.doesNotMatch(out,/CONTATO-PRIVADO|Responsável reservado/);}
  for(const role of ['apoio','telao'])assert.doesNotMatch(JSON.stringify(live.project(db,role)),/77772710|Pedro|Caravana Esperança/);
  for(const role of ['geral','coordenacao'])assert.match(JSON.stringify(live.project(db,role)),/CONTATO-PRIVADO/);
 });

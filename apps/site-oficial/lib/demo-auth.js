@@ -1,7 +1,6 @@
 import {createHmac,timingSafeEqual} from 'node:crypto';
 const roles=Object.freeze({
  'testeportaria@gmail.com':'portaria',
- 'testeguia@gmail.com':'guias',
  'testeapoio@gmail.com':'apoio',
  'testecoordenacao@gmail.com':'coordenacao',
  'testecaixa@gmail.com':'caixa'

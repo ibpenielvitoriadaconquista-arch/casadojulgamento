@@ -16,7 +16,6 @@ export default function Demonstracao(){
  <label>Conta para apresentar<select value={email} onChange={e=>setEmail(e.target.value)}>
  <option value="testeportaria@gmail.com">testeportaria@gmail.com — Portaria</option>
  <option value="testecoordenacao@gmail.com">testecoordenacao@gmail.com — Coordenação</option>
- <option value="testeguia@gmail.com">testeguia@gmail.com — Guias</option>
  <option value="testeapoio@gmail.com">testeapoio@gmail.com — Apoio</option>
  <option value="testecaixa@gmail.com">testecaixa@gmail.com — Caixa</option>
  </select></label>

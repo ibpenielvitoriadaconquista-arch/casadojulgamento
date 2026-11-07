@@ -3,7 +3,7 @@ import {actor,fail,sameOrigin} from '../../../lib/operation-auth';
 import {authClient,throttle} from '../../../lib/staff-access';
 import ops from '../../../lib/operation-training.cjs';
 export const config={api:{bodyParser:{sizeLimit:'4kb'}}};
-const PUBLIC_ROLES=new Set(['guias','coordenacao','caixa','apoio','portaria']);
+const PUBLIC_ROLES=new Set(['coordenacao','caixa','apoio','portaria']);
 export default async function handler(req,res){
  res.setHeader('Cache-Control','no-store');
  try{
@@ -21,12 +21,12 @@ export default async function handler(req,res){
   await throttle(req,'requests_review',user.user_id);
   const request=await query("SELECT * FROM peniel_ops.access_requests WHERE id=$1 AND status='pending'",[id]);
   const item=request.rows[0];if(!item)throw fail(409,'Solicitação não encontrada ou já analisada.');
-  if(!PUBLIC_ROLES.has(item.requested_role)||!Object.hasOwn(ops.ROLES,item.requested_role))throw fail(422,'Função não permitida.');
   if(action==='reject'){
    const result=await query("UPDATE peniel_ops.access_requests SET status='rejected',reviewed_by=$2,reviewed_at=now() WHERE id=$1 AND status='pending' RETURNING id",[id,user.user_id]);
    if(!result.rowCount)throw fail(409,'Solicitação já analisada.');
    return res.json({ok:true});
   }
+  if(!PUBLIC_ROLES.has(item.requested_role)||!Object.hasOwn(ops.ROLES,item.requested_role))throw fail(422,'Função não permitida.');
   const existing=await query('SELECT u.id,s.role,s.active FROM auth.users u LEFT JOIN peniel_ops.staff s ON s.user_id=u.id WHERE lower(u.email)=$1',[item.email]);
   if(existing.rows[0]?.active)throw fail(409,'Esta conta já é colaboradora. Use Gestão de Equipe.');
   // Send official invite/recovery e-mail via Supabase Auth, never expose an OTP in the response.

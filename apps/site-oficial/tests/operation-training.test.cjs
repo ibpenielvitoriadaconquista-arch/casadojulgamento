@@ -23,13 +23,13 @@ test('troca exige motivo e recolhimento da senha; novo grupo fica com entrega pe
 });
 test('um grupo na espera; três no circuito; ponto seguro ainda ocupa vaga',()=>{
  const x=setup();readyGroup(x,'G01',3);readyGroup(x,'G02');readyGroup(x,'G03');readyGroup(x,'G04');
- x.run('call',{group:'G01'});assert.throws(()=>x.run('call',{group:'G02'}),/espera/);x.run('arrive',{group:'G01'},'guias');assert.throws(()=>x.run('start',{group:'G01'}),/segurança/);x.run('start',{group:'G01',physicallySafe:true},'guias');assert.equal(ops.wait(x.s),undefined);
+ x.run('call',{group:'G01'});assert.throws(()=>x.run('call',{group:'G02'}),/espera/);x.run('arrive',{group:'G01'},'apoio');assert.throws(()=>x.run('start',{group:'G01'}),/segurança/);x.run('start',{group:'G01',physicallySafe:true},'apoio');assert.equal(ops.wait(x.s),undefined);
  x.run('call',{group:'G02'});x.run('arrive',{group:'G02'});assert.throws(()=>x.run('start',{group:'G02',physicallySafe:true}),/ponto seguro/);x.run('safe',{group:'G01'});x.run('start',{group:'G02',physicallySafe:true});x.run('safe',{group:'G02'});
- x.run('call',{group:'G03'});x.run('arrive',{group:'G03'});x.run('start',{group:'G03',physicallySafe:true},'guias');x.run('safe',{group:'G03'},'guias');assert.equal(ops.active(x.s).length,3);
- x.run('call',{group:'G04'});x.run('arrive',{group:'G04'});assert.throws(()=>x.run('start',{group:'G04',physicallySafe:true}),/três grupos/);x.run('finish',{group:'G01'},'guias');x.run('start',{group:'G04',physicallySafe:true},'guias');assert.equal(ops.active(x.s).length,3);
+ x.run('call',{group:'G03'});x.run('arrive',{group:'G03'});x.run('start',{group:'G03',physicallySafe:true},'apoio');x.run('safe',{group:'G03'},'apoio');assert.equal(ops.active(x.s).length,3);
+ x.run('call',{group:'G04'});x.run('arrive',{group:'G04'});assert.throws(()=>x.run('start',{group:'G04',physicallySafe:true}),/três grupos/);x.run('finish',{group:'G01'},'apoio');x.run('start',{group:'G04',physicallySafe:true},'apoio');assert.equal(ops.active(x.s).length,3);
 });
 test('pausa bloqueia partidas, permite ponto seguro/finalização; sessão isolada',()=>{
- const x=setup();readyGroup(x,'G01');x.run('call',{group:'G01'});x.run('arrive',{group:'G01'});x.run('start',{group:'G01',physicallySafe:true});x.run('pause');x.run('safe',{group:'G01'},'guias');x.run('finish',{group:'G01'},'guias');readyGroup(x,'G02');assert.throws(()=>x.run('call',{group:'G02'}),/pausad/);
+ const x=setup();readyGroup(x,'G01');x.run('call',{group:'G01'});x.run('arrive',{group:'G01'});x.run('start',{group:'G01',physicallySafe:true});x.run('pause');x.run('safe',{group:'G01'},'apoio');x.run('finish',{group:'G01'},'apoio');readyGroup(x,'G02');assert.throws(()=>x.run('call',{group:'G02'}),/pausad/);
  assert.equal(x.db.sessions[ops.SESSIONS[1].id].people.length,0);assert.throws(()=>x.run('pause',{},'coordenacao'));assert.throws(()=>x.run('scan',{},'telao'));x.run('reset');assert.equal(x.s.people.length,0);assert.equal(x.s.history.length,1);
 });
 test('webhook fictício repetido e teto de 300 não criam chegadas extras',()=>{

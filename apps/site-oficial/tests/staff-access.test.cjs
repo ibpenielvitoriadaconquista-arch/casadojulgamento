@@ -10,11 +10,11 @@ test('gestão de colaboradores exige conta ativa de gestão e bloqueia autoalter
   assert.equal(res.code,!user?401:user.role==='guias'?403:400);assert.equal(calls,0);
  }
 });
-test('API de cronômetro rejeita guia escrevendo e revisões antigas sem gravar',async()=>{
+test('API antiga de cronômetro foi desativada sem gravação',async()=>{
  for(const role of ['guias','apoio']){
   let writes=0;const q=async sql=>{if(sql.startsWith('UPDATE')||sql.startsWith('INSERT'))writes++;return {rows:sql.includes('rehearsal_commands')?[]:[{state:{...timer.initial(),revision:2}}]};};
   const fn=new Function('createHash','query','transaction','actor','fail','sameOrigin','timer',source('apoio.js'))(createHash,q,fn=>fn({query:q}),async()=>({user_id:'u',role}),fail,()=>{},timer);
-  const res=response();await fn({method:'POST',body:{station:1,revision:0,requestId:'11111111-1111-4111-8111-111111111111',action:'start',arg:{label:'Cena',kind:'cena'}}},res);assert.equal(res.code,role==='guias'?403:409);assert.equal(writes,0);
+  const res=response();await fn({method:'POST',body:{station:1,revision:0,requestId:'11111111-1111-4111-8111-111111111111',action:'start',arg:{label:'Cena',kind:'cena'}}},res);assert.equal(res.code,410);assert.equal(writes,0);
  }
 });
 test('Apoio não recebe identificadores ou nomes dos participantes',()=>{const live=require('../lib/operation-live.cjs'),db=ops.fresh();db.sessions['2026-11-09'].people.push({id:'secret-id',name:'Nome pessoal',group:null});assert.ok(!JSON.stringify(live.project(db,'apoio')).includes('secret-id'));});

@@ -1,5 +1,5 @@
 'use strict';
-const ROLES=Object.freeze({guia:'guias',guias:'guias',coordenacao:'coordenacao',caixa:'caixa',apoio:'apoio',portaria:'portaria'});
+const ROLES=Object.freeze({coordenacao:'coordenacao',caixa:'caixa',apoio:'apoio',portaria:'portaria'});
 function cleanInput(payload){
  const name=String(payload?.name||'').trim().replace(/\s+/g,' ');
  const email=String(payload?.email||'').trim().toLowerCase();

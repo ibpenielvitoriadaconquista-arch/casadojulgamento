@@ -29,7 +29,7 @@ export default function Login(){
     <button className="submit" type="submit" disabled={busy}>{busy?'Abrindo seu painel…':'Entrar no meu painel'} <span aria-hidden="true">→</span></button>
    </form>
    <div className="help"><nav className="help-links" aria-label="Acesso e cadastro"><a href="/operacao/recuperar">Esqueci minha senha</a><span aria-hidden="true">·</span><a href="/operacao/solicitar">Solicitar cadastro</a></nav><p>Acesso liberado somente após aprovação da Gestão Geral.</p></div>
-   <div className="roles" aria-label="Funções da equipe"><span>Portaria</span><span>Coordenação</span><span>Guias</span><span>Apoio</span><span>Gestão geral</span></div>
+   <div className="roles" aria-label="Funções da equipe"><span>Portaria</span><span>Coordenação</span><span>Apoio</span><span>Gestão geral</span></div>
   </div><footer>IGREJA BATISTA PENIEL · VITÓRIA DA CONQUISTA</footer></section>
  </div></main>
  <style jsx>{`

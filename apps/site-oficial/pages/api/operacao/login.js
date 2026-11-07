@@ -21,6 +21,7 @@ export default async function handler(req,res){
   stage='postgres_staff';
   const staff=await query('SELECT role FROM peniel_ops.staff WHERE user_id=$1 AND active=true',[data.user?.id]);
   if(!staff.rows[0])throw fail(403,'Conta ainda não habilitada pela administração.');
+  if(staff.rows[0].role==='guias')throw fail(403,'A função Guia foi desativada. Solicite à Gestão a definição do seu posto.');
   res.setHeader('Set-Cookie',cookie(data.access_token,Math.min(data.expires_in||3600,3600)));
   return res.json({role:staff.rows[0].role});
  }catch(e){

@@ -51,6 +51,7 @@ function admit(state, session, arrival, now=new Date().toISOString()) {
   next.revision++;return {db:next,duplicate:false};
 }
 function project(state, role) {
+  if(!Object.hasOwn(ops.ROLES,role))throw Error('Posto desativado ou inválido.');
   const next=structuredClone(state);
   for(const s of Object.values(next.sessions))delete s.trainingTickets;
   if(!['geral','coordenacao','caravanas'].includes(role))for(const s of Object.values(next.sessions)){delete s.caravans;delete s.caravanReleased;}
@@ -60,13 +61,13 @@ function project(state, role) {
     s.groups=s.groups.filter(g=>caravans.groupsFor(day).includes(g.id)).map(g=>({...g,guide:null}));
     s.history=[];s.lastAssignment=null;
   }
-  if(role==='guias') for(const s of Object.values(next.sessions)) {
-    // Guides may see only the participant names of groups called to the waiting area or circuit.
+  if(role==='apoio') for(const s of Object.values(next.sessions)) {
+    // Support may see only the participant names of groups called to the waiting area or circuit.
     const visible=new Set(s.groups.filter(g=>['called','waiting','circuit','safe'].includes(g.status)).flatMap(g=>g.members));
     s.people=s.people.filter(p=>visible.has(p.id)).map(p=>({id:p.id,name:p.name,group:p.group,paperAt:p.paperAt}));
     s.history=[];s.lastAssignment=null;
   }
-  if(['telao','apoio'].includes(role)) for(const s of Object.values(next.sessions)) {
+  if(role==='telao') for(const s of Object.values(next.sessions)) {
     // No names or ticket identifiers sent to these roles, including hidden history.
     s.people=s.people.map(p=>({group:p.group,paperAt:p.paperAt}));
     s.groups=s.groups.map(g=>({...g,members:g.members.map(()=>null)}));

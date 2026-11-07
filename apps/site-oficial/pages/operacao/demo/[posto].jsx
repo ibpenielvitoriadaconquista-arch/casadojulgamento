@@ -1,9 +1,8 @@
 import OperationTraining from '../../../components/OperationTraining';
-import RehearsalPanel from '../../../components/RehearsalPanel';
 import {getDemoActor} from '../../../lib/demo-auth';
 import Head from 'next/head';
 import {useState} from 'react';
-const titles={portaria:'Portaria',coordenacao:'Coordenação',guias:'Guias',apoio:'Apoio',caixa:'Caixa'};
+const titles={portaria:'Portaria',coordenacao:'Coordenação',apoio:'Apoio',caixa:'Caixa'};
 export async function getServerSideProps({req,res,params}){
  res.setHeader('Cache-Control','private, no-store');
  const user=getDemoActor(req);
@@ -28,6 +27,6 @@ export default function PainelDemo({role}){
  return <><Head><title>DEMO · {titles[role]} · Casa do Julgamento</title><meta name="robots" content="noindex,nofollow"/></Head>
  <div style={{background:'#522630',color:'#fff',padding:'11px 18px',fontFamily:'system-ui',fontSize:13,display:'flex',justifyContent:'space-between',gap:12,flexWrap:'wrap'}}>
  <b>DEMONSTRAÇÃO — sem ligação a vendas e entradas reais</b><a style={{color:'#fff'}} href="/operacao/demo">Trocar conta de demonstração ↗</a></div>
- {role==='caixa'?<DemoCaixa/>:role==='apoio'?<RehearsalPanel remote={false}/>:<OperationTraining role={role} remote={false}/>}
+ {role==='caixa'?<DemoCaixa/>:<OperationTraining role={role} remote={false}/>}
  </>;
 }

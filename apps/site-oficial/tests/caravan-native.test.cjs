@@ -7,7 +7,7 @@ const saved=()=>run(ops.fresh(),'coordenacao','caravanSave',draft);
 const authorized=()=>run(saved(),'caixa','caravanAuthorize',{id,method:'dinheiro',reference:'Recebimento conferido pelo operador'});
 test('management training permission is limited to this roster and today; admission remains unique',()=>{
  const before='2026-10-31T15:00:00Z';
- for(const role of ['portaria','coordenacao','caixa','guias'])assert.throws(()=>run(authorized(),role,'caravanTraining',{id,confirmed:true,reference:'Treinamento da equipe'},before),/Gestão/);
+ for(const role of ['portaria','coordenacao','caixa','apoio'])assert.throws(()=>run(authorized(),role,'caravanTraining',{id,confirmed:true,reference:'Treinamento da equipe'},before),/Gestão/);
  const allowed=run(authorized(),'geral','caravanTraining',{id,confirmed:true,reference:'Treinamento da equipe'},before);
  assert.equal(caravans.gateRows(allowed.sessions[day],day,before)[0].eligible,true);
  assert.equal(caravans.gateRows(allowed.sessions[day],day,'2026-11-01T15:00:00Z')[0].eligible,false);
@@ -24,8 +24,8 @@ test('direct roster needs no email or Even3 ticket and accepts shared or absent 
 test('direct admission requires an authorized roster, correct day and portaria role',()=>{
  assert.throws(()=>run(saved(),'portaria','caravanAdmit',{code}),/Caixa ou da Gestão/);
  const db=authorized();assert.throws(()=>run(db,'portaria','caravanAdmit',{code},'2026-11-10T20:00:00Z'),/dia da apresentação/);
- for(const role of ['caixa','coordenacao','guias','apoio','telao'])assert.throws(()=>run(db,role,'caravanAdmit',{code}),/Somente Portaria/);
- for(const role of ['portaria','coordenacao','guias','apoio','telao'])assert.throws(()=>run(saved(),role,'caravanAuthorize',{id,method:'cortesia',reference:'Autorizada'}),/Somente Caixa/);
+ for(const role of ['caixa','coordenacao','apoio','apoio','telao'])assert.throws(()=>run(db,role,'caravanAdmit',{code}),/Somente Portaria/);
+ for(const role of ['portaria','coordenacao','apoio','apoio','telao'])assert.throws(()=>run(saved(),role,'caravanAuthorize',{id,method:'cortesia',reference:'Autorizada'}),/Somente Caixa/);
 });
 test('each native member reaches coordination independently and cannot enter twice',()=>{
  let db=run(authorized(),'portaria','caravanAdmit',{code});
@@ -67,7 +67,7 @@ test('two concurrent gate requests persist one native arrival and audit the real
 });
 test('dedicated gate query is authenticated and reveals no records to other roles',async()=>{
  const source=fs.readFileSync(path.join(__dirname,'../pages/api/operacao/caravanas.js'),'utf8').replace(/^import .*;\n/gm,'').replace('export default async function handler','return async function handler');
- for(const role of ['geral','portaria','caixa','coordenacao','guias','apoio','telao',null]){
+ for(const role of ['geral','portaria','caixa','coordenacao','apoio','apoio','telao',null]){
   const handler=new Function('actor','fail','query','caravans',source)(async()=>{if(!role)throw fail(401,'Login necessário');return {role};},fail,async()=>({rows:[{state:saved().sessions[day],revision:1}]}),caravans);
   const res={setHeader(){},status(n){this.code=n;return this;},json(body){this.body=body;this.code||=200;}};await handler({method:'GET',query:{session:day}},res);
   assert.equal(res.code,!role?401:['geral','portaria','caixa'].includes(role)?200:403);
@@ -122,9 +122,9 @@ test('three Lote 1 caravan groups complete gate, coordination, paper, call and g
   command('coordenacao','deliver',{ids:[members[4].code]});
   command('coordenacao','close',{group});command('coordenacao','call',{group});
   assert.equal(db.sessions[lot].groups.find(g=>g.id===group).status,'called');
-  assert.equal(live.project(db,'guias').sessions[lot].people.length,5);
+  assert.equal(live.project(db,'apoio').sessions[lot].people.length,5);
   const board=JSON.stringify(live.project(db,'telao'));assert.ok(!board.includes('Pessoa teste'));
-  command('guias','arrive',{group});command('guias','start',{group,physicallySafe:true});command('guias','safe',{group});command('guias','finish',{group});
+  command('apoio','arrive',{group});command('apoio','start',{group,physicallySafe:true});command('apoio','safe',{group});command('apoio','finish',{group});
   assert.equal(db.sessions[lot].groups.find(g=>g.id===group).status,'finished');
  }
  assert.equal(db.sessions[lot].people.length,15);assert.equal(db.sessions['2026-11-09'].people.length,0);

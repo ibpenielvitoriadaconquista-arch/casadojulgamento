@@ -1,6 +1,6 @@
 {
   "title": "Assistente da Operação - Casa do Julgamento 2026",
-  "version": "1.2.2",
+  "version": "1.3.0",
   "updated": "2026-11-07",
   "sections": [
     {
@@ -9,6 +9,13 @@
         "O Assistente da Operação apoia a Gestão Geral da Casa do Julgamento 2026, da Igreja Batista Peniel, em ibpeniel.com. Ele explica procedimentos, localiza inscrições, consulta grupos, caravanas e sincronização e prepara exceções de data, conferências financeiras e recuperação de credenciamento para confirmação do gestor.",
         "Não é uma cópia automática da conversa do ChatGPT. O modelo recebe este manual versionado, o histórico da conversa selecionada e somente os resultados das ferramentas autorizadas. O login do ChatGPT não autentica o gestor no site nem concede acesso à API.",
         "O assistente não cria entradas na Portaria, não credencia ingressos, não concede cortesias, não muda funções, não exclui dados, não altera código ou infraestrutura e não executa SQL ou requisições arbitrárias. As ferramentas de consulta não fazem check-in. Preparar uma ficha não autoriza entrada."
+      ]
+    },
+    {
+      "title": "Função Apoio: alteração em 07/11/2026",
+      "paragraphs": [
+        "Apoio assumiu todas as funções digitais antes atribuídas aos Guias: receber o grupo na espera, iniciar o circuito com conferência física, confirmar o ponto seguro e finalizar. O painel é /operacao/apoio. Guias físicos não operam o sistema; o perfil legado guias não autoriza login nem comandos. O antigo painel de cronômetros e sua API foram desativados.",
+        "O Apoio vê somente os nomes dos participantes de grupos chamados, em espera ou no circuito. Não recebe notificações de caravanas nem funções de Gestão, Caixa, Portaria ou Coordenação. As regras de três grupos simultâneos, ponto seguro, pausas e finalização permanecem."
       ]
     },
     {
@@ -77,13 +84,13 @@
       ]
     },
     {
-      "title": "Fluxo da recepção até os Guias",
+      "title": "Fluxo da recepção até os Apoio",
       "paragraphs": [
         "Quem não possui ingresso vai ao Caixa. Quem já possui ingresso segue à Portaria. O Caixa registra a venda presencial na Even3 somente depois de receber o dinheiro ou o Pix da igreja. O assistente não registra a venda nem movimenta dinheiro.",
         "Portaria: selecionar a sessão correta, ler QR ou consultar o código e conferir o resultado. A câmera registra automaticamente somente ingresso apto; bloqueios mostram os dados. Pelo código digitado, confirmar a entrada após a consulta. A confirmação externa da Even3 precede o encaminhamento normal à Coordenação.",
-        "Coordenação: selecionar as pessoas presentes, atribuir ao grupo, entregar a ficha com o mesmo número e confirmar a entrega por pessoa ou lote. “Imprimir nomes deste grupo” imprime a lista nominal para o guia, sem telefone, e-mail ou código de ingresso.",
+        "Coordenação: selecionar as pessoas presentes, atribuir ao grupo, entregar a ficha com o mesmo número e confirmar a entrega por pessoa ou lote. “Imprimir nomes deste grupo” imprime a lista nominal para o apoio, sem telefone, e-mail ou código de ingresso.",
         "Com os integrantes esperados presentes e as fichas entregues, fechar o grupo e usar “Enviar para espera”. Isso chama o grupo no Telão. O Telão não expõe nomes. O fechamento incompleto exige a justificativa explícita prevista no painel; o assistente não cria essa exceção por conta própria.",
-        "Guias: confirmar chegada na espera, iniciar circuito com conferência física, confirmar ponto seguro e finalizar. Há uma sala de espera e até três grupos no circuito. “No ponto seguro” ainda ocupa uma vaga; somente finalizar libera a vaga."
+        "Apoio: confirmar chegada na espera, iniciar circuito com conferência física, confirmar ponto seguro e finalizar. Há uma sala de espera e até três grupos no circuito. “No ponto seguro” ainda ocupa uma vaga; somente finalizar libera a vaga."
       ]
     },
     {
@@ -111,7 +118,7 @@
         "Já utilizado: não repetir a entrada. Envio sending/uncertain: não liberar, não reenviar e não prometer sucesso. confirmed externo: seguir a recuperação existente sem um segundo envio à Even3. O chat usa diagnosticar_ingresso e pode preparar uma ficha de recuperação. Somente após o gestor conferir a Even3 e enviar o comando explícito, a rota existente registra confirm_external ou habilita retry_external. Habilitar nova tentativa não reenvia credenciamento.",
         "Sem internet ou sem sincronização: mostrar o erro, evitar usar dados antigos como atuais e manter o gestor no procedimento manual definido pela organização. Não existe promessa de admissão offline simultânea sem duplicidade. A IA não substitui a Portaria.",
         "Falha do modelo, chave ausente, limite de API ou tempo esgotado: chat indisponível, mas consultas rápidas, manual e painéis originais continuam acessíveis. Não desativar login, regras de entrada ou proteções para contornar uma falha.",
-        "Apoio: o código vigente tem painel de cronômetros e os controles gerais de pausa. Não prometer que um fluxo completo de solicitação individual nas sete salas está implantado ou homologado sem conferir o código e uma validação específica."
+        "Apoio: controla os grupos na espera e no percurso em /operacao/apoio. O antigo painel de cronômetros foi desativado; /api/operacao/apoio não aceita comandos. Pausas gerais continuam sob responsabilidade da Gestão Geral."
       ]
     },
     {
