@@ -10,7 +10,8 @@ function createService({query,transaction,even3,now=()=>new Date().toISOString()
   if(!code||inputEvidence.length<10||evidence.length>500||!['authorize','authorize_date','revoke','confirm_external','retry_external'].includes(action))throw fail(400,'Informe o QR, a ação e a referência verificável da conferência (10–500 caracteres).');
   if(action==='authorize_date'&&(!['geral','coordenacao'].includes(user.role)||body.confirmed!==true))throw fail(403,'Somente Coordenação ou Gestão podem confirmar a exceção após conferir na Even3.');
   const destination=action==='authorize_date'?rules.bySession(session):null;
-  if(action==='authorize_date'&&(!destination||!destination.days.includes(today())))throw fail(409,'Selecione a sessão correspondente à data de hoje.');
+  if(action==='authorize_date'&&destination?.session===rules.LOT.session&&user.role!=='geral')throw fail(403,'Somente Gestão Geral autoriza ingressos de outras datas para treinamento no Lote 1.');
+  if(action==='authorize_date'&&!rules.sessionOpen(destination,today()))throw fail(409,'Selecione a sessão correspondente à data de hoje.');
   const assistantReview=body.assistantReview===true;
   if(assistantReview&&(user.role!=='geral'||body.confirmed!==true))throw fail(403,'Revisão do chat exige confirmação explícita da Gestão Geral.');
   let p,entry;
@@ -30,7 +31,7 @@ function createService({query,transaction,even3,now=()=>new Date().toISOString()
     if(authorization?.revoked_at||authorization?.checked_in_at||attempt?.status==='admitted')throw fail(409,'Ingresso revogado ou já utilizado. O chat não remove esse bloqueio.');
     if(['confirm_external','retry_external'].includes(action)){
      const target=rules.bySession(session),attemptDay=attempt?.session_date instanceof Date?attempt.session_date.toISOString().slice(0,10):String(attempt?.session_date||'').slice(0,10);
-     if(!target||!target.days.includes(today())||attemptDay!==session)throw fail(409,'Recuperação permitida somente para a sessão em atendimento e a tentativa correspondente.');
+     if(!target||!rules.sessionOpen(target,today())||attemptDay!==session)throw fail(409,'Recuperação permitida somente para a sessão em atendimento e a tentativa correspondente.');
      if(!attempt||!body.expectedAttemptRequestedAt||new Date(attempt.requested_at).toISOString()!==body.expectedAttemptRequestedAt)throw fail(409,'A tentativa mudou desde a conferência. Consulte novamente.');
      if(!authorization||!authorization.verified_at||!authorization.evidence_reference||authorization.registration_status!=='confirmed'||String(authorization.participant_id)!==String(p.id_attendees)||authorization.entry_id!==entry.entryId||!(['paid','exempt'].includes(authorization.payment_status)||entitlement.confirmedBasis(authorization,p,entry)))throw fail(409,'Autorização individual não confirmada ou divergente.');
     }

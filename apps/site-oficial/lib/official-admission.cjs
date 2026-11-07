@@ -33,7 +33,7 @@ function createService({query,transaction,even3,now=()=>new Date().toISOString()
   const today=tickets.bahiaDay(new Date(now()));
   const invalid=rules.validate(p,entry,entry.days[0]);
   if(!rules.catalogMatches(event,entry))throw fail(409,'Categoria não corresponde ao catálogo atual da Even3.');
-  const destinationOpen=destination.days.includes(today);
+  const destinationOpen=rules.sessionOpen(destination,today);
   const otherDate=entry.session!==destination.session||!entry.days.includes(today);
   const override=destinationOpen&&otherDate&&!invalid?await validOverride({query},code,entry,destination):false;
   const blockedReason=invalid||(!destinationOpen?'Sessão selecionada fora da data de atendimento. A consulta está disponível, mas a entrada permanece bloqueada.':otherDate&&!override?'Ingresso de outra data. Coordenação ou Gestão devem conferir as vagas e autorizar a exceção.':null);
@@ -82,7 +82,7 @@ function createService({query,transaction,even3,now=()=>new Date().toISOString()
    const p={name:a.participant_name,id_attendees:a.attendee_id};
    if(a.status==='admitted')return result(p,entry,{checkedIn:true,message:'Ingresso já utilizado. Não autorize outra entrada.'});
    const reason=authorizationReason(auth,p,entry);if(reason)throw fail(409,reason);
-   if(!destination.days.includes(tickets.bahiaDay(new Date(now()))))throw fail(409,'A data de admissão terminou. Procure a Gestão.');
+   if(!rules.sessionOpen(destination,tickets.bahiaDay(new Date(now()))))throw fail(409,'A data de admissão terminou. Procure a Gestão.');
    if((entry.session!==destination.session||!entry.days.includes(tickets.bahiaDay(new Date(now()))))&&!await validOverride(db,code,entry,destination))throw fail(409,'Exceção de data não autorizada ou expirada.');
    const row=(await db.query('SELECT state,revision FROM peniel_ops.session_state WHERE session_date=$1 FOR UPDATE',[destination.session])).rows[0];
    if(!row)throw fail(503,'Fila oficial indisponível.');

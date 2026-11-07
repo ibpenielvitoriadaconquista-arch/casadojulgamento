@@ -2,6 +2,8 @@
 const tickets=require('./entry-tickets.cjs');
 const LOT={entryId:'968141',priceId:'1104853',session:'2026-10-22',label:'Lote 1 · 22–28/10',category:'Ingresso Geral - 1º Lote',days:['2026-10-22','2026-10-23','2026-10-24','2026-10-25','2026-10-26','2026-10-27','2026-10-28']};
 const ENTRIES=[LOT,...tickets.ENTRIES.map((e,i)=>({...e,priceId:String(1098508+i),category:'Casa do Julgamento — '+e.session.slice(8)+'/'+e.session.slice(5,7)+'/2026',days:[e.session]}))];
+// Lote 1 remains an internal destination for audited training exceptions on any day.
+const sessionOpen=(entry,day)=>!!entry&&(entry.session===LOT.session||entry.days.includes(day));
 const bySession=s=>ENTRIES.find(e=>e.session===s)||null;
 const byCategory=s=>ENTRIES.find(e=>e.category===String(s||'').normalize('NFC').trim())||null;
 function validate(p,entry,today=tickets.bahiaDay()){
@@ -18,4 +20,4 @@ function byCatalogCategory(event,name){
  const matches=ENTRIES.map(e=>({...e,category})).filter(e=>category&&catalogMatches(event,e));
  return matches.length===1?matches[0]:null;
 }
-module.exports={ENTRIES,LOT,bySession,byCategory,byCatalogCategory,validate,catalogMatches};
+module.exports={ENTRIES,LOT,sessionOpen,bySession,byCategory,byCatalogCategory,validate,catalogMatches};

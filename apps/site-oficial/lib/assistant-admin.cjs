@@ -10,7 +10,7 @@ function eligibleActions({result,authorization:a,attempt:c,session,now}){
  const attemptDay=c.session_date instanceof Date?c.session_date.toISOString().slice(0,10):String(c.session_date||'').slice(0,10);
  const age=new Date(now).getTime()-new Date(c.requested_at).getTime();
  const basis=!!a&&a.registration_status==='confirmed'&&!!a.verified_at&&!!a.evidence_reference&&a.entry_id===result.entry?.id&&(['paid','exempt'].includes(a.payment_status)||a.evidence_reference===`even3-confirmed-registration:798621:${a.participant_id}:${a.entry_id}`);
- if(target?.days.includes(day)&&attemptDay===session&&basis&&age>=60000&&['sending','uncertain','rejected'].includes(c.status))return ['external_confirmed','external_retry'];
+ if(rules.sessionOpen(target,day)&&attemptDay===session&&basis&&age>=60000&&['sending','uncertain','rejected'].includes(c.status))return ['external_confirmed','external_retry'];
  return [];
 }
 
