@@ -36,10 +36,10 @@ function createService({query,transaction,even3,now=()=>new Date().toISOString()
   const destinationOpen=rules.sessionOpen(destination,today);
   const otherDate=entry.session!==destination.session||!entry.days.includes(today);
   const override=destinationOpen&&otherDate&&!invalid?await validOverride({query},code,entry,destination):false;
-  const blockedReason=invalid||(!destinationOpen?'Sessão selecionada fora da data de atendimento. A consulta está disponível, mas a entrada permanece bloqueada.':otherDate&&!override?'Ingresso de outra data. Coordenação ou Gestão devem conferir as vagas e autorizar a exceção.':null);
+  const blockedReason=invalid||(!destinationOpen?'Sessão selecionada fora da data de atendimento. A consulta está disponível, mas a entrada permanece bloqueada.':otherDate&&!override&&destination.session!==rules.LOT.session?'Ingresso de outra data. Coordenação ou Gestão devem conferir as vagas e autorizar a exceção.':null);
   if(blockedReason&&!forLookup)throw fail(409,blockedReason);
   if(!blockedReason)await entitlement.authorize({p,entry,query});
-  return {p,entry,destination,blockedReason,needsDateAuthorization:!invalid&&destinationOpen&&otherDate&&!override};
+  return {p,entry,destination,blockedReason,needsDateAuthorization:!invalid&&destinationOpen&&otherDate&&!override&&destination.session!==rules.LOT.session};
  }
  const result=(p,entry,extra={})=>({found:true,participantName:p.name,registrationConfirmed:p.confirmed===true,entry:{id:entry.entryId,date:entry.session,label:entry.label},session:entry.session,admitted:false,eligible:false,checkedIn:false,status:'blocked',...extra});
  async function lookup(code,session){
@@ -62,7 +62,15 @@ function createService({query,transaction,even3,now=()=>new Date().toISOString()
   if(reason)return result(p,entry,{message:reason,needsAuthorization:true});
   const queue=caravans.enabled(session)?(await query('SELECT state FROM peniel_ops.session_state WHERE session_date=$1',[session])).rows[0]?.state:null;
   const caravan=queue?caravans.identity(queue,code):null;
-  return result(p,entry,{eligible:true,status:'ready',caravan,entry:{id:entry.entryId,date:destination.session,label:entry.label+(entry.session!==destination.session?' → '+destination.label:'')},message:attempt?.status==='confirmed'?'Even3 já confirmou. Concluir encaminhamento à Coordenação.':'Ingresso validado. Confirme para credenciar na Even3 e liberar a entrada.'});
+  let availability;
+  const trainingDateAutomatic=destination.session===rules.LOT.session;
+  if(trainingDateAutomatic){
+   if(!queue)throw fail(503,'Sessão de treinamento indisponível.');
+   const reserved=await capacity.reservations({query},EVENT,session,tickets.bahiaDay(new Date(now())),code),limit=capacityFor(session).total;
+   availability={limit,arrived:queue.people.length,reserved,remaining:Math.max(0,limit-queue.people.length-reserved)};
+   if(!availability.remaining)return result(p,entry,{availability,message:'Sessão de treinamento lotada.'});
+  }
+  return result(p,entry,{eligible:true,status:'ready',caravan,trainingDateAutomatic,availability,needsDateAuthorization:false,entry:{id:entry.entryId,date:destination.session,label:entry.label+(entry.session!==destination.session?' → '+destination.label:'')},message:trainingDateAutomatic&&attempt?.status!=='confirmed'?'Lote 1: data liberada automaticamente para treinamento. Confirmar chegada fará credenciamento REAL na Even3 e consumirá este ingresso.':attempt?.status==='confirmed'?'Even3 já confirmou. Concluir encaminhamento à Coordenação.':'Ingresso validado. Confirme para credenciar na Even3 e liberar a entrada.'});
  }
  function authorizationReason(a,p,e){
   if(!a)return 'Autorização individual não localizada. Procure a Gestão.';
@@ -83,7 +91,7 @@ function createService({query,transaction,even3,now=()=>new Date().toISOString()
    if(a.status==='admitted')return result(p,entry,{checkedIn:true,message:'Ingresso já utilizado. Não autorize outra entrada.'});
    const reason=authorizationReason(auth,p,entry);if(reason)throw fail(409,reason);
    if(!rules.sessionOpen(destination,tickets.bahiaDay(new Date(now()))))throw fail(409,'A data de admissão terminou. Procure a Gestão.');
-   if((entry.session!==destination.session||!entry.days.includes(tickets.bahiaDay(new Date(now()))))&&!await validOverride(db,code,entry,destination))throw fail(409,'Exceção de data não autorizada ou expirada.');
+   if(destination.session!==rules.LOT.session&&(entry.session!==destination.session||!entry.days.includes(tickets.bahiaDay(new Date(now()))))&&!await validOverride(db,code,entry,destination))throw fail(409,'Exceção de data não autorizada ou expirada.');
    const row=(await db.query('SELECT state,revision FROM peniel_ops.session_state WHERE session_date=$1 FOR UPDATE',[destination.session])).rows[0];
    if(!row)throw fail(503,'Fila oficial indisponível.');
    const next=live.admit({schema:5,revision:Number(row.revision),sessions:{[destination.session]:row.state}},destination.session,{verified:true,participantId:a.attendee_id,registrationId:code,entryId:entry.entryId,name:a.participant_name},a.requested_at);
