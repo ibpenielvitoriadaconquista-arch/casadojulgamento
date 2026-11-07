@@ -3,6 +3,7 @@ import {query,transaction} from '../../../lib/db';
 import {actor,fail,sameOrigin} from '../../../lib/operation-auth';
 import live from '../../../lib/operation-live.cjs';
 import requests from '../../../lib/caravan-requests.cjs';
+import notifications from '../../../lib/caravan-notifications.cjs';
 export const config={api:{bodyParser:{sizeLimit:'4kb'}}};
 export default async function handler(req,res){
  res.setHeader('Cache-Control','private,no-store');
@@ -10,6 +11,7 @@ export default async function handler(req,res){
   const user=await actor(req);if(!['geral','coordenacao','caravanas'].includes(user.role))throw fail(403,'Acesso restrito à Gestão e Coordenação.');
   if(req.method==='GET'){
    if(req.query.summary==='1'){
+    if(!notifications.canReceive(user.role))throw fail(403,'Notificações de solicitações exclusivas da Gestão Geral.');
     const summary=await query("SELECT session_date,count(*)::int AS count FROM peniel_ops.caravan_requests WHERE status='pending' GROUP BY session_date ORDER BY session_date");
     return res.json({days:summary.rows.map(r=>({session:String(r.session_date).slice(0,10),count:Number(r.count)}))});
    }
