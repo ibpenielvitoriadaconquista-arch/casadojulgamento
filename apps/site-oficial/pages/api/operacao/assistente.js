@@ -52,7 +52,7 @@ export default async function handler(req,res){
    return res.json({text:result.message,status:result.status,proposals:[],sources:[{tool:'server_authorization',queriedAt:new Date().toISOString()}]});
   }
   const answer=await assistant.chat({message,history,session,user,threadId:leased,tools,apiKey:process.env.OPENAI_API_KEY,model:process.env.OPENAI_MODEL});
-  await query("INSERT INTO peniel_ops.assistant_messages(thread_id,role,content,metadata) VALUES($1,'assistant',$2,$3::jsonb)",[leased,answer.text,JSON.stringify({sources:answer.sources,model:answer.model})]);
+  await query("INSERT INTO peniel_ops.assistant_messages(thread_id,role,content,metadata) VALUES($1,'assistant',$2,$3::jsonb)",[leased,answer.text,JSON.stringify({sources:answer.sources,model:answer.model,usage:answer.usage})]);
   return res.json(answer);
  }catch(e){return res.status(e.status||503).json({error:e.status?e.message:'Consulta temporariamente indisponível. Use os painéis operacionais.'});}
  finally{if(leased)await query('UPDATE peniel_ops.assistant_threads SET busy_until=null WHERE id=$1',[leased]).catch(()=>{});}

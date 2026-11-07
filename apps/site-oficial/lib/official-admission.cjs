@@ -8,7 +8,7 @@ const EVENT=tickets.EVENT_ID;
 const fail=(status,message)=>Object.assign(new Error(message),{status});
 function createService({query,transaction,even3,now=()=>new Date().toISOString()}){
  async function validOverride(db,code,source,target){
-  const rows=(await db.query('SELECT action,evidence FROM peniel_ops.entry_financial_audit WHERE event_id=$1 AND ticket_code=$2 ORDER BY id DESC LIMIT 1',[EVENT,code])).rows;
+  const rows=(await db.query("SELECT action,evidence FROM peniel_ops.entry_financial_audit WHERE event_id=$1 AND ticket_code=$2 AND action IN ('authorize_date','revoke') ORDER BY id DESC LIMIT 1",[EVENT,code])).rows;
   if(!rows.length||rows[0].action!=='authorize_date')return false;
   let evidence;try{evidence=typeof rows[0].evidence==='string'?JSON.parse(rows[0].evidence):rows[0].evidence;}catch{return false;}
   return evidence?.session===target.session&&evidence?.sourceEntryId===source.entryId&&evidence?.day===tickets.bahiaDay(new Date(now()));
