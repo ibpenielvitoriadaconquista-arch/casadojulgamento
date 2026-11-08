@@ -1,5 +1,6 @@
 import {useEffect,useState,useRef} from 'react';
 import Head from 'next/head';
+import SalesStock from './SalesStock';
 import OperationDialog from './OperationDialog';
 import CaravanGate from './CaravanGate';
 import {CaravanRequestNotice} from './CaravanRequests';
@@ -122,6 +123,7 @@ export default function OperationTraining({role='geral',remote=false,viewerRole=
  {!sync&&<p className="op-error">Este navegador não oferece bloqueio de escrita entre abas. Atualize o navegador para habilitar os comandos.</p>}{storageError&&<p className="op-error">{remote?'Sem sincronização com o servidor. A tela pode estar desatualizada; comandos bloqueados.':'Não foi possível ler os dados locais. Os comandos foram bloqueados para evitar perda de informações.'}</p>}
  {!s?<p className="op-panel">{remote?'Carregando operação…':'Carregando treinamento…'}</p>:<>{role==='telao'?Board():<><div className="op-metrics">{[['Chegadas',s.people.length],['Sem grupo',ops.summarize(s).pending],['Senhas por entregar',ops.summarize(s).paper],['Grupos no circuito',ops.active(s).length+'/'+ops.CIRCUIT_LIMIT]].map(([label,value])=><div key={label}><span>{label}</span><strong>{value}</strong></div>)}</div>{s.paused&&role!=='geral'&&<div className="op-error">Novos deslocamentos pausados pelo painel geral. Quem já está no circuito continua acompanhado pela equipe de apoio.</div>}
  {notice&&<div role="status" aria-live="polite" className={notice.error?'op-error':'op-success'}>{notice.text}</div>}
+ {['geral','coordenacao'].includes(role)&&remote&&!rehearsal&&<SalesStock session={session}/>}
  {role==='geral'&&<><nav className="op-tabs" aria-label="Áreas de controle geral">{generalTabs.map(([key,title])=><button type="button" key={key} className={tab===key?'active':''} onClick={()=>setTab(key)}>{title}</button>)}</nav>{tab==='overview'?Overview():tab==='queue'?Queue():tab==='groups'?Groups():tab==='gate'?Gate():tab==='guides'?Guides():History()}</>}
  {role==='portaria'&&Gate()}{role==='coordenacao'&&<><details className="op-panel"><summary>Consultar ingresso e autorizar exceção de data</summary><GateTicketScanner session={session} viewerRole={viewerRole}/></details>{Queue()}{Groups()}{History()}</>}{role==='apoio'&&Guides()}</>}</>}
  <footer className="op-bottom">{remote?'Operação central · Acesso restrito · ':'Treinamento V5 · Dados fictícios locais · '}<Link href={(remote?'/operacao/telao':'/telao')+'?sessao='+session}>Abrir telão</Link></footer></div></div></div></>;

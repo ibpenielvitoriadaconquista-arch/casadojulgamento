@@ -4,8 +4,9 @@ import GateTicketScanner from './GateTicketScanner';
 import CaravanGate from './CaravanGate';
 import official from '../lib/official-entries.cjs';
 import checkout from '../lib/even3-checkout.cjs';
+import SalesStock from './SalesStock';
 export default function CashierPanel(){
- const [entrySession,setEntrySession]=useState(official.LOT.session);
+ const [entrySession,setEntrySession]=useState('2026-11-09');
  const [receipt,setReceipt]=useState({code:'',paymentMethod:'dinheiro',evidence:'',received:false});
  const [receiptBusy,setReceiptBusy]=useState(false),[receiptResult,setReceiptResult]=useState(''),[receiptError,setReceiptError]=useState('');
  async function confirmReceipt(e){e.preventDefault();if(receiptBusy)return;setReceiptBusy(true);setReceiptResult('');setReceiptError('');
@@ -20,12 +21,12 @@ export default function CashierPanel(){
   try{const r=await fetch('/api/operacao/caixa',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(form),signal:AbortSignal.timeout(12000)});const j=await r.json();if(!r.ok)throw Error(j.error||'Falha ao registrar atendimento.');setCreated(j);setNotice(j.message);setForm(x=>({...x,name:'',contact:'',notes:''}));refresh();}
   catch(e){setError(e.message||'Falha de comunicação.');}finally{setBusy(false);}
  }
- const change=(key,val)=>setForm(x=>({...x,[key]:val}));
+ const change=(key,val)=>{setForm(x=>({...x,[key]:val}));if(key==='session')setEntrySession(val);};
  const session=checkout.ENTRIES.find(x=>x.iso===form.session);
  return <><Head><title>Caixa · Casa do Julgamento 2026</title><meta name="robots" content="noindex,nofollow"/></Head>
  <main className="cash">
  <header><a href="/operacao/login">← Equipe</a><span>CASA DO JULGAMENTO 2026 · CAIXA OFICIAL</span></header>
- <h1>Caixa e portaria presencial</h1><section className="panel"><label>Entrada para credenciamento<select value={entrySession} onChange={e=>setEntrySession(e.target.value)}>{official.ENTRIES.map(e=><option key={e.entryId} value={e.session}>{e.label}</option>)}</select></label><GateTicketScanner session={entrySession}/><CaravanGate key={entrySession} session={entrySession} role="caixa" cashier/></section>
+ <h1>Caixa e portaria presencial</h1><section className="panel"><label>Entrada para credenciamento<select value={entrySession} onChange={e=>{const value=e.target.value;setEntrySession(value);setForm(x=>({...x,session:value===official.LOT.session?'':value}));}}>{official.ENTRIES.map(e=><option key={e.entryId} value={e.session}>{e.label}</option>)}</select></label><SalesStock session={entrySession}/><GateTicketScanner session={entrySession}/><CaravanGate key={entrySession} session={entrySession} role="caixa" cashier/></section>
  <section className="panel"><h2>Confirmar pagamento recebido na igreja</h2><p>Para ingresso individual já emitido na Even3: confira o participante e a data no leitor acima, registre o recebimento abaixo e consulte novamente para credenciar. Cada pessoa precisa de seu próprio QR. Não cobre novamente na Even3 um pagamento já recebido pela igreja.</p>
  <form onSubmit={confirmReceipt}>
  <label>Código do ingresso pago<input required value={receipt.code} onChange={e=>setReceipt(x=>({...x,code:e.target.value,received:false}))}/></label>
@@ -41,7 +42,7 @@ export default function CashierPanel(){
  <form onSubmit={submit}>
  <div className="pair">
  <label>Onde está atendendo?<select value={form.channel} onChange={e=>change('channel',e.target.value)}><option value="balcao">Balcão da igreja</option><option value="tablet_fila">Tablet na fila</option></select></label>
- <label>Data do ingresso<select value={form.session} onChange={e=>change('session',e.target.value)}>{checkout.ENTRIES.map(x=><option key={x.iso} value={x.iso}>{x.date} · {x.time}</option>)}</select></label>
+ <label>Data do ingresso<select value={form.session} onChange={e=>change('session',e.target.value)}><option value="" disabled>Selecione uma apresentação oficial</option>{checkout.ENTRIES.map(x=><option key={x.iso} value={x.iso}>{x.date} · {x.time}</option>)}</select></label>
  </div>
  <div className="pair"><label>Nome do interessado<input value={form.name} maxLength={150} required onChange={e=>change('name',e.target.value)} placeholder="Nome da pessoa atendida"/></label>
  <label>Contato (opcional)<input value={form.contact} maxLength={120} onChange={e=>change('contact',e.target.value)} placeholder="Telefone ou e-mail"/></label></div>

@@ -10,4 +10,4 @@ function input(body){
  const eta=String(body.eta||'');if(eta&&!/^([01]\d|2[0-3]):[0-5]\d$/.test(eta))throw Error('Confira o horário de chegada.');
  return {session:day,name,city,responsible,contact,eta,members};
 }
-module.exports={input};
+module.exports={input,groupsFor:caravans.groupsFor,publicClosed:caravans.publicClosed};

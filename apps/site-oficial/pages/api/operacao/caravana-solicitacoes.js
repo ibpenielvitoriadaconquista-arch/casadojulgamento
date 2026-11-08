@@ -21,12 +21,13 @@ export default async function handler(req,res){
   if(req.method!=='POST')throw fail(405,'Método não permitido.');sameOrigin(req);
   if(!['geral','caravanas'].includes(user.role))throw fail(403,'Somente Gestão pode confirmar o recebimento e importar.');
   const {id,group,method,reference,confirmed}=req.body||{};
-  if(!Number.isSafeInteger(Number(id))||!['G06','G07','G08'].includes(group)||!['dinheiro','pix_igreja','cortesia'].includes(method)||confirmed!==true||String(reference||'').trim().length<10||String(reference).length>200)throw fail(400,'Confira grupo, recebimento, referência e confirmação.');
+  if(!Number.isSafeInteger(Number(id))||!['G03','G04','G05','G06','G07','G08'].includes(group)||!['dinheiro','pix_igreja','cortesia'].includes(method)||confirmed!==true||String(reference||'').trim().length<10||String(reference).length>200)throw fail(400,'Confira grupo, recebimento, referência e confirmação.');
   if(user.role==='caravanas'&&method==='cortesia')throw fail(403,'Somente Gestão autoriza cortesias.');
   const result=await transaction(async db=>{
    const row=(await db.query('SELECT * FROM peniel_ops.caravan_requests WHERE id=$1 FOR UPDATE',[id])).rows[0];
    if(!row||row.status!=='pending')throw fail(409,'Solicitação já analisada ou indisponível.');
    const data=requests.input(row.payload),session=data.session;
+   if(!requests.groupsFor(session).includes(group))throw fail(400,'Escolha um grupo reservado para esta apresentação.');
    const current=(await db.query('SELECT state,revision FROM peniel_ops.session_state WHERE session_date=$1 FOR UPDATE',[session])).rows[0];if(!current)throw fail(503,'Sessão indisponível.');
    const caravanId=randomUUID(),members=data.members.map(m=>({...m,code:'CAR-'+randomUUID()}));
    let dbState={schema:5,revision:Number(current.revision),sessions:{[session]:current.state}};

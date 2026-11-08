@@ -1,6 +1,6 @@
 const test=require('node:test'),assert=require('node:assert/strict');
 const ops=require('../lib/operation-training.cjs'),live=require('../lib/operation-live.cjs');
-for(const [day,groups,total] of [['09',25,625],['13',20,500],['14',30,750],['19',20,500],['20',30,750],['21',30,750]]){
+for(const [day,groups,total] of [['09',25,550],['13',20,500],['14',30,750],['19',20,500],['20',30,750],['21',30,750]]){
  const session='2026-11-'+day;
  test(session+' permite 25 por grupo e bloqueia excedentes sem alterar estado',()=>{
   let db=ops.fresh();assert.equal(db.sessions[session].groups.length,groups);

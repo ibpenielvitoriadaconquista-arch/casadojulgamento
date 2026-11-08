@@ -12,6 +12,6 @@ function capacityFor(session){
  const value=capacities[session];
  if(!value)throw Error('Sessão inválida.');
  const [groups,groupSize]=value;
- return {groups,groupSize,total:groups*groupSize};
+ return {groups,groupSize,total:session==='2026-11-09'?550:groups*groupSize};
 }
 module.exports={capacityFor};
