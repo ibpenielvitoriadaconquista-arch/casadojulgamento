@@ -9,12 +9,19 @@ const SESSIONS = [
 const CIRCUIT_LIMIT=3;
 const LABELS={forming:'Em formação',closed:'Fechado no salão',called:'Chamado para espera',waiting:'Na sala de espera',circuit:'No circuito',safe:'No ponto seguro',finished:'Finalizado'};
 const ROLES={geral:'Painel geral',portaria:'Portaria',caixa:'Caixa',coordenacao:'Coordenação',apoio:'Apoio',telao:'Telão',caravanas:'Administrador de caravanas'};
-const ALLOWED={geral:['scan','assign','deliver','undoDelivery','move','close','reopen','call','arrive','start','safe','finish','pause','takeover','guide','reset'],portaria:['scan'],caixa:[],caravanas:[],coordenacao:['assign','deliver','undoDelivery','move','close','reopen','call'],apoio:['arrive','start','safe','finish'],telao:[]};
+const ALLOWED={geral:['scan','assign','deliver','undoDelivery','move','close','reopen','call','arrive','start','safe','finish','pause','takeover','guide','reset','addGroup'],portaria:['scan'],caixa:[],caravanas:[],coordenacao:['assign','deliver','undoDelivery','move','close','reopen','call','addGroup'],apoio:['arrive','start','safe','finish'],telao:[]};
 function freshSession(sessionId=SESSIONS[0].id){return {counter:0,paused:false,coordinator:'Titular',people:[],groups:Array.from({length:capacityFor(sessionId).groups},(_,i)=>({id:'G'+String(i+1).padStart(2,'0'),status:'forming',guide:'',members:[]})),history:[],lastAssignment:null};}
 function fresh(){return {schema:5,revision:0,sessions:Object.fromEntries(SESSIONS.map(s=>[s.id,freshSession(s.id)]))};}
 function active(s){return s.groups.filter(g=>['circuit','safe'].includes(g.status));}
 function wait(s){return s.groups.find(g=>['called','waiting'].includes(g.status));}
 function summarize(s){return {arrived:s.people.length,pending:s.people.filter(p=>!p.group).length,paper:s.people.filter(p=>p.group&&!p.paperAt).length,active:active(s).length};}
+function nextGroupId(s){
+ const numbers=s.groups.map(g=>/^G[0-9]+$/.test(g.id)?Number(g.id.slice(1)):NaN);
+ if(numbers.some(n=>!Number.isSafeInteger(n)||n<1)||new Set(s.groups.map(g=>g.id)).size!==s.groups.length)throw Error('Numeração dos grupos inválida. Procure a Gestão.');
+ const number=Math.max(0,...numbers)+1;
+ if(!Number.isSafeInteger(number))throw Error('Não foi possível gerar o próximo grupo.');
+ return 'G'+String(number).padStart(2,'0');
+}
 function apply(db,sessionId,role,action,arg={},now=new Date().toISOString()){
   if(!ALLOWED[role]?.includes(action))throw Error('Este comando pertence a outro posto.');
   if(!SESSIONS.some(s=>s.id===sessionId)||db?.schema!==5)throw Error('Sessão inválida.');
@@ -23,7 +30,12 @@ function apply(db,sessionId,role,action,arg={},now=new Date().toISOString()){
   const group=id=>s.groups.find(g=>g.id===id),person=id=>s.people.find(p=>p.id===id);
   const log=(text)=>{s.history.unshift({at:now,role:ROLES[role],action,text});s.history=s.history.slice(0,500);};
   let message='';
-  if(action==='scan'){
+  if(action==='addGroup'){
+    if(s.groups.length>=capacity.total)throw Error('Limite de grupos de organização alcançado para esta sessão.');
+    const id=nextGroupId(s);
+    s.groups.push({id,status:'forming',guide:'',members:[]});
+    message=id+' adicionado em formação. A lotação da sessão e o limite por grupo não foram alterados.';
+  }else if(action==='scan'){
     if(s.people.length>=capacity.total)throw Error('Limite de '+capacity.total+' espectadores de teste por sessão.');
     if(arg.eventId&&s.people.some(p=>p.eventId===arg.eventId))throw Error('Este QR fictício já foi recebido. Nenhuma pessoa duplicada.');
     const n=++s.counter,names=['Ana','Bruno','Carla','Diego','Elisa','Felipe','Giovana','Hugo','Isabela','João','Larissa','Marcos'];
@@ -96,4 +108,4 @@ function apply(db,sessionId,role,action,arg={},now=new Date().toISOString()){
   }else throw Error('Comando não reconhecido.');
   log(message);next.revision++;return {db:next,message};
 }
-module.exports={capacityFor,CIRCUIT_LIMIT,SESSIONS,LABELS,ROLES,ALLOWED,fresh,freshSession,active,wait,summarize,apply};
+module.exports={nextGroupId,capacityFor,CIRCUIT_LIMIT,SESSIONS,LABELS,ROLES,ALLOWED,fresh,freshSession,active,wait,summarize,apply};
