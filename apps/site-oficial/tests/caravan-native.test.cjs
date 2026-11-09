@@ -1,7 +1,7 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),{createHash}=require('node:crypto');
 const ops=require('../lib/operation-training.cjs'),live=require('../lib/operation-live.cjs'),caravans=require('../lib/caravans.cjs'),tickets=require('../lib/entry-tickets.cjs');
 const day='2026-11-09',at='2026-11-09T20:00:00Z',id='11111111-1111-4111-8111-111111111111',code='CAR-22222222-2222-4222-8222-222222222222',code2='CAR-33333333-3333-4333-8333-333333333333';
-const draft={id,name:'Caravana direta',city:'Outra cidade',responsible:'Líder da caravana',contact:'77999999999',group:'G06',members:[{code,name:'Maria Silva',phone:'(77) 99999-9999'},{code:code2,name:'Pedro Silva',phone:''}]};
+const draft={id,name:'Caravana direta',city:'Outra cidade',responsible:'Líder da caravana',contact:'77999999999',group:'G03',members:[{code,name:'Maria Silva',phone:'(77) 99999-9999'},{code:code2,name:'Pedro Silva',phone:''}]};
 const run=(db,role,action,arg,now=at)=>live.command(db,day,role,action,{...arg,actorId:'operator'},now).db;
 const saved=()=>run(ops.fresh(),'coordenacao','caravanSave',draft);
 const authorized=()=>run(saved(),'caixa','caravanAuthorize',{id,method:'dinheiro',reference:'Recebimento conferido pelo operador'});
@@ -32,7 +32,7 @@ test('each native member reaches coordination independently and cannot enter twi
  assert.equal(db.sessions[day].people[0].source,'caravan');assert.equal(db.sessions[day].people[0].caravan.city,'Outra cidade');assert.equal(db.sessions[day].people[0].group,null);
  assert.throws(()=>run(db,'portaria','caravanAdmit',{code}),/já entrou/);
  db=run(db,'portaria','caravanAdmit',{code:code2});assert.equal(db.sessions[day].people.length,2);
- db=run(db,'coordenacao','assign',{ids:[code,code2],group:'G06'});assert.equal(db.sessions[day].groups[5].members.length,2);
+ db=run(db,'coordenacao','assign',{ids:[code,code2],group:'G03'});assert.equal(db.sessions[day].groups[2].members.length,2);
  assert.equal(caravans.gateRows(db.sessions[day],day,at).every(m=>m.admitted&&!m.eligible),true);
 });
 test('new members reset authorization; revocation blocks future admissions without erasing history',()=>{
@@ -79,7 +79,7 @@ test('dedicated caravan administrator manages paid rosters but cannot grant othe
  db=run(db,'caravanas','caravanAuthorize',{id,method:'dinheiro',reference:'Recebimento sob minha responsabilidade'});
  assert.equal(db.sessions[day].caravans[0].authorization.by,'operator');
  assert.equal(db.sessions[day].caravans[0].authorization.method,'dinheiro');
- for(const action of ['assign','pause','start','caravanTraining','caravanAdmit','caravanRelease','caravanDefer'])assert.throws(()=>run(db,'caravanas',action,{id,code,group:'G06'}),/somente|Somente|acesso/);
+ for(const action of ['assign','pause','start','caravanTraining','caravanAdmit','caravanRelease','caravanDefer'])assert.throws(()=>run(db,'caravanas',action,{id,code,group:'G03'}),/somente|Somente|acesso/);
  assert.throws(()=>run(db,'caravanas','caravanAuthorize',{id,method:'cortesia',reference:'Cortesia sem permissão'}),/Gestão/);
  assert.equal(db.sessions[day].people.length,0);
  const full={...draft,members:Array.from({length:25},(_,i)=>({name:'Pessoa '+i,code:'CAR-'+String(i).padStart(8,'0')+'-1111-4111-8111-111111111111'}))};
@@ -95,7 +95,7 @@ test('caravan administrator projection hides general attendees, history and guid
 });
 test('Lote 1 caravan training admits only authorized roster on the selected training day',()=>{
  const lot='2026-10-22',today='2026-11-05T15:00:00Z';let db=ops.fresh();
- for(const [action,arg] of [['caravanSave',draft],['caravanAuthorize',{id,method:'dinheiro',reference:'Pagamento fictício para teste autorizado'}],['caravanTraining',{id,confirmed:true,reference:'Teste autorizado somente hoje'}]])db=live.command(db,lot,'geral',action,{...arg,actorId:'operator'},today).db;
+ for(const [action,arg] of [['caravanSave',{...draft,group:'G06'}],['caravanAuthorize',{id,method:'dinheiro',reference:'Pagamento fictício para teste autorizado'}],['caravanTraining',{id,confirmed:true,reference:'Teste autorizado somente hoje'}]])db=live.command(db,lot,'geral',action,{...arg,actorId:'operator'},today).db;
  assert.ok(caravans.gateRows(db.sessions[lot],lot,today).every(p=>p.eligible));
  assert.ok(caravans.gateRows(db.sessions[lot],lot,'2026-11-06T15:00:00Z').every(p=>!p.eligible));
  const entered=live.command(db,lot,'portaria','caravanAdmit',{code,actorId:'gate'},today).db;

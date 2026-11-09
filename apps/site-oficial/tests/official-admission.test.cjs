@@ -5,7 +5,7 @@ const p={id_event:'798621',id_attendees:'42',name:'Pessoa',checkin_code:'1234567
 const catalog={id_event:'798621',tickets:[{title:rules.LOT.category,prices:[{id_ticket:'968141',id_ticket_price:'1104853'}]}]};
 function fixture({timeout=false,failFinalize=false,entry=rules.LOT,caravan=false,destination=entry,override=null}={}){
  const state={auth:{event_id:'798621',ticket_code:p.checkin_code,entry_id:entry.entryId,participant_id:'42',participant_name:p.name,registration_status:'confirmed',payment_status:'paid',evidence_reference:'receipt-1:item-1',verified_at:'2026-10-22'},attempt:null,session:ops.fresh().sessions[destination.session],revision:0,sends:0,failFinalize,override};
- if(caravan)state.session.caravans=[{id:'11111111-1111-4111-8111-111111111111',name:'Caravana teste',city:'Cidade teste',group:'G06',members:[{code:p.checkin_code,name:p.name}]}];
+ if(caravan)state.session.caravans=[{id:'11111111-1111-4111-8111-111111111111',name:'Caravana teste',city:'Cidade teste',group:'G03',members:[{code:p.checkin_code,name:p.name}]}];
  let queue=Promise.resolve(),inside=false;
  const query=async(sql,args=[])=>{
   if(sql.startsWith('SELECT attendee_id'))return {rows:[{attendee_id:'42'}]};
@@ -77,10 +77,10 @@ test('isenção comprovada permite consulta sem marcar como pago nem credenciar'
 // Uses the actual official service, including Even3 confirmation and session transaction.
 test('November caravan identity follows lookup, official check-in and coordination queue',async()=>{
  const entry=rules.ENTRIES[1],{state,service}=fixture({entry,caravan:true});
- const lookup=await service.lookup(p.checkin_code,entry.session);assert.equal(lookup.caravan.group,'G06');assert.equal(state.sends,0);
+ const lookup=await service.lookup(p.checkin_code,entry.session);assert.equal(lookup.caravan.group,'G03');assert.equal(state.sends,0);
  const result=await service.admit(p.checkin_code,entry.session,{user_id:'gate'});
  assert.equal(result.admitted,true);assert.equal(result.caravan.name,'Caravana teste');assert.equal(state.sends,1);
- assert.equal(state.session.people[0].caravan.group,'G06');assert.equal(state.session.people[0].group,null);
+ assert.equal(state.session.people[0].caravan.group,'G03');assert.equal(state.session.people[0].group,null);
  assert.equal(state.attempt.status,'admitted');
 });
 

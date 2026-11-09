@@ -14,7 +14,7 @@ test('day 21 protects G03/G04/G05 and 75 places even before the leader lists are
  assert.throws(()=>caravans.handle(s,'2026-11-21','caravanRelease',{group:'G03',reason:'Tentativa de liberar'},new Date().toISOString()));
 });
 test('overlapping Even3 caravan tickets are counted once, extra admissions count, excess stock never becomes negative',()=>{
- const s=ops.freshSession('2026-11-09');s.caravans=[{group:'G06',members:[{code:'80000000'}]}];s.people=[{id:'different-day'},{id:'CAR-11111111-1111-4111-8111-111111111111'}];
+ const s=ops.freshSession('2026-11-09');s.caravans=[{group:'G03',members:[{code:'80000000'}]}];s.people=[{id:'different-day'},{id:'CAR-11111111-1111-4111-8111-111111111111'}];
  const d=calc('2026-11-09',[person(0)],s);assert.equal(d.protectedCaravanPlaces,74);assert.equal(d.additionalAdmitted,1);assert.equal(d.available,474);
  const over=calc('2026-11-09',Array.from({length:551},(_,i)=>person(i)));assert.equal(over.available,0);assert.equal(over.overCapacity,true);
  assert.throws(()=>calc('2026-11-09',[person(0),person(0)]));
