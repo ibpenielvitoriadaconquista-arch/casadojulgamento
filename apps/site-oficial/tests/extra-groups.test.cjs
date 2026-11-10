@@ -14,7 +14,7 @@ test('Coordenação and Gestão append sequential groups without changing old gr
 test('extra group supports assignment, paper, called board, support arrival, safe circuit and completion',()=>{
  let db=ops.fresh();const run=(role,action,arg={})=>{db=live.command(db,day,role,action,arg).db;};
  run('coordenacao','addGroup');db=live.admit(db,day,{verified:true,participantId:'person',registrationId:'ticket',entryId:'test',name:'Participante'}).db;
- run('coordenacao','assign',{ids:['ticket'],group:'G31'});run('coordenacao','deliver',{ids:['ticket']});run('coordenacao','close',{group:'G31'});run('coordenacao','call',{group:'G31'});
+ run('coordenacao','assign',{ids:['ticket'],group:'G31'});run('coordenacao','deliver',{ids:['ticket']});run('telao','close',{group:'G31'});run('telao','call',{group:'G31'});
  const board=live.project(db,'telao').sessions[day];assert.equal(board.groups.find(g=>g.id==='G31').status,'called');assert.ok(!JSON.stringify(board).includes('Participante'));
  assert.equal(live.project(db,'apoio').sessions[day].people[0].name,'Participante');
  for(const action of ['arrive','start','safe','finish'])run('apoio',action,{group:'G31',physicallySafe:true});assert.equal(db.sessions[day].groups.at(-1).status,'finished');

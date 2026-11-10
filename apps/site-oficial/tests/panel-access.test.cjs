@@ -16,7 +16,7 @@ test('public shortcuts never render training, and training route returns 404',as
  for(const role of Object.keys(ops.ROLES)){
   const s=read('pages/'+role+'.jsx');assert.ok(!s.includes('OperationTraining'));assert.ok(!s.includes('RehearsalPanel'));
   const fn=new Function(s.split('export default')[0].replace('export async function getServerSideProps','return async function getServerSideProps'))();
-  assert.equal((await fn({res:{setHeader(){}}})).redirect.destination,'/operacao/'+role);
+  assert.equal((await fn({res:{setHeader(){}}})).redirect.destination,'/operacao/'+role+(role==='telao'?'?exibir=1':''));
  }
  assert.match(read('pages/treinamento.jsx'),/notFound:true/);
 });

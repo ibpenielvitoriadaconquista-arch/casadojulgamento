@@ -67,10 +67,10 @@ function project(state, role) {
     s.people=s.people.filter(p=>visible.has(p.id)).map(p=>({id:p.id,name:p.name,group:p.group,paperAt:p.paperAt}));
     s.history=[];s.lastAssignment=null;
   }
-  if(role==='telao') for(const s of Object.values(next.sessions)) {
+  if(role==='telao') for(const [day,s] of Object.entries(next.sessions)) {
     // No names or ticket identifiers sent to these roles, including hidden history.
     s.people=s.people.map(p=>({group:p.group,paperAt:p.paperAt}));
-    s.groups=s.groups.map(g=>({...g,members:g.members.map(()=>null)}));
+    s.groups=s.groups.map(g=>({...g,guide:null,caravanMissing:caravans.list(state.sessions[day]).filter(c=>c.group===g.id).flatMap(c=>c.members).filter(m=>!g.members.includes(m.code)).length,paperPending:g.members.filter(id=>!state.sessions[day].people.find(p=>p.id===id)?.paperAt).length,members:g.members.map(()=>null)}));
     s.history=[];s.lastAssignment=null;
   }
   if(role==='portaria') for(const s of Object.values(next.sessions)){s.history=[];s.lastAssignment=null;}

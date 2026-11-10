@@ -4,7 +4,7 @@ const {cleanInput}=require('../lib/staff-requests.cjs');
 const day='2026-11-09';
 test('Apoio controls the entire former guide flow and legacy guides cannot issue commands',()=>{
  let db=live.admit(ops.fresh(),day,{verified:true,participantId:'p',registrationId:'ticket',entryId:'e',name:'Pessoa'}).db;
- for(const [action,arg] of [['assign',{ids:['ticket'],group:'G01'}],['deliver',{ids:['ticket']}],['close',{group:'G01'}],['call',{group:'G01'}]])db=live.command(db,day,'coordenacao',action,arg).db;
+ for(const [action,arg] of [['assign',{ids:['ticket'],group:'G01'}],['deliver',{ids:['ticket']}],['close',{group:'G01'}],['call',{group:'G01'}]])db=live.command(db,day,['close','call'].includes(action)?'telao':'coordenacao',action,arg).db;
  for(const action of ['arrive','start','safe','finish']){
   assert.throws(()=>live.command(db,day,'guias',action,{group:'G01',physicallySafe:true}));
   db=live.command(db,day,'apoio',action,{group:'G01',physicallySafe:true}).db;

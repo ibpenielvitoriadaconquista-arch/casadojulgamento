@@ -1,7 +1,7 @@
 {
   "title": "Assistente da Operação - Casa do Julgamento 2026",
-  "version": "1.4.0",
-  "updated": "2026-11-08",
+  "version": "1.5.0",
+  "updated": "2026-11-10",
   "sections": [
     {
       "title": "Missão e limites",
@@ -19,10 +19,19 @@
       ]
     },
     {
+      "title": "Coordenação, operador Telão e três postos de Apoio — 10/11/2026",
+      "paragraphs": [
+        "Coordenação em /operacao/coordenacao tem Fila e entrega de senhas e Grupos e integrantes. Busca nome, ingresso ou grupo sem exigir acentos. Clicar no número do grupo abre seus integrantes. Para trocar integrante de grupo fechado, pedir ao operador do Telão ou à Gestão para reabrir antes da chamada. Mantém impressão de nomes e criação de grupos extras.",
+        "Operador Telão em /operacao/telao fecha grupos no salão e chama o próximo pelo botão + Chamar grupo em um dos três cards. Chamado, recebido, circuito e ponto seguro ocupam vaga; finalizar na Cena 7 libera o card sem apagar o histórico. Respeita ordem, adiamento de caravanas, senhas entregues e pausas. Vaga vazia não basta: o grupo anterior deve estar no ponto seguro e não pode haver outro aguardando na recepção.",
+        "Abrir projeção abre /operacao/telao?exibir=1&sessao=DATA em outra janela, autenticada como Telão ou Gestão, sem nomes nem controles. Selecionar a mesma data do operador. Cronômetros mostram duração da etapa e não autorizam envio automático.",
+        "Apoio em /operacao/apoio escolhe seu posto no dispositivo: Apoio 1 confirma chegada após chamada nominal e inicia na Cena 1; Apoio 2 confirma ponto seguro; Apoio 3 finaliza na Cena 7. Estes postos são seleções de interface dentro do mesmo perfil Apoio, não permissões distintas. O aviso do ponto seguro persiste após recarregar e só é encerrado quando o Apoio 1 confirma chegada do próximo grupo."
+      ]
+    },
+    {
       "title": "Caravanas de 21/11 e contador de vendas",
       "paragraphs": [
         "21/11 está esgotado para novas solicitações públicas de caravana. G03, G04 e G05 ficam reservados, até 75 lugares; não liberar essas reservas. Em 09/11 também são reservados G03, G04 e G05. Nas demais datas oficiais, permanecem G06, G07 e G08. As três listas fechadas de 21/11 precisam ser cadastradas nominalmente pela Gestão: fechar o formulário não cadastra participantes nem confirma pagamentos.",
-        "O contador no Caixa, Coordenação e Gestão consulta a lista completa atual de inscrições Even3 e calcula saldo por data: lotação menos ingressos individuais confirmados, menos lugares protegidos de caravanas e entradas adicionais já admitidas. Não duplicar o desconto de um ingresso Even3 já vinculado à caravana. Confirmados incluem cortesias e testes ainda cadastrados; não equivalem a transações financeiras. API incompleta, erro ou falta de sincronização não podem mostrar saldo zero como se fosse uma coleta completa.",
+        "O contador no Caixa e Gestão consulta a lista completa atual de inscrições Even3 e calcula saldo por data: lotação menos ingressos individuais confirmados, menos lugares protegidos de caravanas e entradas adicionais já admitidas. Não duplicar o desconto de um ingresso Even3 já vinculado à caravana. Confirmados incluem cortesias e testes ainda cadastrados; não equivalem a transações financeiras. API incompleta, erro ou falta de sincronização não podem mostrar saldo zero como se fosse uma coleta completa.",
         "O limite interno de 09/11 é 550 pessoas, independentemente de haver 25 grupos iniciais e grupos adicionais. O contador orienta, mas não reserva nem altera estoque na Even3. Atualiza a cada minuto; vendas online e vários caixas podem mudar o saldo. A confirmação final do estoque é na emissão da Even3. Distribuir senhas físicas de compra de maneira centralizada, uma senha por ingresso, descontando as já entregues e ainda sem compra. A senha não é pagamento nem ingresso. Quem já comprou ou pertence à caravana autorizada não precisa de senha de compra."
       ]
     },
@@ -104,8 +113,8 @@
         "Quem não possui ingresso vai ao Caixa. Quem já possui ingresso segue à Portaria. O Caixa registra a venda presencial na Even3 somente depois de receber o dinheiro ou o Pix da igreja. O assistente não registra a venda nem movimenta dinheiro.",
         "Portaria: selecionar a sessão correta, ler QR ou consultar o código e conferir o resultado. A câmera registra automaticamente somente ingresso apto; bloqueios mostram os dados. Pelo código digitado, confirmar a entrada após a consulta. A confirmação externa da Even3 precede o encaminhamento normal à Coordenação.",
         "Coordenação: selecionar as pessoas presentes, atribuir ao grupo, entregar a ficha com o mesmo número e confirmar a entrega por pessoa ou lote. “Imprimir nomes deste grupo” imprime a lista nominal para o apoio, sem telefone, e-mail ou código de ingresso.",
-        "Com os integrantes esperados presentes e as fichas entregues, fechar o grupo e usar “Enviar para espera”. Isso chama o grupo no Telão. O Telão não expõe nomes. O fechamento incompleto exige a justificativa explícita prevista no painel; o assistente não cria essa exceção por conta própria.",
-        "Apoio: confirmar chegada na espera, iniciar circuito com conferência física, confirmar ponto seguro e finalizar. Há uma sala de espera e até três grupos no circuito. “No ponto seguro” ainda ocupa uma vaga; somente finalizar libera a vaga."
+        "Com os integrantes esperados presentes e as fichas entregues, o operador do Telão fecha o grupo e usa “+ Chamar grupo” em um card livre. Coordenação organiza pessoas e senhas; somente Telão e Gestão fecham, reabrem e chamam. Isso chama o grupo no Telão. O Telão não expõe nomes. O fechamento incompleto exige a justificativa explícita prevista no painel; o assistente não cria essa exceção por conta própria.",
+        "Apoio: confirmar chegada na espera, iniciar circuito com conferência física, confirmar ponto seguro e finalizar. Há uma sala de espera e três vagas compartilhadas entre grupos chamados, recebidos e no circuito. A chamada já reserva uma vaga e exige ponto seguro anterior, espera livre e capacidade disponível. “No ponto seguro” ainda ocupa uma vaga; somente finalizar libera a vaga."
       ]
     },
     {

@@ -115,12 +115,12 @@ test('three Lote 1 caravan groups complete gate, coordination, paper, call and g
   for(const m of members.slice(0,4))command('portaria','caravanAdmit',{code:m.code});
   command('coordenacao','assign',{ids:members.slice(0,4).map(m=>m.code),group});
   command('coordenacao','deliver',{ids:members.slice(0,4).map(m=>m.code)});
-  assert.throws(()=>command('coordenacao','close',{group}),/Faltam/);
+  assert.throws(()=>command('telao','close',{group}),/Faltam/);
   command('portaria','caravanAdmit',{code:members[4].code});
   command('coordenacao','assign',{ids:[members[4].code],group});
-  assert.throws(()=>command('coordenacao','close',{group}),/senhas/);
+  assert.throws(()=>command('telao','close',{group}),/senhas/);
   command('coordenacao','deliver',{ids:[members[4].code]});
-  command('coordenacao','close',{group});command('coordenacao','call',{group});
+  command('telao','close',{group});command('telao','call',{group});
   assert.equal(db.sessions[lot].groups.find(g=>g.id===group).status,'called');
   assert.equal(live.project(db,'apoio').sessions[lot].people.length,5);
   const board=JSON.stringify(live.project(db,'telao'));assert.ok(!board.includes('Pessoa teste'));

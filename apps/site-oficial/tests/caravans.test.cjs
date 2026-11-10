@@ -3,7 +3,7 @@ const ops=require('../lib/operation-training.cjs'),live=require('../lib/operatio
 const day='2026-11-09',id='11111111-1111-4111-8111-111111111111',other='22222222-2222-4222-8222-222222222222';
 const member={name:'Pedro',code:'77772710'};
 const draft={id,name:'Caravana Esperança',city:'Cidade de origem',responsible:'Responsável reservado',contact:'CONTATO-PRIVADO',eta:'17:00',group:'G03',members:[member]};
-const command=(db,action,arg,role='coordenacao')=>live.command(db,day,role,action,arg,'2026-11-09T19:00:00Z').db;
+const command=(db,action,arg,role=['close','reopen','call'].includes(action)?'telao':'coordenacao')=>live.command(db,day,role,action,arg,'2026-11-09T19:00:00Z').db;
 const register=()=>command(ops.fresh(),'caravanSave',draft);
 const arrival=(db,code=member.code,name=member.name)=>live.admit(db,day,{verified:true,participantId:'p-'+code,registrationId:code,entryId:'968577',name,caravan:{group:'G01'}}).db;
 test('all six dates reserve exactly three groups without increasing published capacity',()=>{
@@ -66,9 +66,9 @@ test('deferred caravan does not block later groups; resume preserves circuit saf
  db=command(db,'caravanDefer',{group:'G03',reason:'Aguardar ônibus'});
  assert.throws(()=>command(db,'call',{group:'G03'}),/Retome/);
  db=command(db,'call',{group:'G09'});db=command(db,'arrive',{group:'G09'},'apoio');db=command(db,'start',{group:'G09',physicallySafe:true},'apoio');
- db=command(db,'caravanDefer',{group:'G03',reason:'Integrantes reunidos'});db=command(db,'call',{group:'G03'});db=command(db,'arrive',{group:'G03'},'apoio');
- assert.throws(()=>command(db,'start',{group:'G03',physicallySafe:true},'apoio'),/ponto seguro/);
- db=command(db,'safe',{group:'G09'},'apoio');db=command(db,'start',{group:'G03',physicallySafe:true},'apoio');assert.equal(ops.active(db.sessions[day]).length,2);
+ db=command(db,'caravanDefer',{group:'G03',reason:'Integrantes reunidos'});
+ assert.throws(()=>command(db,'call',{group:'G03'}),/ponto seguro/);
+ db=command(db,'safe',{group:'G09'},'apoio');db=command(db,'call',{group:'G03'});db=command(db,'arrive',{group:'G03'},'apoio');db=command(db,'start',{group:'G03',physicallySafe:true},'apoio');assert.equal(ops.active(db.sessions[day]).length,2);
 });
 test('late unassigned member can be transferred atomically to another caravan group',()=>{
  let db=arrival(register());db=command(db,'caravanTransfer',{code:member.code,group:'G04',id:other,reason:'Grupo original já partiu'});

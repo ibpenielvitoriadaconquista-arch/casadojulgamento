@@ -112,9 +112,9 @@ Portaria: selecionar a sessão correta, ler QR ou consultar o código e conferir
 
 Coordenação: selecionar as pessoas presentes, atribuir ao grupo, entregar a ficha com o mesmo número e confirmar a entrega por pessoa ou lote. “Imprimir nomes deste grupo” imprime a lista nominal para o apoio, sem telefone, e-mail ou código de ingresso.
 
-Com os integrantes esperados presentes e as fichas entregues, fechar o grupo e usar “Enviar para espera”. Isso chama o grupo no Telão. O Telão não expõe nomes. O fechamento incompleto exige a justificativa explícita prevista no painel; o assistente não cria essa exceção por conta própria.
+Com os integrantes esperados presentes e as fichas entregues, o operador do Telão fecha o grupo e usa “+ Chamar grupo” em um dos três cards disponíveis. A Coordenação atribui pessoas, entrega senhas e corrige grupos, mas não fecha nem chama. Gestão mantém os comandos de supervisão. Isso chama o grupo no Telão. O Telão não expõe nomes. O fechamento incompleto exige a justificativa explícita prevista no painel; o assistente não cria essa exceção por conta própria.
 
-Apoio: confirmar chegada na espera, iniciar circuito com conferência física, confirmar ponto seguro e finalizar. Há uma sala de espera e até três grupos no circuito. “No ponto seguro” ainda ocupa uma vaga; somente finalizar libera a vaga.
+Apoio: confirmar chegada na espera, iniciar circuito com conferência física, confirmar ponto seguro e finalizar. Há uma sala de espera e três vagas compartilhadas entre grupos chamados, recebidos e no circuito. Chamar já reserva uma vaga. A chamada exige ponto seguro anterior, ausência de outro grupo na espera e vaga disponível. “No ponto seguro” ainda ocupa uma vaga; somente finalizar libera a vaga.
 
 ## Caravanas: cadastro, pagamento e chegada
 
@@ -209,3 +209,14 @@ OpenAI - estado de conversa: https://developers.openai.com/api/docs/guides/conve
 OpenAI - controles de dados: https://developers.openai.com/api/docs/guides/your-data
 
 Fontes do projeto: código da branch operacional conferido em 06/11/2026; regras e decisões da organização registradas nesta implementação. Números de vendas e disponibilidade devem sempre vir das consultas atuais.
+
+
+## Postos e visual operacional — 10/11/2026
+
+- Coordenação: `/operacao/coordenacao`. Fila e senhas, busca por nome/ingresso/grupo sem diferenciar acentos, detalhes do grupo, troca mediante recolhimento da senha e impressão de nomes. Para ajustar grupo fechado, solicitar reabertura ao Telão ou Gestão.
+- Operador Telão: `/operacao/telao`. Três cards fixos acompanham os grupos chamados até a finalização. Fechar grupo na lista do salão; chamar pelo card vazio. Respeita ordem, senhas entregues e adiamentos das caravanas. Fechamento incompleto de caravana exige justificativa.
+- Projeção: `/operacao/telao?exibir=1&sessao=2026-11-13`. Abrir em outra janela e mover para o projetor. Continua exigindo login Telão ou Gestão e não contém nomes nem controles operacionais. Operador e projeção devem usar a mesma data.
+- Apoio: `/operacao/apoio`. Escolher o posto no dispositivo: Apoio 1 recebe e inicia na Cena 1; Apoio 2 confirma ponto seguro; Apoio 3 finaliza na Cena 7. São seleções de interface dentro da mesma função Apoio, não novos perfis de autorização.
+- O sinal de ponto seguro persiste no estado compartilhado até a confirmação de chegada do próximo grupo. Finalização libera uma vaga, mas não dispensa as outras condições para chamar.
+- Cronômetros indicam duração da etapa, nunca autorizam chamadas automaticamente. Pausa e perda de sincronização bloqueiam novos comandos. Atualização compartilhada a cada quatro segundos.
+- Nenhum ingresso, pagamento, integrante de caravana ou credenciamento foi alterado por esta atualização. Novos campos opcionais de acompanhamento são gravados somente ao operar os grupos, no estado e auditoria existentes.

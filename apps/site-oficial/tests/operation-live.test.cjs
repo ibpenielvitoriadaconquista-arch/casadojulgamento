@@ -15,7 +15,7 @@ test('fluxo completo e troca com recolhimento da senha',()=>{
  assert.throws(()=>run('coordenacao','move',{id:'ticket-1',group:'G02',reason:'família'}));
  run('coordenacao','move',{id:'ticket-1',group:'G02',reason:'família',paperReturned:true});
  assert.equal(db.sessions[day].people[0].paperAt,null);
- run('coordenacao','deliver',{ids:['ticket-1']});run('coordenacao','close',{group:'G02'});run('coordenacao','call',{group:'G02'});
+ run('coordenacao','deliver',{ids:['ticket-1']});run('telao','close',{group:'G02'});run('telao','call',{group:'G02'});
  run('apoio','arrive',{group:'G02'});run('apoio','start',{group:'G02',physicallySafe:true});run('apoio','safe',{group:'G02'});run('apoio','finish',{group:'G02'});
  assert.equal(db.sessions[day].groups[1].status,'finished');assert.equal(db.sessions['2026-11-13'].people.length,0);
 });
