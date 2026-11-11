@@ -80,7 +80,7 @@ export default function GateTicketScanner({session,rehearsal=false,testLot=false
  return <section className="scanner" aria-label="Leitor de ingressos da portaria">
   <div className="head"><strong>{teamTraining?'Leitura de ingresso fictício':'Leitura do ingresso Even3'}</strong><span>{teamTraining?'TREINAMENTO 11/11':rehearsal?'CONSULTA':'CREDENCIAMENTO OFICIAL'}</span></div>
   {rehearsal&&<p role="status" className="warning"><b>{testLot?'INGRESSO GERAL - 1º LOTE · ENSAIO 22–28/10. Entrada somente na fila de treinamento.':'ENSAIO — sem pagamento validado e sem credenciamento real.'}</b></p>}
-  {teamTraining&&<p className="warning">Somente CJ-001 a CJ-200. Cada código funciona uma única vez, apenas no treinamento de 11/11. Não consulta nem credencia na Even3.</p>}
+  {teamTraining&&<p className="warning">CJ-000 pode ser repetido e cria uma pessoa fictícia a cada confirmação. CJ-001 a CJ-200 funcionam uma única vez, apenas no treinamento de 11/11. Não consulta nem credencia na Even3.</p>}
   {session==='2026-10-22'&&<p className="warning">Códigos CDJTESTE são fictícios: registram somente o treinamento, sem credenciar na Even3.</p>}
   <p>A câmera consulta e registra automaticamente apenas o ingresso apto. Se houver bloqueio, mostra os dados para conferência. Pelo código digitado, confirme a entrada após consultar. Entrada selecionada: <b>{sessionData?.label||session}</b>.</p>
   {camera&&<div className="camera"><video ref={video} muted playsInline autoPlay aria-label="Câmera de leitura QR"/><button type="button" onClick={stopCamera}>Fechar câmera</button></div>}

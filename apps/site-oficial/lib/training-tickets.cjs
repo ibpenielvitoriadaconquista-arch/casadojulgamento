@@ -14,13 +14,14 @@ function inspect(state,code,session,at){
  if(!allowedSession(code,session))throw fail(403,'Ingresso fictício permitido somente na sua sessão de treinamento.');
  const ticket=(state.trainingTickets||[]).find(t=>t.code===code);
  if(!ticket)throw fail(404,'Código de treinamento não cadastrado.');
- const used=!!ticket.usedAt||state.people.some(p=>p.id===code);
+ const reusable=session===TEAM_SESSION&&code==='CJ-000'&&ticket.reusable===true;
+ const used=!reusable&&(!!ticket.usedAt||state.people.some(p=>p.id===code));
  const eligible=!state.closedAt&&!used&&ticket.enabled===true&&ticket.paymentStatus==='simulated_confirmed'&&ticket.day===tickets.bahiaDay(new Date(at));
- return {ticket,used,eligible};
+ return {ticket,used,eligible,reusable};
 }
 function response(state,code,session,at,admitted=false){
- const {ticket,used,eligible}=inspect(state,code,session,at);
- return {found:true,training:true,participantName:ticket.name,entry:{id:'training-native',date:session,label:session===TEAM_SESSION?'11/11 · TREINAMENTO · INGRESSO FICTÍCIO':'Lote 1 · INGRESSO FICTÍCIO'},session,admitted,eligible,checkedIn:used,status:admitted?'admitted':eligible?'ready':'blocked',message:admitted?'TESTE: entrada registrada e pessoa enviada à Coordenação. Nenhum credenciamento Even3.':used?'Código de treinamento já utilizado. Não registre outra entrada.':eligible?'INGRESSO FICTÍCIO autorizado para treinamento hoje. Confirme a chegada.':'Treinamento não autorizado hoje ou cadastro desativado.'};
+ const {ticket,used,eligible,reusable}=inspect(state,code,session,at);
+ return {found:true,training:true,reusable,participantName:ticket.name,entry:{id:'training-native',date:session,label:session===TEAM_SESSION?'11/11 · TREINAMENTO · INGRESSO FICTÍCIO':'Lote 1 · INGRESSO FICTÍCIO'},session,admitted,eligible,checkedIn:used,status:admitted?'admitted':eligible?'ready':'blocked',message:admitted&&reusable?'CJ-000: nova pessoa fictícia enviada à Coordenação. Pode consultar e confirmar este código novamente.':admitted?'TESTE: entrada registrada e pessoa enviada à Coordenação. Nenhum credenciamento Even3.':used?'Código de treinamento já utilizado. Não registre outra entrada.':eligible&&reusable?'CJ-000 REUTILIZÁVEL: cada confirmação cria uma nova pessoa fictícia.':eligible?'INGRESSO FICTÍCIO autorizado para treinamento hoje. Confirme a chegada.':'Treinamento não autorizado hoje ou cadastro desativado.'};
 }
 function createService({query,transaction,now=()=>new Date().toISOString()}){
  async function lookup(code,session){
@@ -35,13 +36,17 @@ function createService({query,transaction,now=()=>new Date().toISOString()}){
   return transaction(async db=>{
    const row=(await db.query('SELECT state,revision FROM peniel_ops.session_state WHERE session_date=$1 FOR UPDATE',[session])).rows[0];
    if(!row)throw fail(503,'Sessão de treinamento indisponível.');
-   const at=now(),{ticket,used,eligible}=inspect(row.state,code,session,at);
+   const at=now(),{ticket,used,eligible,reusable}=inspect(row.state,code,session,at);
    if(used)throw fail(409,'Código de treinamento já utilizado.');
    if(!eligible)throw fail(409,'Treinamento não autorizado hoje ou cadastro desativado.');
-   const next=live.admit({schema:5,revision:Number(row.revision),sessions:{[session]:row.state}},session,{verified:true,participantId:code,registrationId:code,entryId:'training-native',name:ticket.name},at);
-   const state=next.db.sessions[session],person=state.people.find(p=>p.id===code);
+   const sequence=reusable?(Number(row.state.trainingDemoSequence)||0)+1:0;
+   const arrivalCode=reusable?'CJ-000-R'+String(sequence).padStart(6,'0'):code;
+   const arrivalName=reusable?'Demonstração CJ-000 · '+sequence:ticket.name;
+   const next=live.admit({schema:5,revision:Number(row.revision),sessions:{[session]:row.state}},session,{verified:true,participantId:arrivalCode,registrationId:arrivalCode,entryId:'training-native',name:arrivalName},at);
+   const state=next.db.sessions[session],person=state.people.find(p=>p.id===arrivalCode);
+   if(reusable)state.trainingDemoSequence=sequence;
    person.training=true;person.source='training-ticket';person.admittedBy=user.user_id;
-   const stored=state.trainingTickets.find(t=>t.code===code);stored.usedAt=at;stored.usedBy=user.user_id;
+   const stored=state.trainingTickets.find(t=>t.code===code);if(!reusable){stored.usedAt=at;stored.usedBy=user.user_id;}
    state.history.unshift({at,role:user.role,action:'trainingTicketAdmit',text:ticket.name+': ingresso FICTÍCIO de treinamento admitido. Sem Even3.'});state.history=state.history.slice(0,500);
    await db.query('UPDATE peniel_ops.session_state SET state=$2::jsonb,revision=$3,updated_at=now() WHERE session_date=$1',[session,JSON.stringify(state),next.db.revision]);
    return response(state,code,session,at,true);

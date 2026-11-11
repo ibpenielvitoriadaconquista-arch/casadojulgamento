@@ -63,3 +63,18 @@ test('gate API refuses real numbers in team training before any Even3 call',asyn
  for(const action of ['lookup','admit']){let status=200,body;const res={setHeader(){},status(n){status=n;return this;},json(b){body=b;return this;}};await handler({method:'POST',body:{session:training.TEAM_SESSION,code:'77772709',action}},res);assert.equal(status,400);assert.match(body.error,/fictícios/);}
  assert.equal(calls,0);
 });
+
+test('CJ-000 can repeat only in team training and produces distinct unassigned people',async()=>{
+ const day=training.TEAM_SESSION,at='2026-11-11T23:00:00Z';let state=ops.freshSession(day),revision=1,tail=Promise.resolve();
+ state.trainingTickets=[{code:'CJ-000',name:'Demonstração',day,enabled:true,reusable:true,paymentStatus:'simulated_confirmed'},{code:'CJ-001',name:'Pessoa 001',day,enabled:true,reusable:true,paymentStatus:'simulated_confirmed'}];
+ const query=async(sql,args)=>{assert.equal(args[0],day);if(sql.startsWith('SELECT'))return {rows:[{state:structuredClone(state),revision}]};state=JSON.parse(args[1]);revision=args[2];return {rows:[]};};
+ const transaction=fn=>{const run=tail.then(()=>fn({query}));tail=run.catch(()=>{});return run;};
+ const service=training.createService({query,transaction,now:()=>at}),user={role:'portaria',user_id:'test'};
+ await Promise.all([service.admit('CJ-000',day,user),service.admit('CJ-000',day,user)]);
+ assert.equal(state.people.length,2);assert.equal(new Set(state.people.map(p=>p.id)).size,2);assert.ok(state.people.every(p=>p.group===null));
+ assert.equal((await service.lookup('CJ-000',day)).eligible,true);assert.equal(state.trainingTickets[0].usedAt,undefined);
+ await service.admit('CJ-001',day,user);await assert.rejects(service.admit('CJ-001',day,user),/já utilizado/);
+ await assert.rejects(service.admit('CJ-000','2026-11-13',user),/somente/);
+ assert.equal(training.inspect(state,'CJ-000',day,'2026-11-12T23:00:00Z').eligible,false);
+ state.closedAt=at;assert.equal((await service.lookup('CJ-000',day)).eligible,false);
+});

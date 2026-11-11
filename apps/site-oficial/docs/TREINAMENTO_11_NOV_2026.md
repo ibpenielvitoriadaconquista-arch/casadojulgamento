@@ -13,6 +13,8 @@ São seis grupos iniciais, até 35 pessoas por grupo, com lotação de treinamen
 
 Este treino verifica o fluxo operacional. Não comprova pagamentos nem disponibilidade da API Even3.
 
+CJ-000 é reutilizável: cada confirmação cria uma nova pessoa fictícia na fila, com identificação própria. Os códigos abaixo continuam de uso único. Todas as chegadas contam para a lotação de 200 do treinamento.
+
 ## Códigos fictícios
 
 - CJ-001 — Participante teste 001
