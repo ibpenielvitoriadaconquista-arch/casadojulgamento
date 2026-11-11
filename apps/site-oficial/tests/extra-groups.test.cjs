@@ -21,7 +21,7 @@ test('extra group supports assignment, paper, called board, support arrival, saf
 });
 test('additional cards never increase spectator limits, per-group size, or simultaneous circuit limit',()=>{
  let db=ops.fresh();db=live.command(db,day,'coordenacao','addGroup',{}).db;const s=db.sessions[day];
- s.people=Array.from({length:26},(_,i)=>({id:String(i),group:null}));
+ s.people=Array.from({length:ops.capacityFor(day).groupSize+1},(_,i)=>({id:String(i),group:null}));
  assert.throws(()=>live.command(db,day,'coordenacao','assign',{ids:s.people.map(p=>p.id),group:'G31'}),/vagas/);
  for(let i=0;i<3;i++){s.groups[i].status='safe';s.groups[i].members=['member'+i];}s.groups.at(-1).status='waiting';s.groups.at(-1).members=['member31'];
  assert.throws(()=>live.command(db,day,'apoio','start',{group:'G31',physicallySafe:true}),/três/);

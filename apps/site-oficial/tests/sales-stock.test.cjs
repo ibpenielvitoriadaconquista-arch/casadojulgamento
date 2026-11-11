@@ -8,9 +8,9 @@ test('day 9 counter uses 550, confirmed units rather than payments, and 75 prote
  assert.equal(calc('2026-11-09',[person(0),person(1,rules.ENTRIES[2]),person(2,rules.ENTRIES[1],false)]).confirmed,1);
  const more=ops.freshSession('2026-11-09');more.groups.push({id:'G26',status:'forming',members:[]});assert.equal(calc('2026-11-09',[],more).capacity,550);
 });
-test('day 21 protects G03/G04/G05 and 75 places even before the leader lists are entered',()=>{
+test('day 21 protects G03/G04/G05 and 105 places even before the leader lists are entered',()=>{
  const s=ops.freshSession('2026-11-21');s.caravanReleased=['G03'];const d=calc('2026-11-21',Array.from({length:10},(_,i)=>person(i,rules.ENTRIES[6])),s);
- assert.deepEqual(d.reservedGroups,['G03','G04','G05']);assert.equal(d.protectedCaravanPlaces,75);assert.equal(d.available,665);assert.ok(!caravans.reserved(s,'2026-11-21','G06'));
+ assert.deepEqual(d.reservedGroups,['G03','G04','G05']);assert.equal(d.protectedCaravanPlaces,105);assert.equal(d.available,635);assert.ok(!caravans.reserved(s,'2026-11-21','G06'));
  assert.throws(()=>caravans.handle(s,'2026-11-21','caravanRelease',{group:'G03',reason:'Tentativa de liberar'},new Date().toISOString()));
 });
 test('overlapping Even3 caravan tickets are counted once, extra admissions count, excess stock never becomes negative',()=>{

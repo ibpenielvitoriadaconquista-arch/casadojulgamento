@@ -1,17 +1,17 @@
 'use strict';
 const capacities=Object.freeze({
- '2026-10-22':[15,20],
- '2026-11-09':[25,25],
- '2026-11-13':[20,25],
- '2026-11-14':[30,25],
- '2026-11-19':[20,25],
- '2026-11-20':[30,25],
- '2026-11-21':[30,25]
+ '2026-10-22':[15,20,300],
+ '2026-11-09':[25,25,550],
+ '2026-11-13':[20,35,500],
+ '2026-11-14':[30,35,750],
+ '2026-11-19':[20,35,500],
+ '2026-11-20':[30,35,750],
+ '2026-11-21':[30,35,750]
 });
 function capacityFor(session){
  const value=capacities[session];
  if(!value)throw Error('Sessão inválida.');
- const [groups,groupSize]=value;
- return {groups,groupSize,total:session==='2026-11-09'?550:groups*groupSize};
+ const [groups,groupSize,total]=value;
+ return {groups,groupSize,total};
 }
 module.exports={capacityFor};

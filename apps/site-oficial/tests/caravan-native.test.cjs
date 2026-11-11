@@ -130,3 +130,23 @@ test('three Lote 1 caravan groups complete gate, coordination, paper, call and g
  assert.equal(db.sessions[lot].people.length,15);assert.equal(db.sessions['2026-11-09'].people.length,0);
  for(const day of caravans.DAYS)assert.equal(caravans.reserved(db.sessions[day],day,'G09'),false);
 });
+
+test('November 14 accepts 35, rejects 36, and sends 28 paid caravan members through manual coordination',()=>{
+ const date='2026-11-14',now='2026-11-14T21:00:00Z';let db=ops.fresh();
+ const members=Array.from({length:35},(_,i)=>({name:'Integrante '+i,phone:'',code:'CAR-'+String(i).padStart(8,'0')+'-1111-4111-8111-111111111111'}));
+ const cmd=(role,action,arg)=>{db=live.command(db,date,role,action,{...arg,actorId:'operator'},now).db;};
+ const requests=require('../lib/caravan-requests.cjs');
+ assert.equal(requests.input({...draft,session:date,members}).members.length,35);
+ assert.throws(()=>requests.input({...draft,session:date,members:[...members,members[0]]}),/35 integrantes/);
+ cmd('geral','caravanSave',{...draft,group:'G04',members});
+ assert.throws(()=>cmd('geral','caravanSave',{...draft,id:'33333333-3333-4333-8333-333333333333',group:'G04'}),/35 vagas/);
+ cmd('geral','caravanSave',{...draft,group:'G04',members:members.slice(0,28)});
+ cmd('geral','caravanAuthorize',{id,method:'pix_igreja',reference:'Recebimento confirmado pelo responsável'});
+ for(const m of members.slice(0,28))cmd('portaria','caravanAdmit',{code:m.code});
+ assert.equal(db.sessions[date].people.length,28);assert.ok(db.sessions[date].people.every(p=>p.group===null));
+ cmd('coordenacao','assign',{ids:members.slice(0,28).map(m=>m.code),group:'G04'});
+ cmd('coordenacao','deliver',{ids:members.slice(0,28).map(m=>m.code)});
+ cmd('telao','close',{group:'G04'});cmd('telao','call',{group:'G04'});
+ assert.equal(live.project(db,'apoio').sessions[date].people.length,28);
+ assert.equal(ops.capacityFor(date).total,750);
+});
