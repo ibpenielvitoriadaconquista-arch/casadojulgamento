@@ -7,7 +7,7 @@ const command=(db,action,arg,role=['close','reopen','call'].includes(action)?'te
 const register=()=>command(ops.fresh(),'caravanSave',draft);
 const arrival=(db,code=member.code,name=member.name)=>live.admit(db,day,{verified:true,participantId:'p-'+code,registrationId:code,entryId:'968577',name,caravan:{group:'G01'}}).db;
 test('all six dates reserve exactly three groups without increasing published capacity',()=>{
- for(const date of caravans.DAYS){const db=ops.fresh(),s=db.sessions[date];assert.deepEqual(s.groups.filter(g=>caravans.reserved(s,date,g.id)).map(g=>g.id),(['2026-11-09','2026-11-14','2026-11-21'].includes(date)?['G03','G04','G05']:['G06','G07','G08']));assert.ok(s.groups.length*25>=ops.capacityFor(date).total);}
+ for(const date of caravans.DAYS){const db=ops.fresh(),s=db.sessions[date];assert.deepEqual(s.groups.filter(g=>caravans.reserved(s,date,g.id)).map(g=>g.id),(date==='2026-11-19'?['G03','G07','G08']:['2026-11-09','2026-11-14','2026-11-21'].includes(date)?['G03','G04','G05']:['G06','G07','G08']));assert.ok(s.groups.length*25>=ops.capacityFor(date).total);}
  assert.equal(caravans.enabled('2026-10-22'),true);
 });
 test('roster creates no admission; verified arrival gets caravan from stored ticket identity',()=>{
