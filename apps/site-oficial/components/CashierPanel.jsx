@@ -1,3 +1,4 @@
+import ops from '../lib/operation-training.cjs';
 import {useState,useEffect} from 'react';
 import Head from 'next/head';
 import GateTicketScanner from './GateTicketScanner';
@@ -6,14 +7,14 @@ import official from '../lib/official-entries.cjs';
 import checkout from '../lib/even3-checkout.cjs';
 import SalesStock from './SalesStock';
 export default function CashierPanel(){
- const [entrySession,setEntrySession]=useState('2026-11-09');
+ const [entrySession,setEntrySession]=useState(ops.DEFAULT_SESSION);
  const [receipt,setReceipt]=useState({code:'',paymentMethod:'dinheiro',evidence:'',received:false});
  const [receiptBusy,setReceiptBusy]=useState(false),[receiptResult,setReceiptResult]=useState(''),[receiptError,setReceiptError]=useState('');
  async function confirmReceipt(e){e.preventDefault();if(receiptBusy)return;setReceiptBusy(true);setReceiptResult('');setReceiptError('');
   try{const r=await fetch('/api/operacao/autorizacoes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...receipt,action:'authorize',paymentStatus:'paid',evidence:`Recebimento ${receipt.paymentMethod}: ${receipt.evidence}`}),signal:AbortSignal.timeout(30000)});const j=await r.json();if(!r.ok)throw Error(j.error||'Não foi possível confirmar o recebimento.');setReceiptResult('Recebimento confirmado para este ingresso. Consulte o QR no leitor acima para conferir a data e credenciar na Even3.');setReceipt(x=>({...x,received:false}));}
   catch(e){setReceiptError(e.message||'Confira o registro antes de repetir.');}finally{setReceiptBusy(false);}
  }
- const [form,setForm]=useState({session:'2026-11-09',channel:'balcao',name:'',contact:'',quantity:'1',paymentMethod:'even3',notes:''});
+ const [form,setForm]=useState({session:ops.DEFAULT_SESSION,channel:'balcao',name:'',contact:'',quantity:'1',paymentMethod:'even3',notes:''});
  const [busy,setBusy]=useState(false),[notice,setNotice]=useState(''),[error,setError]=useState(''),[created,setCreated]=useState(null),[orders,setOrders]=useState([]);
  async function refresh(){try{const r=await fetch('/api/operacao/caixa',{cache:'no-store'});const j=await r.json();if(r.ok)setOrders(j.orders||[]);}catch{}}
  useEffect(()=>{refresh();},[]);
@@ -26,7 +27,7 @@ export default function CashierPanel(){
  return <><Head><title>Caixa · Casa do Julgamento 2026</title><meta name="robots" content="noindex,nofollow"/></Head>
  <main className="cash">
  <header><a href="/operacao/login">← Equipe</a><span>CASA DO JULGAMENTO 2026 · CAIXA OFICIAL</span></header>
- <h1>Caixa e portaria presencial</h1><section className="panel"><label>Entrada para credenciamento<select value={entrySession} onChange={e=>{const value=e.target.value;setEntrySession(value);setForm(x=>({...x,session:value===official.LOT.session?'':value}));}}>{official.ENTRIES.filter(e=>e.session!==official.LOT.session).map(e=><option key={e.entryId} value={e.session}>{e.label}</option>)}</select></label><SalesStock session={entrySession}/><GateTicketScanner session={entrySession}/><CaravanGate key={entrySession} session={entrySession} role="caixa" cashier/></section>
+ <h1>Caixa e portaria presencial</h1><section className="panel"><label>Entrada para credenciamento<select value={entrySession} onChange={e=>{const value=e.target.value;setEntrySession(value);setForm(x=>({...x,session:value===official.LOT.session?'':value}));}}>{official.ENTRIES.filter(e=>e.session!==official.LOT.session&&!ops.ARCHIVED_SESSIONS.includes(e.session)).map(e=><option key={e.entryId} value={e.session}>{e.label}</option>)}</select></label><SalesStock session={entrySession}/><GateTicketScanner session={entrySession}/><CaravanGate key={entrySession} session={entrySession} role="caixa" cashier/></section>
  <section className="panel"><h2>Confirmar pagamento recebido na igreja</h2><p>Para ingresso individual já emitido na Even3: confira o participante e a data no leitor acima, registre o recebimento abaixo e consulte novamente para credenciar. Cada pessoa precisa de seu próprio QR. Não cobre novamente na Even3 um pagamento já recebido pela igreja.</p>
  <form onSubmit={confirmReceipt}>
  <label>Código do ingresso pago<input required value={receipt.code} onChange={e=>setReceipt(x=>({...x,code:e.target.value,received:false}))}/></label>
@@ -42,7 +43,7 @@ export default function CashierPanel(){
  <form onSubmit={submit}>
  <div className="pair">
  <label>Onde está atendendo?<select value={form.channel} onChange={e=>change('channel',e.target.value)}><option value="balcao">Balcão da igreja</option><option value="tablet_fila">Tablet na fila</option></select></label>
- <label>Data do ingresso<select value={form.session} onChange={e=>change('session',e.target.value)}><option value="" disabled>Selecione uma apresentação oficial</option>{checkout.ENTRIES.map(x=><option key={x.iso} value={x.iso}>{x.date} · {x.time}</option>)}</select></label>
+ <label>Data do ingresso<select value={form.session} onChange={e=>change('session',e.target.value)}><option value="" disabled>Selecione uma apresentação oficial</option>{checkout.ENTRIES.filter(e=>!ops.ARCHIVED_SESSIONS.includes(e.iso)).map(x=><option key={x.iso} value={x.iso}>{x.date} · {x.time}</option>)}</select></label>
  </div>
  <div className="pair"><label>Nome do interessado<input value={form.name} maxLength={150} required onChange={e=>change('name',e.target.value)} placeholder="Nome da pessoa atendida"/></label>
  <label>Contato (opcional)<input value={form.contact} maxLength={120} onChange={e=>change('contact',e.target.value)} placeholder="Telefone ou e-mail"/></label></div>

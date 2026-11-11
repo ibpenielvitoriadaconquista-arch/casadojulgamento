@@ -227,3 +227,14 @@ Fontes do projeto: código da branch operacional conferido em 06/11/2026; regras
 Os painéis abertos renovam a sessão automaticamente, sem exigir mouse ou teclado. A projeção consulta chamadas a cada quatro segundos; o acompanhamento de autenticação executa a cada minuto e tenta renovar antes de expirar. Ao recuperar a rede ou reativar a janela, a sessão e os dados são consultados novamente. A autorização continua sendo validada pelo servidor para cada colaborador ativo.
 
 Após esta atualização, quem entrou com a versão antiga deve sair e entrar novamente uma vez para receber o cookie de renovação. Os cookies de autenticação e renovação são HttpOnly. O cookie de renovação dura 24 horas desde sua última emissão; enquanto o painel estiver aberto e conectado, é renovado. Sair encerra ambos os cookies. Revogação, troca de senha e regras do provedor ainda podem exigir novo login. Sem sincronização, a projeção não mantém uma chamada antiga como atual. Computador suspenso, navegador fechado ou falta de internet impedem atualizações até a retomada.
+
+
+## Encerramento de 09/11 e preparação de 13/11
+
+09/11 foi arquivado por solicitação da organização. Seus registros de presenças, grupos, pagamentos e caravanas permanecem preservados; encerrar não cria credenciamentos retroativos nem marca grupos como finalizados. Novas chegadas e movimentações ficam bloqueadas por closedAt no estado da sessão. A Gestão pode consultar o histórico. Os painéis operacionais e o Caixa iniciam em 13/11.
+
+A capacidade configurada de 13/11 é 500 espectadores. Consultar ingresso é diferente de admitir: a consulta não tem teto cumulativo, mas a admissão respeita capacidade, reservas em processamento, data, confirmação, cancelamento e uso anterior. A Portaria cria pessoas com group=null e paperAt=null, inclusive nas caravanas, que apenas carregam a identificação do grupo reservado. Coordenação atribui e entrega senha; Gestão mantém o acesso de supervisão.
+
+Na consulta de diagnóstico: 09/11 registrou 129 admissões Even3 e 48 de caravanas (177 no total), abaixo da capacidade de 550. O histórico contém 108 ações assign e 2 move da Coordenação. Há admissões Even3 até 20h06 de 09/11 (Bahia). Isso não comprova que todas as pessoas presentes foram registradas. Logs detalhados da hospedagem desse período não estão mais retidos; a causa do relato de interrupção não foi comprovada.
+
+Teste automatizado: 500 admissões pelo serviço oficial com quatro portarias concorrentes, banco em memória e Even3 simulada; nenhuma atribuição automática, nenhum corte em 20/100/129/200/300, uma entrada por código; 501ª bloqueada por capacidade e consulta ainda disponível. Não representa teste de carga da Even3 ou da infraestrutura de produção.

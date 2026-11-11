@@ -6,6 +6,8 @@ const SESSIONS = [
   {id:'2026-11-14',label:'14/11 · 18h'}, {id:'2026-11-19',label:'19/11 · 20h'},
   {id:'2026-11-20',label:'20/11 · 17h'}, {id:'2026-11-21',label:'21/11 · 18h'}
 ];
+const ARCHIVED_SESSIONS=['2026-11-09'];
+const DEFAULT_SESSION='2026-11-13';
 const CIRCUIT_LIMIT=3;
 const LABELS={forming:'Em formação',closed:'Fechado no salão',called:'Chamado para espera',waiting:'Na sala de espera',circuit:'No circuito',safe:'No ponto seguro',finished:'Finalizado'};
 const ROLES={geral:'Painel geral',portaria:'Portaria',caixa:'Caixa',coordenacao:'Coordenação',apoio:'Apoio',telao:'Telão',caravanas:'Administrador de caravanas'};
@@ -23,6 +25,7 @@ function circuitSlots(s){
  return slots;
 }
 function callBlock(s){
+ if(s.closedAt)return 'Apresentação encerrada. Histórico disponível somente para consulta.';
  if(s.paused)return 'Movimentações pausadas pela Gestão.';
  if(occupied(s).length>=CIRCUIT_LIMIT)return 'As três vagas estão ocupadas. Aguarde uma finalização na Cena 7.';
  if(wait(s))return 'Aguarde o Apoio 1 receber e iniciar '+wait(s).id+'. A sala de espera está ocupada.';
@@ -44,6 +47,7 @@ function apply(db,sessionId,role,action,arg={},now=new Date().toISOString()){
   if(!SESSIONS.some(s=>s.id===sessionId)||db?.schema!==5)throw Error('Sessão inválida.');
   const capacity=capacityFor(sessionId);
   const next=JSON.parse(JSON.stringify(db));let s=next.sessions[sessionId];
+  if(s.closedAt)throw Error('Apresentação encerrada. Histórico disponível somente para consulta.');
   circuitSlots(s).forEach((g,index)=>{if(g)g.circuitSlot=index;});
   const group=id=>s.groups.find(g=>g.id===id),person=id=>s.people.find(p=>p.id===id);
   const log=(text)=>{s.history.unshift({at:now,role:ROLES[role],action,text});s.history=s.history.slice(0,500);};
@@ -126,4 +130,4 @@ function apply(db,sessionId,role,action,arg={},now=new Date().toISOString()){
   }else throw Error('Comando não reconhecido.');
   log(message);next.revision++;return {db:next,message};
 }
-module.exports={occupied,circuitSlots,callBlock,nextToCall,nextGroupId,capacityFor,CIRCUIT_LIMIT,SESSIONS,LABELS,ROLES,ALLOWED,fresh,freshSession,active,wait,summarize,apply};
+module.exports={ARCHIVED_SESSIONS,DEFAULT_SESSION,occupied,circuitSlots,callBlock,nextToCall,nextGroupId,capacityFor,CIRCUIT_LIMIT,SESSIONS,LABELS,ROLES,ALLOWED,fresh,freshSession,active,wait,summarize,apply};

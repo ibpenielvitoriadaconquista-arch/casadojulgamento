@@ -111,6 +111,7 @@ function createService({query,transaction,even3,now=()=>new Date().toISOString()
    if(old)throw fail(409,'Já existe uma tentativa de credenciamento. Procure a Gestão para conferir o resultado.');
    const state=(await db.query('SELECT state FROM peniel_ops.session_state WHERE session_date=$1 FOR UPDATE',[session])).rows[0];
    if(!state)throw fail(503,'Fila oficial indisponível.');
+   if(state.state.closedAt)throw fail(409,'Apresentação encerrada. Nenhum credenciamento foi enviado à Even3.');
    const reservations=await capacity.reservations(db,EVENT,session,tickets.bahiaDay(new Date(now())),code);
    if(state.state.people.length+reservations>=capacityFor(session).total)throw fail(409,'Sessão lotada. Procure a Coordenação.');
    const at=now();

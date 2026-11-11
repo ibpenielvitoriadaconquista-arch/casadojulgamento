@@ -3,6 +3,7 @@ const caravans = require('./caravans.cjs');
 function command(state, session, role, action, arg, now) {
   if (['scan','reset','takeover'].includes(action)) throw Error('Ação indisponível na operação real.');
   const s=state.sessions[session];
+  if(s?.closedAt)throw Error('Apresentação encerrada. Histórico disponível somente para consulta.');
   if(role==='caravanas'){
     if(!['caravanSave','caravanDelete','caravanTransfer','caravanAuthorize'].includes(action))throw Error('Este acesso administra somente cadastros e recebimentos de caravanas.');
     if(action==='caravanAuthorize'&&!['dinheiro','pix_igreja','revogar'].includes(arg.method))throw Error('Somente Gestão autoriza cortesias.');
@@ -43,6 +44,7 @@ function command(state, session, role, action, arg, now) {
 function admit(state, session, arrival, now=new Date().toISOString()) {
   if (!ops.SESSIONS.some(s=>s.id===session) || !arrival?.verified || !arrival.participantId || !arrival.registrationId || !(arrival.entryId||arrival.activityId) || !String(arrival.name||'').trim()) throw Error('Chegada sem validação completa.');
   const next=structuredClone(state),s=next.sessions[session];
+  if(s.closedAt)throw Error('Apresentação encerrada. Novas chegadas não são permitidas.');
   const id=String(arrival.registrationId);
   if (s.people.some(p=>p.id===id)) return {db:next,duplicate:true};
   if(s.people.length>=ops.capacityFor(session).total) throw Error('Sessão lotada. Encaminhar à coordenação.');
