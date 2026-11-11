@@ -1,3 +1,4 @@
+import staffSession from '../../../lib/staff-session.cjs';
 import {authClient} from '../../../lib/staff-access';
 import {cookie,fail,sameOrigin} from '../../../lib/operation-auth';
 export const config={api:{bodyParser:{sizeLimit:'6kb'}}};
@@ -17,7 +18,7 @@ export default async function handler(req,res){
   if(result.error||!result.data?.session?.user?.id)throw fail(401,'Link inválido ou expirado. Solicite outro.');
   const updated=await client.auth.updateUser({password});
   if(updated.error)throw fail(400,'Não foi possível definir essa senha.');
-  res.setHeader('Set-Cookie',cookie('',0)); // Force login with new password; do not leave the reset session active.
+  res.setHeader('Set-Cookie',staffSession.clearCookies()); // Force login with new password; do not leave the reset session active.
   return res.json({ok:true});
  }catch(e){
   if(!e.status)console.error('peniel_password_reset_error',{kind:String(e?.name||'unknown').slice(0,40)});

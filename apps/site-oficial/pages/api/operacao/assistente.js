@@ -13,7 +13,7 @@ const uuid=x=>typeof x==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab]
 export default async function handler(req,res){
  res.setHeader('Cache-Control','private,no-store');let leased;
  try{
-  const user=await actor(req);assistant.requireManager(user);
+  const user=await actor(req,res);assistant.requireManager(user);
   if(req.method==='GET'){
    const threads=(await query('SELECT id,created_at,updated_at FROM peniel_ops.assistant_threads WHERE owner_id=$1 ORDER BY updated_at DESC LIMIT 10',[user.user_id])).rows;
    const id=req.query.threadId;let messages=[],proposals=[];

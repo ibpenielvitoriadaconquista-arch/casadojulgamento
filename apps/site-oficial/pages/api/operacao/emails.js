@@ -6,7 +6,7 @@ export default async function handler(req,res){
  try{
   if(!['GET','POST'].includes(req.method))throw fail(405,'Método não permitido.');
   if(req.method==='POST')sameOrigin(req);
-  const user=await actor(req);if(user.role!=='geral')throw fail(403,'Somente Gestão Geral pode conferir os envios.');
+  const user=await actor(req,res);if(user.role!=='geral')throw fail(403,'Somente Gestão Geral pode conferir os envios.');
   if(req.method==='GET'){
    const r=await query('SELECT id,recipient,full_name,status,attempts,created_at,last_attempt_at FROM peniel_ops.staff_email_outbox ORDER BY created_at DESC LIMIT 100');
    return res.json({configured:mail.configured(),emails:r.rows});

@@ -7,7 +7,7 @@ export default async function handler(req,res){
  try{
   if(!['GET','POST'].includes(req.method))throw fail(405,'Método inválido.');
   if(req.method==='POST')sameOrigin(req);
-  const user=await actor(req);
+  const user=await actor(req,res);
   if(!['geral','caixa'].includes(user.role))throw fail(403,'Apenas Caixa ou Gestão Geral.');
   if(req.method==='GET'){const r=await query('SELECT id,session_date::text,channel,participant_name,intended_quantity,payment_method,financial_status,even3_sale_reference,created_at FROM peniel_ops.cashier_attendances ORDER BY created_at DESC LIMIT 70');return res.json({ok:true,orders:r.rows,admission:false});}
   const i=req.body||{};

@@ -9,7 +9,7 @@ export default async function handler(req,res){
  try {
   if(!['GET','POST'].includes(req.method))throw fail(405,'Método inválido.');
   if(req.method==='POST')sameOrigin(req);
-  const user=await actor(req),input=req.method==='GET'?req.query:req.body;
+  const user=await actor(req,res),input=req.method==='GET'?req.query:req.body;
   const {session,role}=input||{};
   if(!ops.SESSIONS.some(x=>x.id===session)||!Object.hasOwn(ops.ROLES,role))throw fail(400,'Sessão ou posto inválido.');
   if(user.role!=='geral'&&user.role!==role)throw fail(403,'Posto sem permissão.');

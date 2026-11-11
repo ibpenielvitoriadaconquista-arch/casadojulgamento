@@ -11,7 +11,7 @@ export default async function handler(req,res){
  res.setHeader('Cache-Control','private,no-store');
  try{
   if(req.method!=='POST')throw fail(405,'Método não permitido.');
-  sameOrigin(req);const user=await actor(req);
+  sameOrigin(req);const user=await actor(req,res);
   if(!['portaria','caixa','geral','coordenacao'].includes(user.role))throw fail(403,'Somente Portaria, Caixa ou Gestão Geral.');
   const {code:raw,session,action='lookup'}=req.body||{},code=tickets.parseTicketCode(raw);
   if(user.role==='coordenacao'&&action!=='lookup')throw fail(403,'A Coordenação consulta e autoriza; a Portaria registra a entrada.');

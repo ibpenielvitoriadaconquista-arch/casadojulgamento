@@ -26,7 +26,7 @@ test('a origem Pluga nunca prova pagamento; divergencias e dias errados bloqueia
 });
 test('portaria exige colaborador, API Even3, verificação financeira e bloqueio de uso repetido',()=>{
  const api=source('pages/api/operacao/ingresso.js')+source('lib/official-admission.cjs');
- assert.match(api,/await actor\(req\)/);assert.match(api,/sameOrigin\(req\)/);
+ assert.match(api,/await actor\(req,res\)/);assert.match(api,/sameOrigin\(req\)/);
  assert.match(api,/cdj_even3_api_attendees/);assert.doesNotMatch(api,/cdj_pluga_inscricoes_inbox/);assert.match(api,/entry_authorizations/);
  assert.match(api,/FOR UPDATE/);assert.match(api,/checked_in_at/);
  assert.match(api,/even3.checkin/);

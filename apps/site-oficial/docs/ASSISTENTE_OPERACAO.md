@@ -220,3 +220,10 @@ Fontes do projeto: código da branch operacional conferido em 06/11/2026; regras
 - O sinal de ponto seguro persiste no estado compartilhado até a confirmação de chegada do próximo grupo. Finalização libera uma vaga, mas não dispensa as outras condições para chamar.
 - Cronômetros indicam duração da etapa, nunca autorizam chamadas automaticamente. Pausa e perda de sincronização bloqueiam novos comandos. Atualização compartilhada a cada quatro segundos.
 - Nenhum ingresso, pagamento, integrante de caravana ou credenciamento foi alterado por esta atualização. Novos campos opcionais de acompanhamento são gravados somente ao operar os grupos, no estado e auditoria existentes.
+
+
+## Sessão contínua dos colaboradores
+
+Os painéis abertos renovam a sessão automaticamente, sem exigir mouse ou teclado. A projeção consulta chamadas a cada quatro segundos; o acompanhamento de autenticação executa a cada minuto e tenta renovar antes de expirar. Ao recuperar a rede ou reativar a janela, a sessão e os dados são consultados novamente. A autorização continua sendo validada pelo servidor para cada colaborador ativo.
+
+Após esta atualização, quem entrou com a versão antiga deve sair e entrar novamente uma vez para receber o cookie de renovação. Os cookies de autenticação e renovação são HttpOnly. O cookie de renovação dura 24 horas desde sua última emissão; enquanto o painel estiver aberto e conectado, é renovado. Sair encerra ambos os cookies. Revogação, troca de senha e regras do provedor ainda podem exigir novo login. Sem sincronização, a projeção não mantém uma chamada antiga como atual. Computador suspenso, navegador fechado ou falta de internet impedem atualizações até a retomada.

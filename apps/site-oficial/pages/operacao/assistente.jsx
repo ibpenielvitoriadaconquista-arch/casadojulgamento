@@ -5,7 +5,7 @@ import ops from '../../lib/operation-training.cjs';
 import view from '../../lib/assistant-presenters.cjs';
 import {Icon,Badge,Notice,MessageText,ResultView,ProposalCard} from '../../components/assistant/AssistantUI';
 import s from '../../styles/assistant.module.css';
-export async function getServerSideProps({req,res}){res.setHeader('Cache-Control','private,no-store');try{const u=await actor(req);if(u.role!=='geral')throw Error();return {props:{}};}catch{return {redirect:{destination:'/operacao/login',permanent:false}};}}
+export async function getServerSideProps({req,res}){res.setHeader('Cache-Control','private,no-store');try{const u=await actor(req,res);if(u.role!=='geral')throw Error();return {props:{}};}catch{return {redirect:{destination:'/operacao/login',permanent:false}};}}
 const SHORTCUTS=[['consultar_operacao','Fila e grupos','users'],['consultar_caravanas','Caravanas','bus'],['consultar_sincronizacao','Sincronização Even3','sync'],['consultar_ocorrencias','Ocorrências','clock']];
 export default function Assistant(){
  const [session,setSession]=useState('2026-11-09'),[status,setStatus]=useState(null),[thread,setThread]=useState(''),[messages,setMessages]=useState([]),[proposals,setProposals]=useState([]),[message,setMessage]=useState(''),[term,setTerm]=useState(''),[result,setResult]=useState(null),[busy,setBusy]=useState(false),[notice,setNotice]=useState(null),[tab,setTab]=useState('chat');

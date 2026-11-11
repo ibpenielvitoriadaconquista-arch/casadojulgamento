@@ -7,7 +7,7 @@ export const config={api:{bodyParser:{sizeLimit:'1kb'}},maxDuration:180};
 export default async function handler(req,res){
  res.setHeader('Cache-Control','private,no-store');
  try{
-  const user=await actor(req);assistant.requireManager(user);
+  const user=await actor(req,res);assistant.requireManager(user);
   if(req.method!=='POST')throw fail(405,'Método não permitido.');sameOrigin(req);await throttle(req,'assistant_homologation',user.user_id);
   const report={at:new Date().toISOString(),manualVersion:manual.version,scope:'Lote 1 simulado em memória. Zero escrita no banco operacional e zero requisição real à Even3.',technical:await homologation.run()};
   if(req.body?.withAI===true){

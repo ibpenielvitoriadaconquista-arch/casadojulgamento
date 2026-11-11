@@ -9,7 +9,7 @@ export default async function handler(req,res){
  try{
   if(!['GET','POST'].includes(req.method))throw fail(405,'Método não permitido.');
   if(req.method==='POST')sameOrigin(req);
-  const user=await actor(req);
+  const user=await actor(req,res);
   if(user.role!=='geral')throw fail(403,'Apenas gestão geral pode analisar solicitações.');
   if(req.method==='GET'){
    const result=await query('SELECT id,full_name,email,whatsapp,requested_role,status,created_at FROM peniel_ops.access_requests ORDER BY (status=\'pending\') DESC,created_at ASC LIMIT 250');

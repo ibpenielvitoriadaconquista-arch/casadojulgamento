@@ -1,3 +1,4 @@
+import {logoutOperation} from '../../lib/session-client';
 import {useEffect,useRef,useState} from 'react';
 import Link from 'next/link';
 import StaffShell from '../../components/StaffShell';
@@ -8,7 +9,7 @@ import CaravanRequests,{CaravanRequestNotice} from '../../components/CaravanRequ
 
 export async function getServerSideProps({req,res}){
  res.setHeader('Cache-Control','private, no-store');
- try{const u=await actor(req);if(!['geral','coordenacao','caravanas'].includes(u.role))return {redirect:{destination:'/operacao/'+u.role,permanent:false}};return {props:{role:u.role}};}
+ try{const u=await actor(req,res);if(!['geral','coordenacao','caravanas'].includes(u.role))return {redirect:{destination:'/operacao/'+u.role,permanent:false}};return {props:{role:u.role}};}
  catch{return {redirect:{destination:'/operacao/login',permanent:false}};}
 }
 const empty=(session=caravans.DAYS[0])=>({id:'',name:'',city:'',responsible:'',contact:'',eta:'',group:caravans.groupsFor(session)[0],members:[{name:'',code:'',phone:''}]});
@@ -46,7 +47,7 @@ export default function Caravans({role}){
  function training(c){if(!window.confirm('Somente para lista de teste: as entradas serão reais nesta sessão, aparecerão na Coordenação e impedirão reutilizar estes cadastros no evento. Autorizar treinamento desta caravana hoje?'))return;const reference=window.prompt('Motivo do treinamento (mínimo 10 caracteres):');if(reference?.trim())run('caravanTraining',{id:c.id,confirmed:true,reference:reference.trim()});}
  function control(action,g){const reason=window.prompt(action==='caravanDefer'?(g.caravanDeferred?'Motivo para retomar a prioridade:':'Motivo para adiar a chamada e deixar os demais grupos seguirem:'):'Motivo para alterar a reserva deste grupo:');if(reason?.trim())run(action,{group:g.id,reason});}
  function transfer(m){const group=window.prompt('Novo grupo reservado para '+m.name+' ('+caravans.groupsFor(session).join(', ')+'):');if(!group)return;const reason=window.prompt('Motivo do remanejamento:');if(reason?.trim())run('caravanTransfer',{code:m.code,group:group.trim().toUpperCase(),reason,id:crypto.randomUUID()});}
- return <StaffShell title="Caravanas"><CaravanRequestNotice role={role}/>{role==='caravanas'?<><p>Seu acesso é exclusivo à administração de caravanas. Ao autorizar, você assume a responsabilidade pelo recebimento registrado.</p><button type="button" onClick={async()=>{await fetch('/api/operacao/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({logout:true})});location.assign('/operacao/login');}}>Sair</button></>:<Link href={'/operacao/'+role+'?sessao='+session}>← Voltar ao meu painel</Link>}
+ return <StaffShell title="Caravanas"><CaravanRequestNotice role={role}/>{role==='caravanas'?<><p>Seu acesso é exclusivo à administração de caravanas. Ao autorizar, você assume a responsabilidade pelo recebimento registrado.</p><button type="button" onClick={logoutOperation}>Sair</button></>:<Link href={'/operacao/'+role+'?sessao='+session}>← Voltar ao meu painel</Link>}
   <p><b>1. Receber solicitação → 2. Conferir e autorizar → 3. Registrar chegadas na Portaria.</b></p><p>Grupos de caravanas desta sessão: <b>{caravans.groupsFor(session).join(', ')}</b>. {caravans.publicClosed(session)&&'O cadastro público desta data está esgotado. '} O Lote 1 também dispõe do G09 exclusivamente para treinamento. A chamada segue a ordem dos grupos. A Coordenação pode adiar uma caravana atrasada.</p>
   <label>Data da apresentação<select value={session} disabled={busy} onChange={e=>changeDay(e.target.value)}>{ops.SESSIONS.filter(x=>caravans.DAYS.includes(x.id)).map(x=><option value={x.id} key={x.id}>{x.label}</option>)}</select></label>
   {error&&<p className="error" role="alert">{error}</p>}{notice&&<p role="status">{notice}</p>}{!online&&<p role="status">Aguardando sincronização. Alterações bloqueadas.</p>}

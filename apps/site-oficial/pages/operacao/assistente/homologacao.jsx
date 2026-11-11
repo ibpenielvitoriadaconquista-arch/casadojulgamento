@@ -1,6 +1,6 @@
 import {useState} from 'react';
 import {actor} from '../../../lib/operation-auth';
-export async function getServerSideProps({req,res}){res.setHeader('Cache-Control','private,no-store');try{const u=await actor(req);if(u.role!=='geral')throw Error();return {props:{}};}catch{return {redirect:{destination:'/operacao/login',permanent:false}};}}
+export async function getServerSideProps({req,res}){res.setHeader('Cache-Control','private,no-store');try{const u=await actor(req,res);if(u.role!=='geral')throw Error();return {props:{}};}catch{return {redirect:{destination:'/operacao/login',permanent:false}};}}
 export default function Homologation(){
  const [report,setReport]=useState(null),[busy,setBusy]=useState(false),[error,setError]=useState('');
  async function run(withAI){if(busy)return;setBusy(true);setError('');try{const r=await fetch('/api/operacao/assistente-homologacao',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({withAI})}),d=await r.json();if(!r.ok)throw Error(d.error);setReport(d);}catch(e){setError(e.message);}finally{setBusy(false);}}

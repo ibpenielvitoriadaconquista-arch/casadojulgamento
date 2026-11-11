@@ -1,3 +1,4 @@
+import SessionHeartbeat from '../components/SessionHeartbeat';
 import Link from 'next/link';
 import {useEffect} from 'react';
 import {useRouter} from 'next/router';
@@ -28,5 +29,6 @@ export default function App({Component,pageProps}){
   }
   document.addEventListener('click',click);return()=>document.removeEventListener('click',click);
  },[isPublic]);
- return <><Component {...pageProps}/>{isPublic&&<Analytics beforeSend={beforeSend}/>}<footer style={{textAlign:'center',padding:'24px',fontSize:'13px',color:'#aab6c4'}}>Casa do Julgamento 2026 · Igreja Batista Peniel · <Link href="/ingressos">Ingressos</Link></footer></>;
+ const operational=router.pathname.startsWith('/operacao/')&&!['/operacao/login','/operacao/ativar','/operacao/redefinir','/operacao/recuperar','/operacao/solicitar'].includes(router.pathname)&&!router.pathname.startsWith('/operacao/demo');
+ return <>{operational&&<SessionHeartbeat/>}<Component {...pageProps}/>{isPublic&&<Analytics beforeSend={beforeSend}/>}<footer style={{textAlign:'center',padding:'24px',fontSize:'13px',color:'#aab6c4'}}>Casa do Julgamento 2026 · Igreja Batista Peniel · <Link href="/ingressos">Ingressos</Link></footer></>;
 }

@@ -1,5 +1,6 @@
+import staffSession from '../../../lib/staff-session.cjs';
 import {throttle} from '../../../lib/staff-access';
-import {authConfig,cookie,fail,sameOrigin} from '../../../lib/operation-auth';
+import {authConfig,fail,sameOrigin} from '../../../lib/operation-auth';
 import {query} from '../../../lib/db';
 export const config={api:{bodyParser:{sizeLimit:'8kb'}}};
 export default async function handler(req,res){
@@ -8,7 +9,10 @@ export default async function handler(req,res){
  try{
   if(req.method!=='POST')throw fail(405,'Método não permitido.');
   sameOrigin(req);
-  if(req.body?.logout){res.setHeader('Set-Cookie',cookie('',0));return res.json({ok:true});}
+  if(req.body?.logout){
+   if(req.cookies?.peniel_session){try{const {url,key}=authConfig();await fetch(url+'/auth/v1/logout?scope=local',{method:'POST',headers:{apikey:key,Authorization:'Bearer '+req.cookies.peniel_session},signal:AbortSignal.timeout(8000)});}catch{/* Local cookies are cleared even when the provider is unavailable. */}}
+   res.setHeader('Set-Cookie',staffSession.clearCookies());return res.json({ok:true});
+  }
   const {email,password}=req.body||{};
   if(typeof email!=='string'||typeof password!=='string'||email.length>254||password.length>512)throw fail(400,'Informe e-mail e senha.');
   stage='postgres_throttle';
@@ -22,7 +26,7 @@ export default async function handler(req,res){
   const staff=await query('SELECT role FROM peniel_ops.staff WHERE user_id=$1 AND active=true',[data.user?.id]);
   if(!staff.rows[0])throw fail(403,'Conta ainda não habilitada pela administração.');
   if(staff.rows[0].role==='guias')throw fail(403,'A função Guia foi desativada. Solicite à Gestão a definição do seu posto.');
-  res.setHeader('Set-Cookie',cookie(data.access_token,Math.min(data.expires_in||3600,3600)));
+  res.setHeader('Set-Cookie',staffSession.sessionCookies(data));
   return res.json({role:staff.rows[0].role});
  }catch(e){
   if(!e.status){

@@ -8,7 +8,7 @@ export default async function handler(req,res){
  try{
   if(!['GET','POST'].includes(req.method))throw fail(405,'Método não permitido.');
   if(req.method==='POST')sameOrigin(req);
-  const user=await actor(req);if(user.role!=='geral')throw fail(403,'Apenas a gestão geral administra colaboradores.');
+  const user=await actor(req,res);if(user.role!=='geral')throw fail(403,'Apenas a gestão geral administra colaboradores.');
   if(req.method==='GET'){const r=await query('SELECT s.user_id,s.role,s.active,u.email,u.email_confirmed_at FROM peniel_ops.staff s JOIN auth.users u ON u.id=s.user_id ORDER BY u.email');return res.json({staff:r.rows,self:user.user_id});}
   await throttle(req,'staff',user.user_id);
   const {action,userId,role,active}=req.body||{};

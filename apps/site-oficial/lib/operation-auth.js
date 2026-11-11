@@ -1,4 +1,5 @@
 import {query} from './db';
+import staffSession from './staff-session.cjs';
 export function fail(status,message){const e=new Error(message);e.status=status;return e;}
 export function sameOrigin(req){
   const origin=req.headers.origin;
@@ -10,12 +11,13 @@ export function authConfig(){
   if(!url||!key)throw fail(503,'Autenticação ainda não configurada.');
   return {url,key};
 }
-export async function actor(req){
+export async function actor(req,res){
+  if(res&&req.cookies?.peniel_refresh&&staffSession.needsRefresh(req.cookies?.peniel_session)){await staffSession.renew({req,res,config:authConfig(),query});}
   const token=req.cookies?.peniel_session;
   if(!token)throw fail(401,'Entre com sua conta de colaborador.');
   const {url,key}=authConfig();
   const r=await fetch(url+'/auth/v1/user',{headers:{apikey:key,Authorization:'Bearer '+token},signal:AbortSignal.timeout(8000)});
-  if(!r.ok)throw fail(401,'Sessão expirada. Entre novamente.');
+  if(!r.ok)throw fail([401,403].includes(r.status)?401:503,[401,403].includes(r.status)?'Sessão expirada. Entre novamente.':'Autenticação temporariamente indisponível. Aguarde a reconexão.');
   const user=await r.json();
   const result=await query('SELECT user_id, role FROM peniel_ops.staff WHERE user_id=$1 AND active=true',[user.id]);
   if(!result.rows[0])throw fail(403,'Conta sem permissão de colaborador.');

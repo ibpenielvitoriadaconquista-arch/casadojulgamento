@@ -8,7 +8,7 @@ export const config={api:{bodyParser:{sizeLimit:'4kb'}}};
 export default async function handler(req,res){
  res.setHeader('Cache-Control','private,no-store');
  try{
-  const user=await actor(req);if(!['geral','coordenacao','caravanas'].includes(user.role))throw fail(403,'Acesso restrito à Gestão e Coordenação.');
+  const user=await actor(req,res);if(!['geral','coordenacao','caravanas'].includes(user.role))throw fail(403,'Acesso restrito à Gestão e Coordenação.');
   if(req.method==='GET'){
    if(req.query.summary==='1'){
     if(!notifications.canReceive(user.role))throw fail(403,'Notificações de solicitações exclusivas da Gestão Geral.');

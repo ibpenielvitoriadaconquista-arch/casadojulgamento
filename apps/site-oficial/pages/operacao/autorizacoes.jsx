@@ -1,6 +1,6 @@
 import {useState,useEffect} from 'react';
 import {actor} from '../../lib/operation-auth';
-export async function getServerSideProps({req,res}){res.setHeader('Cache-Control','private,no-store');try{const u=await actor(req);if(u.role!=='geral')throw Error();return {props:{}};}catch{return {redirect:{destination:'/operacao/login',permanent:false}};}}
+export async function getServerSideProps({req,res}){res.setHeader('Cache-Control','private,no-store');try{const u=await actor(req,res);if(u.role!=='geral')throw Error();return {props:{}};}catch{return {redirect:{destination:'/operacao/login',permanent:false}};}}
 export default function Authorizations(){
  const [rows,setRows]=useState([]),[code,setCode]=useState(''),[action,setAction]=useState('authorize'),[paymentStatus,setPayment]=useState('paid'),[evidence,setEvidence]=useState(''),[notice,setNotice]=useState(''),[busy,setBusy]=useState(false);
  async function load(){const r=await fetch('/api/operacao/autorizacoes'),d=await r.json();if(!r.ok)throw Error(d.error);setRows(d.tickets);}

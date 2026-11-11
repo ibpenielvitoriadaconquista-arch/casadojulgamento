@@ -6,7 +6,7 @@ import financial from '../../../lib/even3-financial.cjs';
 export default async function handler(req,res){
  res.setHeader('Cache-Control','private,no-store');
  try{
-  if(req.method!=='GET')throw fail(405,'Método não permitido.');const user=await actor(req);if(user.role!=='geral')throw fail(403,'Somente Gestão Geral.');
+  if(req.method!=='GET')throw fail(405,'Método não permitido.');const user=await actor(req,res);if(user.role!=='geral')throw fail(403,'Somente Gestão Geral.');
   const event=await even3.event();
   const counts=await query('SELECT status,count(*)::int AS total FROM peniel_ops.entry_checkins GROUP BY status');
   const financialProbe=req.query.finance==='1'?await financial.diagnostic(even3):undefined;

@@ -11,7 +11,7 @@ export default async function handler(req,res){
  try{
   if(!['GET','POST'].includes(req.method))throw fail(405,'Método não permitido.');
   if(req.method==='POST')sameOrigin(req);
-  const user=await actor(req),input=req.method==='GET'?req.query:req.body;
+  const user=await actor(req,res),input=req.method==='GET'?req.query:req.body;
   const session=input?.session,role=input?.role;
   if(!ops.SESSIONS.some(s=>s.id===session)||!Object.hasOwn(ops.ROLES,role))throw fail(400,'Sessão ou posto inválido.');
   if(user.role!=='geral'&&role!==user.role)throw fail(403,'Este posto não pertence ao seu acesso.');
