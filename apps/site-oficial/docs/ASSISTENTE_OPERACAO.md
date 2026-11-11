@@ -18,7 +18,7 @@ O Apoio vê somente os nomes dos participantes de grupos chamados, em espera ou 
 
 ## Caravanas de 21/11 e contador de vendas
 
-21/11 está esgotado para novas solicitações públicas de caravana. G03, G04 e G05 ficam reservados, até 75 lugares; não liberar essas reservas. Em 09/11 também são reservados G03, G04 e G05. Nas demais datas oficiais, permanecem G06, G07 e G08. As três listas fechadas de 21/11 precisam ser cadastradas nominalmente pela Gestão: fechar o formulário não cadastra participantes nem confirma pagamentos.
+21/11 está esgotado para novas solicitações públicas de caravana. G03, G04 e G05 ficam reservados, até 75 lugares; não liberar essas reservas. Em 09/11 e 14/11 também são reservados G03, G04 e G05. Nas demais datas oficiais, permanecem G06, G07 e G08. As três listas fechadas de 21/11 precisam ser cadastradas nominalmente pela Gestão: fechar o formulário não cadastra participantes nem confirma pagamentos.
 
 O contador no Caixa, Coordenação e Gestão consulta a lista completa atual de inscrições Even3 e calcula saldo por data: lotação menos ingressos individuais confirmados, menos lugares protegidos de caravanas e entradas adicionais já admitidas. Não duplicar o desconto de um ingresso Even3 já vinculado à caravana. Confirmados incluem cortesias e testes ainda cadastrados; não equivalem a transações financeiras. API incompleta, erro ou falta de sincronização não podem mostrar saldo zero como se fosse uma coleta completa.
 
@@ -36,7 +36,7 @@ Fuso operacional: America/Bahia. A data de atendimento é a data local calculada
 
 09/11/2026: 17h, 25 grupos de até 25 pessoas, lotação total 550. 13/11: 20h, 20 grupos de 25, total 500. 14/11: 18h, 30 grupos de 25, total 750. 19/11: 20h, 20 grupos de 25, total 500. 20/11: 17h, 30 grupos de 25, total 750. 21/11: 18h, 30 grupos de 25, total 750.
 
-Nas datas oficiais, reservam-se G03, G04 e G05 em 09/11 e 21/11, e G06, G07 e G08 nas demais datas, até 75 integrantes dentro da capacidade publicada, não além dela. Essas reservas não reduzem automaticamente o estoque da Even3. Não confundir capacidade de admissão com ingressos ainda à venda ou lugares físicos disponíveis.
+Nas datas oficiais, reservam-se G03, G04 e G05 em 09/11, 14/11 e 21/11, e G06, G07 e G08 nas demais datas, até 75 integrantes dentro da capacidade publicada, não além dela. Essas reservas não reduzem automaticamente o estoque da Even3. Não confundir capacidade de admissão com ingressos ainda à venda ou lugares físicos disponíveis.
 
 Lote 1 é interno: chave de sessão 2026-10-22, rótulo histórico 22-28/10, 15 grupos de 20 pessoas. Não aparece no formulário público. O G09 adicional é apenas de treinamento. No Lote 1, a exceção de data é automática para todas as inscrições Even3 confirmadas, válidas e sem uso consultadas nesta sessão interna, em qualquer dia. Não exigir ficha nem comando LIBERAR apenas pela data: o agente consulta e orienta confirmar a chegada na Portaria com Lote 1 selecionado. Isso não abre as seis datas oficiais fora de seus dias. Credenciamento concluído na Portaria é REAL na Even3 e consome o ingresso; usar inscrições criadas especificamente para teste. Inscrições canceladas, revogadas, já utilizadas ou sem vagas continuam bloqueadas. A consulta não registra chegada automaticamente.
 

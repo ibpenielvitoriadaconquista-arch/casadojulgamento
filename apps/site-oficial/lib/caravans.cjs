@@ -2,7 +2,7 @@
 // Stored in the existing session JSON; mutations share its revision and row lock.
 const DAYS=['2026-11-09','2026-11-13','2026-11-14','2026-11-19','2026-11-20','2026-11-21'];
 const GROUPS=['G06','G07','G08'];
-const groupsFor=day=>['2026-11-09','2026-11-21'].includes(day)?['G03','G04','G05']:day==='2026-10-22'?[...GROUPS,'G09']:GROUPS;
+const groupsFor=day=>['2026-11-09','2026-11-14','2026-11-21'].includes(day)?['G03','G04','G05']:day==='2026-10-22'?[...GROUPS,'G09']:GROUPS;
 const publicClosed=day=>day==='2026-11-21';
 const enabled=day=>DAYS.includes(day)||day==='2026-10-22';
 const reserved=(s,day,id)=>enabled(day)&&groupsFor(day).includes(id)&&(publicClosed(day)||!(s.caravanReleased||[]).includes(id));
