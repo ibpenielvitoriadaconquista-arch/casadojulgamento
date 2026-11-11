@@ -17,6 +17,7 @@ export default async function handler(req,res){
   if(user.role==='coordenacao'&&action!=='lookup')throw fail(403,'A Coordenação consulta e autoriza; a Portaria registra a entrada.');
   const trainingCode=training.parse(raw);
   if(trainingCode){if(!['lookup','admit'].includes(action))throw fail(400,'Ação inválida.');return res.json(await (action==='admit'?trainingService.admit(trainingCode,session,user):trainingService.lookup(trainingCode,session)));}
+  if(session===training.TEAM_SESSION)throw fail(400,'Nesta sessão use apenas os ingressos fictícios CJ-001 a CJ-200. Nenhum ingresso Even3 será consumido.');
   if(!code||!['lookup','admit'].includes(action))throw fail(400,'Código ou ação inválidos.');
   return res.json(await (action==='admit'?service.admit(code,session,user):service.lookup(code,session)));
  }catch(e){if(!e.status)console.error('official_entry_error',{code:String(e.code||e.name||'unknown').slice(0,60)});return res.status(e.status||503).json({error:e.status?e.message:'Não foi possível concluir. Consulte o ingresso novamente; não libere sem confirmação.'});}

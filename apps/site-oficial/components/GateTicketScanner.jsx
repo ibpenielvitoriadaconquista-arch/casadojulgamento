@@ -8,6 +8,7 @@ export default function GateTicketScanner({session,rehearsal=false,testLot=false
  const video=useRef(null),stream=useRef(null),detector=useRef(null),reading=useRef(false),active=useRef(false),canvas=useRef(null),decoder=useRef(null);
  const [selectedCode,setSelectedCode]=useState('');
  const [overrideOpen,setOverrideOpen]=useState(false),[overrideEvidence,setOverrideEvidence]=useState(''),[overridePayment,setOverridePayment]=useState('paid'),[overrideConfirmed,setOverrideConfirmed]=useState(false);
+ const teamTraining=session==='2026-11-11';
  const sessionData=tickets.ENTRIES.find(e=>e.session===session);
  useEffect(()=>{setResult(null);setCode('');setError('');setOverrideOpen(false);setOverrideEvidence('');setOverrideConfirmed(false);},[session]);
  useEffect(()=>()=>{stream.current?.getTracks().forEach(t=>t.stop());},[]);
@@ -77,8 +78,9 @@ export default function GateTicketScanner({session,rehearsal=false,testLot=false
   try{const r=await fetch('/api/operacao/autorizacoes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:code.trim(),action:'authorize_date',session,paymentStatus:overridePayment,evidence:overrideEvidence,confirmed:true})});const data=await r.json();if(!r.ok)throw Error(data.error||'Não foi possível autorizar.');setOverrideOpen(false);setOverrideEvidence('');setOverrideConfirmed(false);setBusy(false);await send(code.trim());return;}catch(err){setError(err.message||'Não foi possível autorizar.');}finally{setBusy(false);}
  }
  return <section className="scanner" aria-label="Leitor de ingressos da portaria">
-  <div className="head"><strong>Leitura do ingresso Even3</strong><span>{rehearsal?'CONSULTA':'CREDENCIAMENTO OFICIAL'}</span></div>
+  <div className="head"><strong>{teamTraining?'Leitura de ingresso fictício':'Leitura do ingresso Even3'}</strong><span>{teamTraining?'TREINAMENTO 11/11':rehearsal?'CONSULTA':'CREDENCIAMENTO OFICIAL'}</span></div>
   {rehearsal&&<p role="status" className="warning"><b>{testLot?'INGRESSO GERAL - 1º LOTE · ENSAIO 22–28/10. Entrada somente na fila de treinamento.':'ENSAIO — sem pagamento validado e sem credenciamento real.'}</b></p>}
+  {teamTraining&&<p className="warning">Somente CJ-001 a CJ-200. Cada código funciona uma única vez, apenas no treinamento de 11/11. Não consulta nem credencia na Even3.</p>}
   {session==='2026-10-22'&&<p className="warning">Códigos CDJTESTE são fictícios: registram somente o treinamento, sem credenciar na Even3.</p>}
   <p>A câmera consulta e registra automaticamente apenas o ingresso apto. Se houver bloqueio, mostra os dados para conferência. Pelo código digitado, confirme a entrada após consultar. Entrada selecionada: <b>{sessionData?.label||session}</b>.</p>
   {camera&&<div className="camera"><video ref={video} muted playsInline autoPlay aria-label="Câmera de leitura QR"/><button type="button" onClick={stopCamera}>Fechar câmera</button></div>}
@@ -111,7 +113,7 @@ export default function GateTicketScanner({session,rehearsal=false,testLot=false
     {result.training?'Registrar teste e enviar à Coordenação':rehearsal?(testLot?'Liberar entrada no ensaio e enviar à Coordenação':'Enviar à Coordenação (SOMENTE ENSAIO)'):'Credenciar na Even3 e liberar entrada'}
    </button>}
   </div>}
-  <p className="foot">A Portaria exige inscrição confirmada na Even3, data válida e ingresso não utilizado. O recebimento das vendas presenciais é responsabilidade do Caixa. Divergências vão para Gestão Geral.</p>
+  <p className="foot">{teamTraining?'Treinamento fictício: registre uma chegada por código e encaminhe à Coordenação.':'A Portaria exige inscrição confirmada na Even3, data válida e ingresso não utilizado. O recebimento das vendas presenciais é responsabilidade do Caixa. Divergências vão para Gestão Geral.'}</p>
   <style jsx>{'.scanner{border:1px solid #66545b;background:#201a21;border-radius:15px;padding:20px;margin:18px 0 24px;color:#f7f0f3}.scanner *{box-sizing:border-box}.head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}.head strong{font-size:17px}.head span{font-size:10px;border:1px solid #a88669;border-radius:18px;padding:6px;color:#e6c69d}p{font-size:13px;line-height:1.65;color:#d5c9cc}button{cursor:pointer}.entry{display:flex;gap:8px}.entry input{min-width:0;flex:1;padding:12px;border-radius:9px;border:1px solid #69595f;background:#110e13;color:#fff;font-size:16px}.entry button,.camera-button,.confirm{background:#b13c46;color:#fff;border:1px solid #d25a65;border-radius:9px;padding:12px 16px;font-size:14px;font-weight:700}.camera-button{margin:10px 0 14px}.entry button:disabled,button:disabled{opacity:.6}label{display:block;font-size:13px;font-weight:700;margin:8px 0}.result{background:#130f15;border:1px solid #5b4b53;border-radius:10px;padding:15px;margin-top:15px}.result strong{font-size:17px}.warning{color:#ffd3a5}.success{color:#b2ebc3}.confirm{background:#2f704f;border-color:#529a72}.foot{font-size:11px;color:#bdb0b5}.camera video{width:100%;max-height:300px;object-fit:cover;background:#000;border-radius:8px}.camera button{padding:8px;margin:8px 0;background:transparent;color:white;border:1px solid #aa969c;border-radius:9px}@media(max-width:480px){.scanner{padding:14px}.entry{flex-direction:column}.entry button{width:100%}}'}</style>
  </section>;
 }

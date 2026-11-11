@@ -25,3 +25,41 @@ test('mobile copies normalize lowercase, spaces, compact tokens and typographic 
  for(const value of ['cdjteste-0511-001',' CDJTESTE - 0511 - 001 ','CDJTESTE–0511–001','CDJTESTE0511001','`CDJTESTE-0511-001`'])assert.equal(training.parse(value),code);
  for(const value of ['0511001','12345678','https://example.com/CDJTESTE-0511-001','CDJTESTE-0511-001-extra'])assert.equal(training.parse(value),null);
 });
+
+test('200 CJ tickets traverse all posts with unique admissions and manual groups, isolated by date',async()=>{
+ const day=training.TEAM_SESSION,at='2026-11-11T21:00:00Z';
+ let state=ops.freshSession(day),revision=1,tail=Promise.resolve();
+ state.trainingTickets=Array.from({length:200},(_,i)=>({code:'CJ-'+String(i+1).padStart(3,'0'),name:'Treinamento '+String(i+1).padStart(3,'0'),enabled:true,paymentStatus:'simulated_confirmed',day}));
+ const query=async(sql,args)=>{assert.equal(args[0],day,'never touch another session');if(sql.startsWith('SELECT'))return {rows:[{state:structuredClone(state),revision}]};if(sql.startsWith('UPDATE')){state=JSON.parse(args[1]);revision=args[2];return {rows:[]};}throw Error(sql);};
+ const transaction=fn=>{const run=tail.then(()=>fn({query}));tail=run.catch(()=>{});return run;};
+ const service=training.createService({query,transaction,now:()=>at});
+ assert.equal(training.parse(' cj–001 '),'CJ-001');
+ for(const other of ['2026-10-22','2026-11-13','2026-11-14'])await assert.rejects(service.lookup('CJ-001',other),/somente/);
+ for(const code of ['CJ-000','CJ-201'])await assert.rejects(service.lookup(code,day),/cadastrado/);
+ const results=await Promise.allSettled(['a','b'].map(user_id=>service.admit('CJ-001',day,{role:'portaria',user_id})));
+ assert.equal(results.filter(x=>x.status==='fulfilled').length,1);
+ await Promise.all(Array.from({length:199},(_,i)=>service.admit('CJ-'+String(i+2).padStart(3,'0'),day,{role:'portaria',user_id:'gate-'+i%4})));
+ assert.equal(state.people.length,200);assert.ok(state.people.every(p=>p.group===null));
+ assert.equal(state.groups.length,6);assert.ok(state.groups.every(g=>g.members.length===0));
+ await assert.rejects(service.admit('CJ-200',day,{role:'portaria',user_id:'a'}),/já utilizado/);
+ let db={schema:5,revision,sessions:{[day]:state}};
+ const cmd=(role,action,arg)=>{db=live.command(db,day,role,action,arg,at).db;};
+ assert.throws(()=>cmd('portaria','assign',{ids:['CJ-001'],group:'G01'}),/outro posto/);
+ for(let i=0;i<6;i++){
+  const group='G0'+(i+1),ids=state.people.slice(i*35,(i+1)*35).map(p=>p.id);
+  cmd('coordenacao','assign',{ids,group});cmd('coordenacao','deliver',{ids});cmd('telao','close',{group});
+  cmd('telao','call',{group});cmd('apoio','arrive',{group});cmd('apoio','start',{group,physicallySafe:true});cmd('apoio','safe',{group});cmd('apoio','finish',{group});
+ }
+ assert.deepEqual(db.sessions[day].groups.map(g=>g.members.length),[35,35,35,35,35,25]);assert.ok(db.sessions[day].groups.every(g=>g.status==='finished'));
+ assert.equal(live.project(db,'portaria').sessions[day].trainingTickets,undefined);
+ assert.equal(training.inspect(state,'CJ-001',day,'2026-11-12T21:00:00Z').eligible,false);
+});
+
+test('gate API refuses real numbers in team training before any Even3 call',async()=>{
+ const fs=require('node:fs'),path=require('node:path');
+ const source=fs.readFileSync(path.join(__dirname,'../pages/api/operacao/ingresso.js'),'utf8').replace(/^import .*;\n/gm,'').replace('export const config=','const config=').replace('export default async function handler','return async function handler');
+ let calls=0;const fail=(status,message)=>Object.assign(Error(message),{status});
+ const handler=new Function('actor','fail','sameOrigin','query','transaction','tickets','admission','even3','training',source)(async()=>({role:'portaria'}),fail,()=>{},()=>{},()=>{},{parseTicketCode:x=>x},{createService:()=>({lookup:async()=>{calls++;},admit:async()=>{calls++;}})},{},training);
+ for(const action of ['lookup','admit']){let status=200,body;const res={setHeader(){},status(n){status=n;return this;},json(b){body=b;return this;}};await handler({method:'POST',body:{session:training.TEAM_SESSION,code:'77772709',action}},res);assert.equal(status,400);assert.match(body.error,/fictícios/);}
+ assert.equal(calls,0);
+});
