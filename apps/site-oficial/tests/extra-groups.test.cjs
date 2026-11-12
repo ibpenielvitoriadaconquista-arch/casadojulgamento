@@ -39,9 +39,9 @@ function apiFixture(){
   throw Error('Unexpected query');
  };
  const handler=new Function('createHash','query','transaction','actor','fail','sameOrigin','ops','live',source)(createHash,query,fn=>{const job=serial.then(()=>fn({query}));serial=job.catch(()=>{});return job;},async req=>({user_id:'test-'+req.testRole,role:req.testRole}),(status,message)=>Object.assign(Error(message),{status}),()=>{},ops,live);
- async function call(revision,requestId,role='coordenacao'){
+ async function call(revision,requestId,role='coordenacao',action='addGroup',arg={}){
   const res={setHeader(){},status(code){this.code=code;return this;},json(body){this.code||=200;this.body=body;return this;}};
-  await handler({method:'POST',headers:{},testRole:role,body:{session:day,role,action:'addGroup',arg:{},revision,requestId}},res);return res;
+  await handler({method:'POST',headers:{},testRole:role,body:{session:day,role,action,arg,revision,requestId}},res);return res;
  }
  return {state,call};
 }
@@ -52,4 +52,15 @@ test('two coordinators cannot duplicate group numbers; repeated request is idemp
  assert.equal((await f.call(1,b)).code,200);assert.equal(f.state.session.groups.at(-1).id,'G32');assert.equal(f.state.logs.size,2);
  for(const role of ['portaria','apoio','caixa','telao','caravanas'])assert.equal((await f.call(2,'33333333-3333-4333-8333-333333333333',role)).code,422);
  assert.equal(f.state.writes,2);
+});
+
+test('assignment tolerates unrelated arrivals but prevents duplicate and over-capacity assignments',async()=>{
+ const f=apiFixture();f.state.session.people=[{id:'A',name:'Pessoa A',group:null},{id:'B',name:'Pessoa B',group:null}];f.state.revision=10;
+ const a='11111111-1111-4111-8111-111111111111',b='22222222-2222-4222-8222-222222222222';
+ const results=await Promise.all([f.call(1,a,'coordenacao','assign',{ids:['A'],group:'G01'}),f.call(1,b,'coordenacao','assign',{ids:['B'],group:'G02'})]);
+ assert.deepEqual(results.map(r=>r.code),[200,200]);assert.equal(f.state.revision,12);assert.equal(f.state.session.people[0].group,'G01');assert.equal(f.state.session.people[1].group,'G02');
+ assert.equal((await f.call(1,a,'coordenacao','assign',{ids:['A'],group:'G01'})).code,200);assert.equal(f.state.writes,2);
+ const conflict=await f.call(1,'33333333-3333-4333-8333-333333333333','coordenacao','assign',{ids:['A'],group:'G02'});assert.equal(conflict.code,422);assert.match(conflict.body.error,/já recebeu grupo/);
+ f.state.session.people.push({id:'C',name:'Pessoa C',group:null});f.state.session.groups[9].members=Array(35).fill('occupied');
+ const full=await f.call(1,'44444444-4444-4444-8444-444444444444','coordenacao','assign',{ids:['C'],group:'G10'});assert.equal(full.code,422);assert.match(full.body.error,/vagas/);assert.equal(f.state.session.people[2].group,null);
 });
