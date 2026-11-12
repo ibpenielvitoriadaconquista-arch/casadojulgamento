@@ -51,6 +51,8 @@ export default function OperationTraining({role='geral',remote=false,viewerRole=
   setDb(null);load();const timer=setInterval(load,4000);window.addEventListener('peniel-session-ready',load);window.addEventListener('online',load);
   return()=>{stopped=true;controller?.abort();clearInterval(timer);window.removeEventListener('peniel-session-ready',load);window.removeEventListener('online',load);};
  },[remote,session,role,rehearsal,useLotQueue]);
+ const runLatest=useRef(null);runLatest.current=run;
+ function promptDelivery(arg,state){const people=state.sessions[session].people.filter(p=>arg.ids.includes(p.id));setDialog({title:'Entregue a senha do grupo '+arg.group,message:people.map(p=>p.name).join(', ')+'. Entregue uma senha '+arg.group+' para cada pessoa e confirme abaixo.',group:arg.group,confirmLabel:'Entreguei as senhas · confirmar',submit:()=>runLatest.current('deliver',{ids:arg.ids,expectedGroup:arg.group})});}
  const s=db?.sessions[session],can=action=>!projection&&ops.ALLOWED[role]?.includes(action)&&(!remote||!['scan','reset','takeover'].includes(action)||(rehearsal&&['reset'].includes(action)));
  async function run(action,arg={}){
   if(busy||writing.current||s?.closedAt)return;writing.current=true;setBusy(true);
@@ -60,12 +62,12 @@ export default function OperationTraining({role='geral',remote=false,viewerRole=
     ++latest.current;
     const r=await fetch(useLotQueue?'/api/operacao/ensaio':'/api/operacao',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({session,role,action,arg,revision:db.revision,requestId:crypto.randomUUID()}),signal:AbortSignal.timeout(12000)});
     const data=await r.json();if(!r.ok)throw Error(data.error);
-    ++latest.current;setDb(data.db);setNotice({text:data.message});if(action==='assign'){setSelection([]);setGroupId(arg.group);}if(action==='addGroup'){const id=data.db.sessions[session].groups.at(-1).id;setGroupId(id);setTarget(id);}return true;
+    ++latest.current;setDb(data.db);setNotice({text:data.message});if(action==='assign'){setSelection([]);setGroupId(arg.group);promptDelivery(arg,data.db);}if(action==='addGroup'){const id=data.db.sessions[session].groups.at(-1).id;setGroupId(id);setTarget(id);}return true;
    }
    if(storageError)throw Error('Armazenamento do navegador indisponível. Os comandos estão bloqueados.');
    if(!navigator.locks)throw Error('Atualize o navegador para usar comandos seguros entre abas (Web Locks).');
    await navigator.locks.request(KEY,()=>{const result=ops.apply(read(),session,role,action,arg);localStorage.setItem(KEY,JSON.stringify(result.db));setDb(result.db);setNotice({text:result.message});if(action==='addGroup'){const id=result.db.sessions[session].groups.at(-1).id;setGroupId(id);setTarget(id);}});
-   if(action==='assign'){setSelection([]);setGroupId(arg.group);}
+   if(action==='assign'){setSelection([]);setGroupId(arg.group);promptDelivery(arg,read());}
    return true;
   }catch(e){setNotice({text:e.message,error:true});return e.message;}finally{writing.current=false;setBusy(false);}
  }

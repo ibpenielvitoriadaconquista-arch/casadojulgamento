@@ -35,7 +35,7 @@ export default async function handler(req,res){
    }
    // Assignment revalidates every selected person and destination under this row lock.
    // Unrelated arrivals must not invalidate the coordinator's selection.
-   if(Number(r.rows[0].revision)!==revision&&action!=='assign')throw fail(409,'Outro colaborador atualizou a sessão. Atualize e confira a seleção antes de repetir.');
+   if(Number(r.rows[0].revision)!==revision&&action!=='assign'&&!(action==='deliver'&&typeof arg.expectedGroup==='string'&&arg.expectedGroup))throw fail(409,'Outro colaborador atualizou a sessão. Atualize e confira a seleção antes de repetir.');
    let next;
    if(action==='caravanAdmit'){
     const reservations=await capacity.reservations(client,tickets.EVENT_ID,session,tickets.bahiaDay());

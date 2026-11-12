@@ -4,6 +4,7 @@ function command(state, session, role, action, arg, now) {
   if (['scan','reset','takeover'].includes(action)) throw Error('Ação indisponível na operação real.');
   const s=state.sessions[session];
   if(s?.closedAt)throw Error('Apresentação encerrada. Histórico disponível somente para consulta.');
+  if(action==='deliver'&&arg.expectedGroup&&(arg.ids||[]).some(id=>s.people.find(p=>p.id===id)?.group!==arg.expectedGroup))throw Error('O grupo de uma pessoa mudou. Confira a nova senha antes de confirmar a entrega.');
   if(role==='caravanas'){
     if(!['caravanSave','caravanDelete','caravanTransfer','caravanAuthorize'].includes(action))throw Error('Este acesso administra somente cadastros e recebimentos de caravanas.');
     if(action==='caravanAuthorize'&&!['dinheiro','pix_igreja','revogar'].includes(arg.method))throw Error('Somente Gestão autoriza cortesias.');

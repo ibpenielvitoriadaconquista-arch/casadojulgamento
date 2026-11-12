@@ -64,3 +64,9 @@ test('assignment tolerates unrelated arrivals but prevents duplicate and over-ca
  f.state.session.people.push({id:'C',name:'Pessoa C',group:null});f.state.session.groups[9].members=Array(35).fill('occupied');
  const full=await f.call(1,'44444444-4444-4444-8444-444444444444','coordenacao','assign',{ids:['C'],group:'G10'});assert.equal(full.code,422);assert.match(full.body.error,/vagas/);assert.equal(f.state.session.people[2].group,null);
 });
+test('delivery from assignment popup tolerates arrivals but rejects a changed group',async()=>{
+ const f=apiFixture();f.state.session.people=[{id:'A',name:'Pessoa A',group:'G01',paperAt:null}];f.state.session.groups[0].members=['A'];f.state.revision=10;
+ const a=await f.call(1,'55555555-5555-4555-8555-555555555555','coordenacao','deliver',{ids:['A'],expectedGroup:'G01'});assert.equal(a.code,200);assert.ok(f.state.session.people[0].paperAt);
+ f.state.session.people[0].paperAt=null;f.state.session.people[0].group='G02';f.state.session.groups[0].members=[];f.state.session.groups[1].members=['A'];
+ const b=await f.call(1,'66666666-6666-4666-8666-666666666666','coordenacao','deliver',{ids:['A'],expectedGroup:'G01'});assert.equal(b.code,422);assert.match(b.body.error,/grupo.*mudou/);assert.equal(f.state.session.people[0].paperAt,null);
+});
