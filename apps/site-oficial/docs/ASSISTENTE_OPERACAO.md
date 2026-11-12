@@ -18,7 +18,7 @@ O Apoio vê somente os nomes dos participantes de grupos chamados, em espera ou 
 
 ## Caravanas de 21/11 e contador de vendas
 
-21/11 está esgotado para novas solicitações públicas de caravana. G03, G04 e G05 ficam reservados, até 105 lugares; não liberar essas reservas. Em 09/11 e 14/11 também são reservados G03, G04 e G05. Em 19/11, reservam-se G03, G07 e G08; G06 fica para o público geral. Em 13/11 e 20/11, permanecem G06, G07 e G08. As três listas fechadas de 21/11 precisam ser cadastradas nominalmente pela Gestão: fechar o formulário não cadastra participantes nem confirma pagamentos.
+20/11 e 21/11 estão esgotados para novas solicitações públicas de caravana. Em 21/11, G03, G04 e G05 ficam reservados, até 105 lugares; não liberar essas reservas. Em 09/11 e 14/11 também são reservados G03, G04 e G05. Em 19/11, reservam-se G03, G07 e G08; G06 fica para o público geral. Em 13/11 e 20/11, permanecem G06, G07 e G08. As três listas fechadas de 21/11 precisam ser cadastradas nominalmente pela Gestão: fechar o formulário não cadastra participantes nem confirma pagamentos.
 
 O contador no Caixa, Coordenação e Gestão consulta a lista completa atual de inscrições Even3 e calcula saldo por data: lotação menos ingressos individuais confirmados, menos lugares protegidos de caravanas e entradas adicionais já admitidas. Não duplicar o desconto de um ingresso Even3 já vinculado à caravana. Confirmados incluem cortesias e testes ainda cadastrados; não equivalem a transações financeiras. API incompleta, erro ou falta de sincronização não podem mostrar saldo zero como se fosse uma coleta completa.
 

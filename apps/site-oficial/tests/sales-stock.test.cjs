@@ -38,3 +38,5 @@ test('stock endpoint is read-only and restricts the counter to Caixa, Coordenaç
  }
  assert.equal(reads,3);
 });
+
+test('November 20 and 21 are closed for public caravan requests',()=>{assert.equal(requests.publicClosed('2026-11-20'),true);assert.equal(requests.publicClosed('2026-11-21'),true);assert.equal(requests.publicClosed('2026-11-19'),false);});

@@ -8,7 +8,7 @@ export default async function handler(req,res){
  try{
   if(req.method!=='POST')throw fail(405,'Método não permitido.');sameOrigin(req);
   let data;try{data=requests.input(req.body);}catch(e){throw fail(400,e.message);}
-  if(requests.publicClosed(data.session))throw fail(409,'21/11 está esgotado para novas caravanas. Escolha outra apresentação.');
+  if(requests.publicClosed(data.session))throw fail(409,'Esta data está esgotada para novas caravanas. Escolha outra apresentação.');
   const requestId=String(req.body?.requestId||'');if(!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(requestId))throw fail(400,'Solicitação inválida. Atualize a página.');
   await throttle(req,'public_caravan_request');
   const saved=await query('INSERT INTO peniel_ops.caravan_requests(session_date,payload,request_id) VALUES($1,$2::jsonb,$3) ON CONFLICT(request_id) DO UPDATE SET request_id=EXCLUDED.request_id WHERE peniel_ops.caravan_requests.payload=EXCLUDED.payload RETURNING id',[data.session,JSON.stringify(data),requestId]);
