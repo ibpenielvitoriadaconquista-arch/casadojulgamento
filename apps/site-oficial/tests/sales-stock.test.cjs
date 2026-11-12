@@ -40,3 +40,5 @@ test('stock endpoint is read-only and restricts the counter to Caixa, Coordenaç
 });
 
 test('November 14, 20 and 21 are closed for public caravan requests',()=>{assert.equal(requests.publicClosed('2026-11-14'),true);assert.equal(requests.publicClosed('2026-11-20'),true);assert.equal(requests.publicClosed('2026-11-21'),true);assert.equal(requests.publicClosed('2026-11-19'),false);});
+
+test('November 14 reserves four caravan groups within its total capacity',()=>{const d=calc('2026-11-14');assert.deepEqual(d.reservedGroups,['G03','G04','G05','G06']);assert.equal(d.protectedCaravanPlaces,140);assert.equal(d.capacity,750);assert.equal(d.available,610);});
