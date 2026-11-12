@@ -4,9 +4,10 @@ const {capacityFor}=require('./session-capacity.cjs');
 const DAYS=['2026-11-09','2026-11-13','2026-11-14','2026-11-19','2026-11-20','2026-11-21'];
 const GROUPS=['G06','G07','G08'];
 const groupsFor=day=>day==='2026-11-14'?['G03','G04','G05','G06']:day==='2026-11-19'?['G03','G07','G08']:['2026-11-09','2026-11-21'].includes(day)?['G03','G04','G05']:day==='2026-10-22'?[...GROUPS,'G09']:GROUPS;
-const publicClosed=day=>['2026-11-14','2026-11-20','2026-11-21'].includes(day);
+const publicClosed=day=>DAYS.includes(day)&&day!=='2026-11-19';
+const lockedReservations=day=>['2026-11-14','2026-11-20','2026-11-21'].includes(day);
 const enabled=day=>DAYS.includes(day)||day==='2026-10-22';
-const reserved=(s,day,id)=>enabled(day)&&groupsFor(day).includes(id)&&(publicClosed(day)||!(s.caravanReleased||[]).includes(id));
+const reserved=(s,day,id)=>enabled(day)&&groupsFor(day).includes(id)&&(lockedReservations(day)||!(s.caravanReleased||[]).includes(id));
 const list=s=>s.caravans||[];
 const native=code=>/^CAR-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(code||''));
 const phone=value=>String(value||'').replace(/\D/g,'');
@@ -104,7 +105,7 @@ function handle(s,day,action,arg,now){
   return g.id+(g.caravanDeferred?' com chamada adiada; os demais grupos podem seguir.':' com prioridade de chamada retomada.')+' Motivo: '+reason;
  }
  if(action==='caravanRelease'){
-  if(publicClosed(day))throw Error('Esta data está esgotada para caravanas. As reservas não podem ser liberadas.');
+  if(lockedReservations(day))throw Error('Esta data está esgotada para caravanas. As reservas não podem ser liberadas.');
   if(g.members.length||s.caravans.some(c=>c.group===g.id))throw Error('Só libere uma reserva vazia e sem integrantes cadastrados.');
   s.caravanReleased??=[];
   if(s.caravanReleased.includes(g.id)){s.caravanReleased=s.caravanReleased.filter(id=>id!==g.id);return g.id+' reservado novamente para caravanas. Motivo: '+reason;}

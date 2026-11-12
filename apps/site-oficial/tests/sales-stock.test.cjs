@@ -27,7 +27,7 @@ test('public API rejects 21/11 before throttle or insertion; internal input rema
  const src=fs.readFileSync(path.join(__dirname,'../pages/api/caravana-solicitacao.js'),'utf8').replace(/^import .*;\n/gm,'').replace('export const config=','const config=').replace('export default async function handler','return async function handler');let writes=0;
  const handler=new Function('query','fail','sameOrigin','throttle','requests',src)(async()=>{writes++;throw Error('No write expected');},(status,message)=>Object.assign(Error(message),{status}),()=>{},async()=>{writes++;},requests);
  const body={session:'2026-11-21',name:'Caravana teste',city:'Cidade teste',responsible:'Responsável teste',contact:'77999999999',members:[{name:'Pessoa teste'}],requestId:'11111111-1111-4111-8111-111111111111'};
- assert.equal(requests.input(body).session,'2026-11-21');const res={setHeader(){},status(code){this.code=code;return this;},json(data){this.data=data;}};await handler({method:'POST',body},res);assert.equal(res.code,409);assert.equal(writes,0);
+ assert.equal(requests.input(body).session,'2026-11-21');const res={setHeader(){},status(code){this.code=code;return this;},json(data){this.data=data;}};for(const session of caravans.DAYS.filter(requests.publicClosed)){await handler({method:'POST',body:{...body,session}},res);assert.equal(res.code,409);assert.equal(writes,0);}
 });
 test('stock endpoint is read-only and restricts the counter to Caixa, Coordenação and Gestão',async()=>{
  const src=fs.readFileSync(path.join(__dirname,'../pages/api/operacao/estoque.js'),'utf8').replace(/^import .*;\n/gm,'').replace('export const config=','const config=').replace('export default async function handler','return async function handler');
@@ -39,6 +39,6 @@ test('stock endpoint is read-only and restricts the counter to Caixa, Coordenaç
  assert.equal(reads,3);
 });
 
-test('November 14, 20 and 21 are closed for public caravan requests',()=>{assert.equal(requests.publicClosed('2026-11-14'),true);assert.equal(requests.publicClosed('2026-11-20'),true);assert.equal(requests.publicClosed('2026-11-21'),true);assert.equal(requests.publicClosed('2026-11-19'),false);});
+test('Only November 19 accepts public caravan requests',()=>{assert.equal(requests.publicClosed('2026-11-09'),true);assert.equal(requests.publicClosed('2026-11-13'),true);assert.equal(requests.publicClosed('2026-11-14'),true);assert.equal(requests.publicClosed('2026-11-20'),true);assert.equal(requests.publicClosed('2026-11-21'),true);assert.equal(requests.publicClosed('2026-11-19'),false);});
 
 test('November 14 reserves four caravan groups within its total capacity',()=>{const d=calc('2026-11-14');assert.deepEqual(d.reservedGroups,['G03','G04','G05','G06']);assert.equal(d.protectedCaravanPlaces,140);assert.equal(d.capacity,750);assert.equal(d.available,610);});
