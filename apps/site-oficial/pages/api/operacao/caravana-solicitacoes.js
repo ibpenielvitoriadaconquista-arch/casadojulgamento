@@ -29,7 +29,10 @@ export default async function handler(req,res){
    const data=requests.input(row.payload),session=data.session;
    if(!requests.groupsFor(session).includes(group))throw fail(400,'Escolha um grupo reservado para esta apresentação.');
    const current=(await db.query('SELECT state,revision FROM peniel_ops.session_state WHERE session_date=$1 FOR UPDATE',[session])).rows[0];if(!current)throw fail(503,'Sessão indisponível.');
-   const caravanId=randomUUID(),members=data.members.map(m=>({...m,code:'CAR-'+randomUUID()}));
+   const reservedId=row.payload.reservedCaravanId;
+   const existing=reservedId?(current.state.caravans||[]).find(c=>c.id===reservedId):null;
+   if(reservedId&&(!existing||existing.authorization?.status==='authorized'||existing.members.length!==data.members.length||!existing.members.every((m,i)=>m.name===data.members[i].name)))throw fail(409,'A reserva desta solicitação mudou. Confira o cadastro antes de confirmar.');
+   const caravanId=existing?.id||randomUUID(),members=existing?.members||data.members.map(m=>({...m,code:'CAR-'+randomUUID()}));
    let dbState={schema:5,revision:Number(current.revision),sessions:{[session]:current.state}};
    try{
     dbState=live.command(dbState,session,user.role,'caravanSave',{...data,id:caravanId,group,members,actorId:user.user_id}).db;

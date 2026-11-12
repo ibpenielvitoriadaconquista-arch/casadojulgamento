@@ -12,4 +12,7 @@ test('import requires management and saves the roster plus confirmed authorizati
  const invoke=async role=>{const handler=new Function('randomUUID','query','transaction','actor','fail','sameOrigin','live','requests',code)(randomUUID,dbQuery,async fn=>fn({query:dbQuery}),async()=>({role,user_id:'manager'}),(status,message)=>Object.assign(Error(message),{status}),()=>{},live,request);const res={setHeader(){},status(n){this.code=n;return this;},json(v){this.body=v;this.code||=200;}};await handler({method:'POST',body:{id:1,group:'G03',method:'pix_igreja',reference:'Pix conferido 123',confirmed:true}},res);return res;};
  assert.equal((await invoke('coordenacao')).code,403);assert.equal(writes,0);
  assert.equal((await invoke('geral')).code,200);assert.equal(session.state.caravans[0].members.length,2);assert.equal(session.state.caravans[0].authorization.status,'authorized');assert.equal(requestRow.status,'imported');assert.equal((await invoke('geral')).code,409);assert.equal(writes,1);
+ const saved=session.state.caravans[0],codes=saved.members.map(m=>m.code);
+ saved.authorization=null;requestRow={id:1,status:'pending',payload:{...sample,reservedCaravanId:saved.id}};
+ assert.equal((await invoke('geral')).code,200);assert.equal(session.state.caravans.length,1);assert.deepEqual(session.state.caravans[0].members.map(m=>m.code),codes);assert.equal(session.state.caravans[0].authorization.status,'authorized');
 });
