@@ -1,7 +1,7 @@
 const test=require('node:test'),assert=require('node:assert/strict');
 const ops=require('../lib/operation-training.cjs'),live=require('../lib/operation-live.cjs');
 const day='2026-11-13';
-function setup(){let db=ops.fresh(),clock=Date.parse('2026-11-13T22:00:00Z');const run=(role,action,arg={})=>{db=live.command(db,day,role,action,arg,new Date(clock+=1000).toISOString()).db;};for(let i=1;i<=4;i++){const id='ticket-'+i,group='G0'+i;db=live.admit(db,day,{verified:true,participantId:id,registrationId:id,entryId:'entry',name:'Pessoa '+i}).db;run('coordenacao','assign',{ids:[id],group});run('coordenacao','deliver',{ids:[id]});run('telao','close',{group});}return {get db(){return db},get s(){return db.sessions[day]},run};}
+function setup(){let db=ops.fresh();db.sessions[day].caravanReleased=['G04'];let clock=Date.parse('2026-11-13T22:00:00Z');const run=(role,action,arg={})=>{db=live.command(db,day,role,action,arg,new Date(clock+=1000).toISOString()).db;};for(let i=1;i<=4;i++){const id='ticket-'+i,group='G0'+i;db=live.admit(db,day,{verified:true,participantId:id,registrationId:id,entryId:'entry',name:'Pessoa '+i}).db;run('coordenacao','assign',{ids:[id],group});run('coordenacao','deliver',{ids:[id]});run('telao','close',{group});}return {get db(){return db},get s(){return db.sessions[day]},run};}
 function enter(x,group,slot){x.run('telao','call',{group,slot});x.run('apoio','arrive',{group});x.run('apoio','start',{group,physicallySafe:true});}
 test('three reserved slots include calls, remain stable, and release only the finished group',()=>{
  const x=setup();enter(x,'G01',2);assert.throws(()=>x.run('telao','call',{group:'G02'}),/ponto seguro/);x.run('apoio','safe',{group:'G01'});

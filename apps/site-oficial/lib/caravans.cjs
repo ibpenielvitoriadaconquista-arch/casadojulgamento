@@ -3,7 +3,7 @@
 const {capacityFor}=require('./session-capacity.cjs');
 const DAYS=['2026-11-09','2026-11-13','2026-11-14','2026-11-19','2026-11-20','2026-11-21'];
 const GROUPS=['G06','G07','G08'];
-const groupsFor=day=>day==='2026-11-14'?['G03','G04','G05','G06']:day==='2026-11-19'?['G03','G07','G08']:['2026-11-09','2026-11-21'].includes(day)?['G03','G04','G05']:day==='2026-10-22'?[...GROUPS,'G09']:GROUPS;
+const groupsFor=day=>day==='2026-11-13'?['G04','G05','G06']:day==='2026-11-14'?['G03','G04','G05','G06']:day==='2026-11-19'?['G03','G07','G08']:['2026-11-09','2026-11-21'].includes(day)?['G03','G04','G05']:day==='2026-10-22'?[...GROUPS,'G09']:GROUPS;
 const publicClosed=day=>DAYS.includes(day)&&day!=='2026-11-19';
 const lockedReservations=day=>['2026-11-14','2026-11-20','2026-11-21'].includes(day);
 const enabled=day=>DAYS.includes(day)||day==='2026-10-22';
