@@ -4,8 +4,8 @@ const day='2026-11-13';
 function setup(){let db=ops.fresh();db.sessions[day].caravanReleased=['G04'];let clock=Date.parse('2026-11-13T22:00:00Z');const run=(role,action,arg={})=>{db=live.command(db,day,role,action,arg,new Date(clock+=1000).toISOString()).db;};for(let i=1;i<=4;i++){const id='ticket-'+i,group='G0'+i;db=live.admit(db,day,{verified:true,participantId:id,registrationId:id,entryId:'entry',name:'Pessoa '+i}).db;run('coordenacao','assign',{ids:[id],group});run('coordenacao','deliver',{ids:[id]});run('telao','close',{group});}return {get db(){return db},get s(){return db.sessions[day]},run};}
 function enter(x,group,slot){x.run('telao','call',{group,slot});x.run('apoio','arrive',{group});x.run('apoio','start',{group,physicallySafe:true});}
 test('three reserved slots include calls, remain stable, and release only the finished group',()=>{
- const x=setup();enter(x,'G01',2);assert.throws(()=>x.run('telao','call',{group:'G02'}),/ponto seguro/);x.run('apoio','safe',{group:'G01'});
- enter(x,'G02',0);x.run('apoio','safe',{group:'G02'});x.run('telao','call',{group:'G03',slot:1});
+ const x=setup();enter(x,'G01',2);x.run('telao','call',{group:'G02',slot:0});x.run('apoio','arrive',{group:'G02'});assert.throws(()=>x.run('apoio','start',{group:'G02',physicallySafe:true}),/ponto seguro/);x.run('apoio','safe',{group:'G01'});
+ x.run('apoio','start',{group:'G02',physicallySafe:true});x.run('apoio','safe',{group:'G02'});x.run('telao','call',{group:'G03',slot:1});
  assert.deepEqual(ops.circuitSlots(x.s).map(g=>g?.id),['G02','G03','G01']);assert.equal(ops.occupied(x.s).length,3);
  const before=JSON.stringify(x.db);assert.throws(()=>x.run('telao','call',{group:'G04'}),/três vagas/);assert.equal(JSON.stringify(x.db),before);
  x.run('apoio','arrive',{group:'G03'});x.run('apoio','start',{group:'G03',physicallySafe:true});x.run('apoio','safe',{group:'G03'});x.run('apoio','finish',{group:'G02'});

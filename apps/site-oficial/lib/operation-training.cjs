@@ -30,8 +30,6 @@ function callBlock(s){
  if(s.paused)return 'Movimentações pausadas pela Gestão.';
  if(occupied(s).length>=CIRCUIT_LIMIT)return 'As três vagas estão ocupadas. Aguarde uma finalização na Cena 7.';
  if(wait(s))return 'Aguarde o Apoio 1 receber e iniciar '+wait(s).id+'. A sala de espera está ocupada.';
- const unsafe=active(s).find(g=>g.status==='circuit');
- if(unsafe)return 'Aguarde o ponto seguro de '+unsafe.id+'.';
  return '';
 }
 function nextToCall(s){return s.groups.find(g=>!g.caravanDeferred&&g.members.length&&['forming','closed'].includes(g.status));}
@@ -115,6 +113,7 @@ function apply(db,sessionId,role,action,arg={},now=new Date().toISOString()){
     const g=group(arg.group);if(s.paused)throw Error('Novas partidas pausadas.');if(!g||g.status!=='waiting')throw Error('Confirme o grupo na sala de espera primeiro.');
     if(!arg.physicallySafe)throw Error('O apoio precisa confirmar as condições físicas de segurança.');
     if(active(s).length>=CIRCUIT_LIMIT)throw Error('Já existem três grupos no circuito. Aguarde uma finalização.');
+    if(active(s).some(x=>x.status==='circuit'))throw Error('O grupo em percurso precisa confirmar o ponto seguro.');
     const previous=s.groups.slice(0,s.groups.indexOf(g)).filter(x=>x.members.length&&!x.caravanDeferred);
     if(previous.some(x=>!['safe','finished'].includes(x.status)))throw Error('O grupo anterior precisa confirmar o ponto seguro.');
     g.status='circuit';g.startedAt=now;message=g.id+' iniciou por confirmação do apoio. Sala de espera LIVRE.';
