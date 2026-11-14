@@ -12,7 +12,7 @@ const DEFAULT_SESSION='2026-11-13';
 const CIRCUIT_LIMIT=3;
 const LABELS={forming:'Em formação',closed:'Fechado no salão',called:'Chamado para espera',waiting:'Na sala de espera',circuit:'No circuito',safe:'No ponto seguro',finished:'Finalizado'};
 const ROLES={geral:'Painel geral',portaria:'Portaria',caixa:'Caixa',coordenacao:'Coordenação',apoio:'Apoio',telao:'Telão',caravanas:'Administrador de caravanas'};
-const ALLOWED={geral:['scan','assign','deliver','undoDelivery','move','close','reopen','call','arrive','start','safe','finish','pause','takeover','guide','reset','addGroup'],portaria:['scan'],caixa:[],caravanas:[],coordenacao:['assign','deliver','undoDelivery','move','addGroup'],apoio:['arrive','start','safe','finish'],telao:['close','reopen','call']};
+const ALLOWED={geral:['scan','assign','deliver','undoDelivery','move','close','reopen','call','manualCall','clearManualCall','arrive','start','safe','finish','pause','takeover','guide','reset','addGroup'],portaria:['scan'],caixa:[],caravanas:[],coordenacao:['assign','deliver','undoDelivery','move','addGroup'],apoio:['arrive','start','safe','finish'],telao:['close','reopen','call','manualCall','clearManualCall']};
 function freshSession(sessionId=SESSIONS[0].id){return {counter:0,paused:false,coordinator:'Titular',people:[],groups:Array.from({length:capacityFor(sessionId).groups},(_,i)=>({id:'G'+String(i+1).padStart(2,'0'),status:'forming',guide:'',members:[]})),history:[],lastAssignment:null};}
 function fresh(){return {schema:5,revision:0,sessions:Object.fromEntries(SESSIONS.map(s=>[s.id,freshSession(s.id)]))};}
 function active(s){return s.groups.filter(g=>['circuit','safe'].includes(g.status));}
@@ -94,6 +94,11 @@ function apply(db,sessionId,role,action,arg={},now=new Date().toISOString()){
   }else if(action==='reopen'){
     const g=group(arg.group);if(!g||g.status!=='closed')throw Error('Só é possível reabrir um grupo ainda fechado no salão.');
     g.status='forming';message=g.id+' reaberto no salão.';
+  }else if(action==='manualCall'){
+    const g=group(arg.group);if(!g||!g.members.length||!['forming','closed'].includes(g.status))throw Error('Selecione um grupo que ainda está no salão.');
+    s.manualCall={group:g.id,at:now};message=g.id+' anunciado manualmente, sem reservar vaga no circuito.';
+  }else if(action==='clearManualCall'){
+    delete s.manualCall;message='Anúncio manual retirado do telão.';
   }else if(action==='call'){
     const g=group(arg.group);if(s.paused)throw Error('Movimentações pausadas pelo painel geral.');
     if(!g||g.status!=='closed')throw Error('Feche o grupo antes de chamar.');
@@ -102,7 +107,7 @@ function apply(db,sessionId,role,action,arg={},now=new Date().toISOString()){
     if(g.members.some(id=>!person(id).paperAt))throw Error('Há senha pendente de entrega neste grupo.');
     const earlier=s.groups.slice(0,s.groups.indexOf(g)).find(x=>!x.caravanDeferred&&x.members.length&&['forming','closed'].includes(x.status));
     if(earlier)throw Error(earlier.id+' ainda aguarda no salão. Respeite a ordem dos grupos.');
-    const slots=circuitSlots(s);slots.forEach((existing,index)=>{if(existing)existing.circuitSlot=index;});const slot=arg.slot??slots.indexOf(null);if(!Number.isInteger(slot)||slot<0||slot>=CIRCUIT_LIMIT||slots[slot])throw Error('Esta vaga foi ocupada. Atualize o painel.');g.circuitSlot=slot;g.status='called';g.calledAt=now;message=g.id+' chamado no telão. Sala de espera reservada.';
+    const slots=circuitSlots(s);slots.forEach((existing,index)=>{if(existing)existing.circuitSlot=index;});const slot=arg.slot??slots.indexOf(null);if(!Number.isInteger(slot)||slot<0||slot>=CIRCUIT_LIMIT||slots[slot])throw Error('Esta vaga foi ocupada. Atualize o painel.');g.circuitSlot=slot;g.status='called';g.calledAt=now;delete s.manualCall;message=g.id+' chamado no telão. Sala de espera reservada.';
   }else if(action==='arrive'){
     const g=group(arg.group);if(s.paused)throw Error('Movimentações pausadas.');if(!g||g.status!=='called')throw Error('Aguarde a chamada do operador do Telão.');
     g.status='waiting';g.arrivedAt=now;if(s.supportSignal)s.supportSignal={...s.supportSignal,acknowledgedAt:now,receivedGroup:g.id};message=g.id+' recebido pelo apoio na sala de espera.';

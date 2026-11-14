@@ -17,12 +17,14 @@ export function SupportSignal({session}){
 }
 export function CircuitOperator({session:s,disabled,confirm,notice,publicHref}){
  const slots=ops.circuitSlots(s),blocked=ops.callBlock(s),next=ops.nextToCall(s);
+ const [manualGroup,setManualGroup]=useState('');
  const ready=s.groups.filter(g=>g.members.length&&['forming','closed'].includes(g.status));
  const finished=s.groups.filter(g=>g.status==='finished').sort((a,b)=>String(b.finishedAt).localeCompare(String(a.finishedAt)));
  const call=slot=>confirm('Chamar '+next.id+' no telão e reservar uma vaga para o Apoio receber? Confirme que o acesso físico está livre.','call',{group:next.id,slot});
  return <>
   <div className="op-panel-head"><div><span className="op-eyebrow">CONTROLE DE CHAMADAS</span><h2>Três vagas. Todo o circuito à vista.</h2><p className="op-muted">{ops.active(s).length} no circuito · {ops.occupied(s).length-ops.active(s).length} chamado ou em espera · {Math.max(0,ops.CIRCUIT_LIMIT-ops.occupied(s).length)} vagas disponíveis</p></div><a className="op-btn" href={publicHref} target="_blank" rel="noreferrer">Abrir projeção ↗</a></div>
   {notice&&<div role="status" className={notice.error?'op-error':'op-success'}>{notice.text}</div>}
+  <section className="op-panel"><h2>Chamada manual</h2><p>Mostra o grupo no telão fora da ordem automática. O grupo aguarda orientação no salão.</p><label>Grupo <select value={manualGroup} onChange={e=>setManualGroup(e.target.value)}><option value="">Selecione</option>{ready.map(g=><option key={g.id} value={g.id}>{g.id}</option>)}</select></label> <button type="button" className="op-btn gold" disabled={disabled||!ready.some(g=>g.id===manualGroup)} onClick={()=>confirm('Anunciar '+manualGroup+' no telão sem encaminhar ao circuito?','manualCall',{group:manualGroup})}>Anunciar grupo</button>{s.manualCall&&<p>Em exibição: <b>{s.manualCall.group}</b> <button type="button" className="op-btn subtle" disabled={disabled} onClick={()=>confirm('Retirar o anúncio manual do telão?','clearManualCall',{})}>Retirar anúncio</button></p>}</section>
   <SupportSignal session={s}/>
   <div className={'op-call-status '+(blocked?'is-waiting':'is-ready')} role="status"><b>{blocked||'Circuito disponível para a próxima chamada'}</b>{!blocked&&<p>{next?next.id+' · '+(next.status==='closed'?'pronto para chamar':'aguardando fechamento'):'Aguardando a Coordenação formar um grupo.'}</p>}</div>
   {finished[0]&&<p className="op-last-finish" role="status">✓ Última saída: <b>{finished[0].id}</b> finalizou na Cena 7. Ocupação atual: <b>{ops.occupied(s).length}/3</b>.</p>}
