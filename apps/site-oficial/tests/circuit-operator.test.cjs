@@ -69,3 +69,17 @@ test('operator renders exactly three cards and finished groups leave them withou
  let html=render();assert.equal((html.match(/class="op-circuit-slot /g)||[]).length,3);assert.equal((html.match(/op-circuit-slot is-empty/g)||[]).length,2);assert.doesNotMatch(html,/Pessoa 1|ticket-1/);assert.match(html,/Abrir projeção/);
  x.run('apoio','finish',{group:'G01'});html=render();assert.equal((html.match(/op-circuit-slot is-empty/g)||[]).length,3);assert.match(html,/Grupos finalizados/);
 });
+
+test('November 14 can reserve the fourth slot; a fifth call waits for a finish',()=>{
+ const day14='2026-11-14',db=ops.fresh(),s=db.sessions[day14];
+ for(let i=0;i<5;i++){
+  const g=s.groups[i], id='p'+i;
+  g.status=i<3?'safe':'closed';g.members=[id];
+  s.people.push({id,group:g.id,paperAt:'confirmed'});
+ }
+ assert.equal(ops.circuitSlots(s,day).length,3);
+ assert.equal(ops.circuitSlots(s,day14).length,4);
+ const next=live.command(db,day14,'telao','call',{group:'G04',slot:3}).db;
+ assert.equal(ops.circuitSlots(next.sessions[day14],day14)[3].id,'G04');
+ assert.throws(()=>live.command(next,day14,'telao','call',{group:'G05'}),/quatro vagas/);
+});

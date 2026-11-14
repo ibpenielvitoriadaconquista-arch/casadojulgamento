@@ -10,6 +10,7 @@ const SESSIONS = [
 const ARCHIVED_SESSIONS=['2026-11-09'];
 const DEFAULT_SESSION='2026-11-13';
 const CIRCUIT_LIMIT=3;
+const circuitLimitFor=day=>day==='2026-11-14'?4:CIRCUIT_LIMIT;
 const LABELS={forming:'Em formação',closed:'Fechado no salão',called:'Chamado para espera',waiting:'Na sala de espera',circuit:'No circuito',safe:'No ponto seguro',finished:'Finalizado'};
 const ROLES={geral:'Painel geral',portaria:'Portaria',caixa:'Caixa',coordenacao:'Coordenação',apoio:'Apoio',telao:'Telão',caravanas:'Administrador de caravanas'};
 const ALLOWED={geral:['scan','assign','deliver','undoDelivery','move','close','reopen','call','manualCall','clearManualCall','arrive','start','safe','finish','pause','takeover','guide','reset','addGroup'],portaria:['scan'],caixa:[],caravanas:[],coordenacao:['assign','deliver','undoDelivery','move','addGroup'],apoio:['arrive','start','safe','finish'],telao:['close','reopen','call','manualCall','clearManualCall']};
@@ -19,16 +20,18 @@ function active(s){return s.groups.filter(g=>['circuit','safe'].includes(g.statu
 function wait(s){return s.groups.find(g=>['called','waiting'].includes(g.status));}
 // Called and waiting groups reserve a circuit place before entering scene 1.
 function occupied(s){return s.groups.filter(g=>['called','waiting','circuit','safe'].includes(g.status));}
-function circuitSlots(s){
- const slots=Array(CIRCUIT_LIMIT).fill(null),legacy=[];
- for(const g of occupied(s)){if(Number.isInteger(g.circuitSlot)&&g.circuitSlot>=0&&g.circuitSlot<CIRCUIT_LIMIT&&!slots[g.circuitSlot])slots[g.circuitSlot]=g;else legacy.push(g);}
+function circuitSlots(s,day){
+ const limit=circuitLimitFor(day);
+ const slots=Array(limit).fill(null),legacy=[];
+ for(const g of occupied(s)){if(Number.isInteger(g.circuitSlot)&&g.circuitSlot>=0&&g.circuitSlot<limit&&!slots[g.circuitSlot])slots[g.circuitSlot]=g;else legacy.push(g);}
  for(const g of legacy){const index=slots.indexOf(null);if(index>=0)slots[index]=g;}
  return slots;
 }
-function callBlock(s){
+function callBlock(s,day){
+ const limit=circuitLimitFor(day);
  if(s.closedAt)return 'Apresentação encerrada. Histórico disponível somente para consulta.';
  if(s.paused)return 'Movimentações pausadas pela Gestão.';
- if(occupied(s).length>=CIRCUIT_LIMIT)return 'As três vagas estão ocupadas. Aguarde uma finalização na Cena 7.';
+ if(occupied(s).length>=limit)return (limit===4?'As quatro vagas':'As três vagas')+' estão ocupadas. Aguarde uma finalização na Cena 7.';
  if(wait(s))return 'Aguarde o Apoio 1 receber e iniciar '+wait(s).id+'. A sala de espera está ocupada.';
  return '';
 }
@@ -47,7 +50,7 @@ function apply(db,sessionId,role,action,arg={},now=new Date().toISOString()){
   const capacity=capacityFor(sessionId);
   const next=JSON.parse(JSON.stringify(db));let s=next.sessions[sessionId];
   if(s.closedAt)throw Error('Apresentação encerrada. Histórico disponível somente para consulta.');
-  circuitSlots(s).forEach((g,index)=>{if(g)g.circuitSlot=index;});
+  circuitSlots(s,sessionId).forEach((g,index)=>{if(g)g.circuitSlot=index;});
   const group=id=>s.groups.find(g=>g.id===id),person=id=>s.people.find(p=>p.id===id);
   const log=(text)=>{s.history.unshift({at:now,role:ROLES[role],action,text});s.history=s.history.slice(0,500);};
   let message='';
@@ -101,18 +104,18 @@ function apply(db,sessionId,role,action,arg={},now=new Date().toISOString()){
     const g=group(arg.group);if(s.paused)throw Error('Movimentações pausadas pelo painel geral.');
     if(!g||g.status!=='closed')throw Error('Feche o grupo antes de chamar.');
     if(g.caravanDeferred)throw Error('Retome a prioridade deste grupo antes de chamar.');
-    const blocked=callBlock(s);if(blocked)throw Error(blocked);
+    const blocked=callBlock(s,sessionId);if(blocked)throw Error(blocked);
     if(g.members.some(id=>!person(id).paperAt))throw Error('Há senha pendente de entrega neste grupo.');
     const earlier=s.groups.slice(0,s.groups.indexOf(g)).find(x=>!x.caravanDeferred&&x.members.length&&['forming','closed'].includes(x.status));
     if(earlier)throw Error(earlier.id+' ainda aguarda no salão. Respeite a ordem dos grupos.');
-    const slots=circuitSlots(s);slots.forEach((existing,index)=>{if(existing)existing.circuitSlot=index;});const slot=arg.slot??slots.indexOf(null);if(!Number.isInteger(slot)||slot<0||slot>=CIRCUIT_LIMIT||slots[slot])throw Error('Esta vaga foi ocupada. Atualize o painel.');g.circuitSlot=slot;g.status='called';g.calledAt=now;delete s.manualCall;message=g.id+' chamado no telão. Sala de espera reservada.';
+    const slots=circuitSlots(s,sessionId);slots.forEach((existing,index)=>{if(existing)existing.circuitSlot=index;});const slot=arg.slot??slots.indexOf(null);if(!Number.isInteger(slot)||slot<0||slot>=slots.length||slots[slot])throw Error('Esta vaga foi ocupada. Atualize o painel.');g.circuitSlot=slot;g.status='called';g.calledAt=now;delete s.manualCall;message=g.id+' chamado no telão. Sala de espera reservada.';
   }else if(action==='arrive'){
     const g=group(arg.group);if(s.paused)throw Error('Movimentações pausadas.');if(!g||g.status!=='called')throw Error('Aguarde a chamada do operador do Telão.');
     g.status='waiting';g.arrivedAt=now;if(s.supportSignal)s.supportSignal={...s.supportSignal,acknowledgedAt:now,receivedGroup:g.id};message=g.id+' recebido pelo apoio na sala de espera.';
   }else if(action==='start'){
     const g=group(arg.group);if(s.paused)throw Error('Novas partidas pausadas.');if(!g||g.status!=='waiting')throw Error('Confirme o grupo na sala de espera primeiro.');
     if(!arg.physicallySafe)throw Error('O apoio precisa confirmar as condições físicas de segurança.');
-    if(active(s).length>=CIRCUIT_LIMIT)throw Error('Já existem três grupos no circuito. Aguarde uma finalização.');
+    if(active(s).length>=circuitLimitFor(sessionId))throw Error('O circuito está cheio. Aguarde uma finalização.');
     if(active(s).some(x=>x.status==='circuit'))throw Error('O grupo em percurso precisa confirmar o ponto seguro.');
     const previous=s.groups.slice(0,s.groups.indexOf(g)).filter(x=>x.members.length&&!x.caravanDeferred);
     if(previous.some(x=>!['safe','finished'].includes(x.status)))throw Error('O grupo anterior precisa confirmar o ponto seguro.');
@@ -135,4 +138,4 @@ function apply(db,sessionId,role,action,arg={},now=new Date().toISOString()){
   }else throw Error('Comando não reconhecido.');
   log(message);next.revision++;return {db:next,message};
 }
-module.exports={ARCHIVED_SESSIONS,DEFAULT_SESSION,occupied,circuitSlots,callBlock,nextToCall,nextGroupId,capacityFor,CIRCUIT_LIMIT,SESSIONS,LABELS,ROLES,ALLOWED,fresh,freshSession,active,wait,summarize,apply};
+module.exports={ARCHIVED_SESSIONS,DEFAULT_SESSION,occupied,circuitSlots,callBlock,nextToCall,nextGroupId,capacityFor,circuitLimitFor,CIRCUIT_LIMIT,SESSIONS,LABELS,ROLES,ALLOWED,fresh,freshSession,active,wait,summarize,apply};
