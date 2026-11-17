@@ -1,6 +1,6 @@
 'use strict';
 // Stored in the existing session JSON; mutations share its revision and row lock.
-const {capacityFor}=require('./session-capacity.cjs');
+const {capacityFor,groupSizeFor}=require('./session-capacity.cjs');
 const DAYS=['2026-11-09','2026-11-13','2026-11-14','2026-11-19','2026-11-20','2026-11-21'];
 const GROUPS=['G06','G07','G08'];
 const groupsFor=day=>day==='2026-11-13'?['G04','G05','G06']:day==='2026-11-14'?['G03','G04','G06','G08']:day==='2026-11-19'?['G03','G07','G08']:['2026-11-09','2026-11-21'].includes(day)?['G03','G04','G05']:day==='2026-10-22'?[...GROUPS,'G09']:GROUPS;
@@ -59,7 +59,8 @@ function handle(s,day,action,arg,now){
   if(old?.members.some(m=>!codes.has(m.code)&&s.people.some(p=>p.id===m.code)))throw Error('Não remova integrantes que já passaram pela Portaria.');
   const others=s.caravans.filter(c=>c.id!==arg.id&&c.group===group.id).flatMap(c=>c.members.map(m=>m.code));
   const occupied=new Set([...others,...group.members,...codes]);
-  if(occupied.size>limit)throw Error(`Este grupo já tem ${limit} vagas ocupadas ou reservadas. Escolha outro grupo de caravana.`);
+  const groupLimit=groupSizeFor(day,group);
+  if(occupied.size>groupLimit)throw Error(`Este grupo já tem ${groupLimit} vagas ocupadas ou reservadas. Escolha outro grupo de caravana.`);
   const eta=String(arg.eta||'');if(eta&&!/^([01]\d|2[0-3]):[0-5]\d$/.test(eta))throw Error('Horário previsto inválido.');
   const unchanged=old&&members.length===old.members.length&&members.every(m=>old.members.some(x=>x.code===m.code&&x.name===m.name));
   const c={id:arg.id,name:text(arg.name,'o nome da caravana'),city:text(arg.city,'a cidade'),responsible:text(arg.responsible,'o responsável'),contact:text(arg.contact,'o contato',80,true),eta,group:group.id,members,authorization:unchanged?old.authorization||null:null,authorizationHistory:old?.authorizationHistory||[],updatedAt:now};
@@ -88,7 +89,7 @@ function handle(s,day,action,arg,now){
   if(!to||to.id===c.group||!reserved(s,day,to.id)||to.status!=='forming')throw Error('Escolha outro grupo de caravana em formação.');
   if(!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(arg.id||''))||s.caravans.some(x=>x.id===arg.id))throw Error('Identificador de remanejamento inválido.');
   const occupied=new Set([...to.members,...s.caravans.filter(x=>x.group===to.id).flatMap(x=>x.members.map(m=>m.code))]);
-  if(occupied.size>=limit)throw Error('Grupo de destino sem vagas reserváveis.');
+  if(occupied.size>=groupSizeFor(day,to))throw Error('Grupo de destino sem vagas reserváveis.');
   const reason=text(arg.reason,'o motivo',300),m=c.members.find(m=>m.code===arg.code);
   c.members=c.members.filter(m=>m.code!==arg.code);
   s.caravans=s.caravans.filter(x=>x.members.length);

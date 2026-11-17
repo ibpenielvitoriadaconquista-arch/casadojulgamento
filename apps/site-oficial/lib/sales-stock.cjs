@@ -1,5 +1,5 @@
 'use strict';
-const rules=require('./official-entries.cjs'),tickets=require('./entry-tickets.cjs'),caravans=require('./caravans.cjs'),{capacityFor}=require('./session-capacity.cjs');
+const rules=require('./official-entries.cjs'),tickets=require('./entry-tickets.cjs'),caravans=require('./caravans.cjs'),{capacityFor,groupSizeFor}=require('./session-capacity.cjs');
 const fail=message=>Object.assign(Error(message),{status:503});
 function calculate({session,attendees,catalog,state,queriedAt}){
  const target=rules.bySession(session);if(!target||session===rules.LOT.session)throw fail('Selecione uma apresentação oficial para consultar as vendas.');
@@ -15,7 +15,7 @@ function calculate({session,attendees,catalog,state,queriedAt}){
  const cap=capacityFor(session),reservedGroups=caravans.groupsFor(session).filter(g=>caravans.reserved(state,session,g));
  const codesInCaravans=new Set(caravans.list(state).filter(c=>reservedGroups.includes(c.group)).flatMap(c=>c.members.map(m=>m.code)));
  const overlap=[...confirmed].filter(c=>codesInCaravans.has(c)).length;
- const protectedCaravanPlaces=Math.max(0,reservedGroups.length*cap.groupSize-overlap);
+ const protectedCaravanPlaces=Math.max(0,reservedGroups.reduce((count,id)=>count+groupSizeFor(session,state.groups?.find(g=>g.id===id)),0)-overlap);
  const additionalAdmitted=new Set(state.people.filter(p=>!confirmed.has(p.id)&&!caravans.native(p.id)&&!codesInCaravans.has(p.id)).map(p=>p.id)).size;
  const committed=confirmed.size+protectedCaravanPlaces+additionalAdmitted;
  return {session,queriedAt,source:'Even3 API · consulta completa atual',capacity:cap.total,confirmed:confirmed.size,unconfirmed,protectedCaravanPlaces,reservedGroups,additionalAdmitted,available:Math.max(0,cap.total-committed),overCapacity:committed>cap.total,caravanLists:caravans.list(state).length,estimate:true};
