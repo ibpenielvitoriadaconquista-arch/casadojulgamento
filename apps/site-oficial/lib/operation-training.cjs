@@ -44,6 +44,25 @@ function nextGroupId(s){
  if(!Number.isSafeInteger(number))throw Error('Não foi possível gerar o próximo grupo.');
  return 'G'+String(number).padStart(2,'0');
 }
+function canRevalidate(action,arg){
+ if(action==='assign')return true;
+ if(action==='deliver')return typeof arg.expectedGroup==='string'&&!!arg.expectedGroup;
+ if(action!=='move')return false;
+ const expected=arg.expectedMove;
+ return typeof expected?.group==='string'&&!!expected.group&&
+  (expected.assignedAt===null||typeof expected.assignedAt==='string')&&
+  (expected.paperAt===null||typeof expected.paperAt==='string');
+}
+function confirmGroupLimit(session,g,added,confirmation){
+ const limit=groupSizeFor(session,g),total=g.members.length+added;
+ if(total<=limit)return '';
+ if(confirmation?.group===g.id&&confirmation.limit===limit&&confirmation.total===total){
+  return ' Limite de '+limit+' confirmado: '+total+' pessoas no grupo.';
+ }
+ const error=Error(g.id+' ficará com '+total+' pessoas. O limite é '+limit+'. Confirme para continuar.');
+ error.groupLimit={group:g.id,limit,total};
+ throw error;
+}
 function apply(db,sessionId,role,action,arg={},now=new Date().toISOString()){
   if(!ALLOWED[role]?.includes(action))throw Error('Este comando pertence a outro posto.');
   if(!SESSIONS.some(s=>s.id===sessionId)||db?.schema!==5)throw Error('Sessão inválida.');
@@ -70,24 +89,30 @@ function apply(db,sessionId,role,action,arg={},now=new Date().toISOString()){
     if(!ids.length)throw Error('Selecione pelo menos uma pessoa na fila.');
     if(!g||g.status!=='forming')throw Error('Escolha um grupo em formação.');
     const people=ids.map(person);if(people.some(p=>!p||p.group))throw Error('Uma das pessoas já recebeu grupo. Atualize a seleção.');
-    if(g.members.length+people.length>groupSizeFor(sessionId,g))throw Error('O grupo não tem vagas para todas as pessoas selecionadas.');
+    const exception=confirmGroupLimit(sessionId,g,people.length,arg.groupLimitConfirmation);
     for(const p of people){p.group=g.id;p.assignedAt=now;g.members.push(p.id);}
-    s.lastAssignment={group:g.id,ids,at:now};message=people.map(p=>p.name).join(', ')+' → '+g.id+'. Entregue a senha '+g.id+' e confirme a entrega.';
+    s.lastAssignment={group:g.id,ids,at:now};message=people.map(p=>p.name).join(', ')+' → '+g.id+'. Entregue a senha '+g.id+' e confirme a entrega.'+exception;
   }else if(action==='deliver'||action==='undoDelivery'){
     const ids=[...new Set(arg.ids||[])];if(!ids.length)throw Error('Nenhuma pessoa selecionada.');
-    const people=ids.map(person);if(people.some(p=>!p?.group||!['forming','closed'].includes(group(p.group)?.status)))throw Error('A senha só pode ser alterada enquanto o grupo está no salão.');
+    const people=ids.map(person);
+    if(action==='deliver'&&arg.expectedGroup&&people.some(p=>p?.group!==arg.expectedGroup))throw Error('O grupo de uma pessoa mudou. Confira a nova senha antes de confirmar a entrega.');
+    if(people.some(p=>!p?.group||!['forming','closed'].includes(group(p.group)?.status)))throw Error('A senha só pode ser alterada enquanto o grupo está no salão.');
     if(action==='deliver'&&people.some(p=>p.paperAt))throw Error('Uma destas senhas já consta como entregue. Confira a lista.');
     if(action==='undoDelivery'&&(!String(arg.reason||'').trim()||people.some(p=>!p.paperAt)))throw Error('Informe o motivo e selecione uma senha já entregue.');
     people.forEach(p=>{p.paperAt=action==='deliver'?now:null;});
     message=people.map(p=>p.name+' · '+p.group).join(', ')+(action==='deliver'?' — senha entregue.':' — entrega desfeita: '+arg.reason);
   }else if(action==='move'){
     const p=person(arg.id),to=group(arg.group),from=p&&group(p.group);
+    if(canRevalidate(action,arg)){
+      const expected=arg.expectedMove;
+      if(p?.group!==expected.group||(p?.assignedAt??null)!==expected.assignedAt||(p?.paperAt??null)!==expected.paperAt)throw Error('O grupo ou a senha desta pessoa mudou. Confira a situação atual antes de trocar.');
+    }
     if(!p||!from||from.status!=='forming'||!to||to.status!=='forming'||to.id===from.id)throw Error('A troca exige dois grupos diferentes em formação.');
-    if(to.members.length>=groupSizeFor(sessionId,to))throw Error('Grupo de destino lotado.');
     if(!String(arg.reason||'').trim())throw Error('Informe o motivo da troca.');
-    if(p.paperAt&&!arg.paperReturned)throw Error('Recolha a senha anterior antes de trocar de grupo.');
+    if(p.paperAt&&arg.paperReturned!==true)throw Error('Recolha a senha anterior antes de trocar de grupo.');
+    const exception=confirmGroupLimit(sessionId,to,1,arg.groupLimitConfirmation);
     from.members=from.members.filter(id=>id!==p.id);to.members.push(p.id);p.group=to.id;p.paperAt=null;p.assignedAt=now;
-    s.lastAssignment={group:to.id,ids:[p.id],at:now};message=p.name+': '+from.id+' → '+to.id+'. Entregue a nova senha. Motivo: '+arg.reason;
+    s.lastAssignment={group:to.id,ids:[p.id],at:now};message=p.name+': '+from.id+' → '+to.id+'. Entregue a nova senha. Motivo: '+arg.reason+exception;
   }else if(action==='close'){
     const g=group(arg.group);if(!g||g.status!=='forming'||!g.members.length)throw Error('O grupo precisa estar em formação e ter ao menos uma pessoa.');
     if(g.members.some(id=>!person(id).paperAt))throw Error('Confirme a entrega de todas as senhas antes de fechar o grupo.');
@@ -138,4 +163,4 @@ function apply(db,sessionId,role,action,arg={},now=new Date().toISOString()){
   }else throw Error('Comando não reconhecido.');
   log(message);next.revision++;return {db:next,message};
 }
-module.exports={ARCHIVED_SESSIONS,DEFAULT_SESSION,occupied,circuitSlots,callBlock,nextToCall,nextGroupId,capacityFor,groupSizeFor,circuitLimitFor,CIRCUIT_LIMIT,SESSIONS,LABELS,ROLES,ALLOWED,fresh,freshSession,active,wait,summarize,apply};
+module.exports={ARCHIVED_SESSIONS,DEFAULT_SESSION,occupied,circuitSlots,callBlock,nextToCall,nextGroupId,capacityFor,groupSizeFor,circuitLimitFor,CIRCUIT_LIMIT,SESSIONS,LABELS,ROLES,ALLOWED,fresh,freshSession,active,wait,summarize,canRevalidate,apply};

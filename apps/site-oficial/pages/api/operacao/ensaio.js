@@ -29,16 +29,16 @@ export default async function handler(req,res){
    if(!r.rows[0])throw fail(503,'Ensaio não preparado.');
    const old=await client.query('SELECT payload_hash,message FROM peniel_ops.ensaios_command_log WHERE session_date=$1 AND actor_id=$2 AND request_id=$3',[session,user.user_id,requestId]);
    if(old.rows[0]){if(old.rows[0].payload_hash!==hash)throw fail(409,'Identificador reutilizado.');return {db:wrap(r.rows[0]),message:old.rows[0].message};}
-   if(Number(r.rows[0].revision)!==revision)throw fail(409,'Outro colaborador atualizou o ensaio. Atualize a tela.');
+   if(Number(r.rows[0].revision)!==revision&&!ops.canRevalidate(action,arg))throw fail(409,'Outro colaborador atualizou o ensaio. Atualize a tela.');
    let next;
    try{
     if(action==='reset'){const state=ops.freshSession();next={db:{schema:5,revision:revision+1,sessions:{[session]:state}},message:'Somente ensaio reiniciado. Entradas e pagamentos reais preservados.'};}
     else next=live.command(wrap(r.rows[0]),session,role,action,arg);
-   }catch(e){throw fail(422,e.message);}
+   }catch(e){if(e.groupLimit)throw Object.assign(fail(409,e.message),{groupLimit:e.groupLimit});throw fail(422,e.message);}
    await client.query('UPDATE peniel_ops.ensaios_session_state SET state=$2::jsonb,revision=$3,updated_at=now() WHERE session_date=$1',[session,JSON.stringify(next.db.sessions[session]),next.db.revision]);
    await client.query('INSERT INTO peniel_ops.ensaios_command_log(session_date,actor_id,request_id,payload_hash,action,message,revision) VALUES($1,$2,$3,$4,$5,$6,$7)',[session,user.user_id,requestId,hash,action,next.message,next.db.revision]);
    return next;
   });
   return res.json({...result,db:live.project(result.db,role),rehearsal:true});
- }catch(e){if(!e.status)console.error('ensaio_command_error',{code:String(e.code||e.name||'unknown').slice(0,40)});return res.status(e.status||503).json({error:e.status?e.message:'Ensaio indisponível. Operação real não foi modificada.'});}
+ }catch(e){if(!e.status)console.error('ensaio_command_error',{code:String(e.code||e.name||'unknown').slice(0,40)});return res.status(e.status||503).json({error:e.status?e.message:'Ensaio indisponível. Operação real não foi modificada.',...(e.groupLimit?{groupLimit:e.groupLimit}:{})});}
 }

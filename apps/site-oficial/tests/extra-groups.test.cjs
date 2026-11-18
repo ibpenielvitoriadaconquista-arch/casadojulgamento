@@ -22,7 +22,7 @@ test('extra group supports assignment, paper, called board, support arrival, saf
 test('additional cards never increase spectator limits, per-group size, or simultaneous circuit limit',()=>{
  let db=ops.fresh();db=live.command(db,day,'coordenacao','addGroup',{}).db;const s=db.sessions[day];
  s.people=Array.from({length:ops.capacityFor(day).groupSize+1},(_,i)=>({id:String(i),group:null}));
- assert.throws(()=>live.command(db,day,'coordenacao','assign',{ids:s.people.map(p=>p.id),group:'G31'}),/vagas/);
+ assert.throws(()=>live.command(db,day,'coordenacao','assign',{ids:s.people.map(p=>p.id),group:'G31'}),{groupLimit:{group:'G31',limit:35,total:36}});
  for(let i=0;i<4;i++){s.groups[i].status='safe';s.groups[i].members=['member'+i];}s.groups.at(-1).status='waiting';s.groups.at(-1).members=['member31'];
  assert.throws(()=>live.command(db,day,'apoio','start',{group:'G31',physicallySafe:true}),/circuito está cheio/);
  s.people=Array(ops.capacityFor(day).total).fill({id:'occupied'});
@@ -62,11 +62,25 @@ test('assignment tolerates unrelated arrivals but prevents duplicate and over-ca
  assert.equal((await f.call(1,a,'coordenacao','assign',{ids:['A'],group:'G01'})).code,200);assert.equal(f.state.writes,2);
  const conflict=await f.call(1,'33333333-3333-4333-8333-333333333333','coordenacao','assign',{ids:['A'],group:'G02'});assert.equal(conflict.code,422);assert.match(conflict.body.error,/já recebeu grupo/);
  f.state.session.people.push({id:'C',name:'Pessoa C',group:null});f.state.session.groups[9].members=Array(35).fill('occupied');
- const full=await f.call(1,'44444444-4444-4444-8444-444444444444','coordenacao','assign',{ids:['C'],group:'G10'});assert.equal(full.code,422);assert.match(full.body.error,/vagas/);assert.equal(f.state.session.people[2].group,null);
+ const full=await f.call(1,'44444444-4444-4444-8444-444444444444','coordenacao','assign',{ids:['C'],group:'G10'});assert.equal(full.code,409);assert.deepEqual(full.body.groupLimit,{group:'G10',limit:35,total:36});assert.equal(f.state.session.people[2].group,null);
 });
 test('delivery from assignment popup tolerates arrivals but rejects a changed group',async()=>{
  const f=apiFixture();f.state.session.people=[{id:'A',name:'Pessoa A',group:'G01',paperAt:null}];f.state.session.groups[0].members=['A'];f.state.revision=10;
  const a=await f.call(1,'55555555-5555-4555-8555-555555555555','coordenacao','deliver',{ids:['A'],expectedGroup:'G01'});assert.equal(a.code,200);assert.ok(f.state.session.people[0].paperAt);
  f.state.session.people[0].paperAt=null;f.state.session.people[0].group='G02';f.state.session.groups[0].members=[];f.state.session.groups[1].members=['A'];
  const b=await f.call(1,'66666666-6666-4666-8666-666666666666','coordenacao','deliver',{ids:['A'],expectedGroup:'G01'});assert.equal(b.code,422);assert.match(b.body.error,/grupo.*mudou/);assert.equal(f.state.session.people[0].paperAt,null);
+});
+test('simultaneous moves can update different people but cannot silently move the same person twice',async()=>{
+ const f=apiFixture();
+ f.state.session.people=['A','B'].map(id=>({id,name:'Pessoa '+id,group:'G01',paperAt:null,assignedAt:'2026-11-14T21:00:00.000Z'}));
+ f.state.session.groups[0].members=['A','B'];f.state.revision=10;
+ const expectedMove={group:'G01',paperAt:null,assignedAt:'2026-11-14T21:00:00.000Z'};
+ const move=(requestId,id,group)=>f.call(10,requestId,'coordenacao','move',{id,group,reason:'família',expectedMove});
+ const results=await Promise.all([
+  move('11111111-1111-4111-8111-111111111111','A','G02'),
+  move('22222222-2222-4222-8222-222222222222','B','G09'),
+  move('33333333-3333-4333-8333-333333333333','A','G10')
+ ]);
+ assert.deepEqual(results.map(r=>r.code),[200,200,422]);assert.equal(f.state.writes,2);
+ assert.deepEqual(f.state.session.people.map(p=>p.group),['G02','G09']);assert.deepEqual(f.state.session.groups[0].members,[]);
 });

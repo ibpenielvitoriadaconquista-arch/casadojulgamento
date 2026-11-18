@@ -12,9 +12,10 @@ test('portaria cria chegada sem grupo; coordenação atribui pessoa exata e regi
 });
 test('limite de 20, ausência de duplicidade e atribuição em lote atômica',()=>{
  const x=setup();for(let i=0;i<21;i++)x.run('scan');const ids=x.s.people.map(p=>p.id);
- const before=JSON.stringify(x.db);assert.throws(()=>x.run('assign',{ids,group:'G01'}),/vagas/);assert.equal(JSON.stringify(x.db),before);
+ const before=JSON.stringify(x.db);const needsConfirmation={groupLimit:{group:'G01',limit:20,total:21}};
+ assert.throws(()=>x.run('assign',{ids,group:'G01'}),needsConfirmation);assert.equal(JSON.stringify(x.db),before);
  x.run('assign',{ids:ids.slice(0,20),group:'G01'});assert.equal(x.s.groups[0].members.length,20);
- assert.throws(()=>x.run('assign',{ids:[ids[0]],group:'G02'}),/já recebeu/);assert.throws(()=>x.run('assign',{ids:[ids[20]],group:'G01'}),/vagas/);assert.equal(x.s.people[20].group,null);
+ assert.throws(()=>x.run('assign',{ids:[ids[0]],group:'G02'}),/já recebeu/);assert.throws(()=>x.run('assign',{ids:[ids[20]],group:'G01'}),needsConfirmation);assert.equal(x.s.people[20].group,null);
 });
 test('troca exige motivo e recolhimento da senha; novo grupo fica com entrega pendente',()=>{
  const x=setup();x.run('scan');const id=x.s.people[0].id;x.run('assign',{ids:[id],group:'G01'});x.run('deliver',{ids:[id]});

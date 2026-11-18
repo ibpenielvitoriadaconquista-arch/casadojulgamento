@@ -39,7 +39,7 @@
       "title": "Grupos adicionais durante a operação",
       "paragraphs": [
         "Coordenação e Gestão Geral podem usar o card Adicionar +1 grupo no controle nominal. O sistema cria o próximo número após o maior existente: G30 → G31 → G32. Os novos grupos começam vazios, em formação, e seguem as mesmas regras de alocação, entrega de senha, impressão de nomes, fechamento, chamada no telão e percurso com Apoio. Cada criação é registrada no histórico da sessão.",
-        "O número de grupos organizacionais pode aumentar quando saídas anteriores tiveram menos pessoas. Isso não aumenta a capacidade total de espectadores, não altera o estoque Even3, não amplia o limite de pessoas por grupo e não libera mais de três grupos simultaneamente no circuito. A Coordenação precisa providenciar senhas físicas com os novos números. O agente consulta os grupos existentes, mas não tem ferramenta para criar grupos: orientar o gestor a clicar no card."
+        "O número de grupos organizacionais pode aumentar quando saídas anteriores tiveram menos pessoas. Isso não aumenta a capacidade total de espectadores, não altera o estoque Even3 e não muda os limites de pessoas por grupo nem de grupos simultâneos no circuito. Se uma atribuição ou troca superar o limite do grupo, Coordenação ou Gestão deve conferir o novo total e confirmar a exceção exibida no painel. A exceção fica registrada no histórico. A Coordenação precisa providenciar senhas físicas com os novos números. O agente consulta os grupos existentes, mas não tem ferramenta para criar grupos: orientar o gestor a clicar no card."
       ]
     },
     {
