@@ -44,9 +44,12 @@ function nextGroupId(s){
  if(!Number.isSafeInteger(number))throw Error('Não foi possível gerar o próximo grupo.');
  return 'G'+String(number).padStart(2,'0');
 }
+const GROUP_COMMANDS=['close','reopen','call','arrive','start','safe','finish'];
+function isGroupCommand(action){return GROUP_COMMANDS.includes(action);}
 function canRevalidate(action,arg){
  if(action==='assign')return true;
  if(action==='deliver')return typeof arg.expectedGroup==='string'&&!!arg.expectedGroup;
+ if(isGroupCommand(action))return typeof arg.group==='string'&&!!arg.group&&typeof arg.expectedGroupVersion==='string'&&/^[0-9a-f]{64}$/.test(arg.expectedGroupVersion);
  if(action!=='move')return false;
  const expected=arg.expectedMove;
  return typeof expected?.group==='string'&&!!expected.group&&
@@ -159,4 +162,4 @@ function apply(db,sessionId,role,action,arg={},now=new Date().toISOString()){
   }else throw Error('Comando não reconhecido.');
   log(message);next.revision++;return {db:next,message};
 }
-module.exports={ARCHIVED_SESSIONS,DEFAULT_SESSION,occupied,circuitSlots,callBlock,nextToCall,nextGroupId,capacityFor,groupSizeFor,circuitLimitFor,CIRCUIT_LIMIT,SESSIONS,LABELS,ROLES,ALLOWED,fresh,freshSession,active,wait,summarize,canRevalidate,apply};
+module.exports={ARCHIVED_SESSIONS,DEFAULT_SESSION,occupied,circuitSlots,callBlock,nextToCall,nextGroupId,capacityFor,groupSizeFor,circuitLimitFor,CIRCUIT_LIMIT,SESSIONS,LABELS,ROLES,ALLOWED,fresh,freshSession,active,wait,summarize,isGroupCommand,canRevalidate,apply};

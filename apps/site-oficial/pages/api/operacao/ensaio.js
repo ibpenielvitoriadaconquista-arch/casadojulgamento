@@ -34,11 +34,11 @@ export default async function handler(req,res){
    try{
     if(action==='reset'){const state=ops.freshSession();next={db:{schema:5,revision:revision+1,sessions:{[session]:state}},message:'Somente ensaio reiniciado. Entradas e pagamentos reais preservados.'};}
     else next=live.command(wrap(r.rows[0]),session,role,action,arg);
-   }catch(e){if(e.groupLimit)throw Object.assign(fail(409,e.message),{groupLimit:e.groupLimit});throw fail(422,e.message);}
+   }catch(e){if(e.groupConflict)throw Object.assign(fail(409,e.message),{db:live.project(wrap(r.rows[0]),role)});if(e.groupLimit)throw Object.assign(fail(409,e.message),{groupLimit:e.groupLimit});throw fail(422,e.message);}
    await client.query('UPDATE peniel_ops.ensaios_session_state SET state=$2::jsonb,revision=$3,updated_at=now() WHERE session_date=$1',[session,JSON.stringify(next.db.sessions[session]),next.db.revision]);
    await client.query('INSERT INTO peniel_ops.ensaios_command_log(session_date,actor_id,request_id,payload_hash,action,message,revision) VALUES($1,$2,$3,$4,$5,$6,$7)',[session,user.user_id,requestId,hash,action,next.message,next.db.revision]);
    return next;
   });
   return res.json({...result,db:live.project(result.db,role),rehearsal:true});
- }catch(e){if(!e.status)console.error('ensaio_command_error',{code:String(e.code||e.name||'unknown').slice(0,40)});return res.status(e.status||503).json({error:e.status?e.message:'Ensaio indisponível. Operação real não foi modificada.',...(e.groupLimit?{groupLimit:e.groupLimit}:{})});}
+ }catch(e){if(!e.status)console.error('ensaio_command_error',{code:String(e.code||e.name||'unknown').slice(0,40)});return res.status(e.status||503).json({error:e.status?e.message:'Ensaio indisponível. Operação real não foi modificada.',...(e.groupLimit?{groupLimit:e.groupLimit}:{}),...(e.db?{db:e.db}:{})});}
 }

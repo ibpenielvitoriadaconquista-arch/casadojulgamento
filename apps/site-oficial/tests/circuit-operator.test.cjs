@@ -35,20 +35,20 @@ test('operator receives aggregate pending data, never names, tickets, contacts o
 });
 
 const fs=require('node:fs'),path=require('node:path'),{createHash}=require('node:crypto');
-function apiFixture(){
- const source=fs.readFileSync(path.join(__dirname,'../pages/api/operacao/index.js'),'utf8').replace(/^import .*;\n/gm,'').replace('export const config=','const config=').replace('export default async function handler','return async function handler');
+function apiFixture(rehearsal=false){
+ const source=fs.readFileSync(path.join(__dirname,'../pages/api/operacao/'+(rehearsal?'ensaio.js':'index.js')),'utf8').replace(/^import .*;\n/gm,'').replace('export const config=','const config=').replace('export default async function handler','return async function handler');
  const state={session:setup().s,revision:0,logs:new Map(),writes:0};let serial=Promise.resolve();
  const query=async(sql,args=[])=>{
   if(sql.startsWith('SELECT state'))return {rows:[{state:structuredClone(state.session),revision:state.revision}]};
   if(sql.startsWith('SELECT payload_hash'))return {rows:state.logs.has(args[2])?[state.logs.get(args[2])]:[]};
-  if(sql.startsWith('UPDATE peniel_ops.session_state')){state.session=JSON.parse(args[1]);state.revision=args[2];state.writes++;return {rows:[]};}
-  if(sql.startsWith('INSERT INTO peniel_ops.command_log')){state.logs.set(args[2],{payload_hash:args[3],message:args[5]});return {rows:[]};}
+  if(sql.startsWith('UPDATE peniel_ops.')&&sql.includes('session_state')){state.session=JSON.parse(args[1]);state.revision=args[2];state.writes++;return {rows:[]};}
+  if(sql.startsWith('INSERT INTO peniel_ops.')&&sql.includes('command_log')){state.logs.set(args[2],{payload_hash:args[3],message:args[5]});return {rows:[]};}
   throw Error('Unexpected query');
  };
  const handler=new Function('createHash','query','transaction','actor','fail','sameOrigin','ops','live',source)(createHash,query,fn=>{const job=serial.then(()=>fn({query}));serial=job.catch(()=>{});return job;},async req=>({user_id:'test-'+req.testRole,role:req.testRole}),(status,message)=>Object.assign(Error(message),{status}),()=>{},ops,live);
- async function call(revision,requestId,role='telao'){
+ async function call(revision,requestId,role='telao',action='call',arg={group:'G01',slot:0}){
   const res={setHeader(){},status(code){this.code=code;return this;},json(body){this.code||=200;this.body=body;return this;}};
-  await handler({method:'POST',headers:{},testRole:role,body:{session:day,role,action:'call',arg:{group:'G01',slot:0},revision,requestId}},res);return res;
+  await handler({method:'POST',headers:{},testRole:role,body:{session:day,role,action,arg,revision,requestId}},res);return res;
  }
  return {state,call};
 }
@@ -60,6 +60,46 @@ test('two operators calling simultaneously reserve one slot once; retry is idemp
  assert.equal((await f.call(0,a)).code,200);assert.equal(f.state.writes,1);
  assert.equal((await f.call(1,b)).code,422);assert.equal(f.state.writes,1);
 });
+
+function projectedVersion(f,role,id){
+ return live.project({schema:5,revision:f.state.revision,sessions:{[day]:f.state.session}},role).sessions[day].groups.find(g=>g.id===id).commandVersion;
+}
+for(const rehearsal of [false,true]){
+ const label=rehearsal?'Ensaio':'Operação real';
+ for(const [action,status,role] of [
+  ['close','forming','telao'],['reopen','closed','telao'],['call','closed','telao'],
+  ['arrive','called','apoio'],['start','waiting','apoio'],['safe','circuit','apoio'],['finish','safe','apoio']
+ ])test(label+': '+action+' tolera chegada na Portaria e atualização de outro grupo',async()=>{
+  const f=apiFixture(rehearsal);f.state.session.groups[0].status=status;
+  const expectedGroupVersion=projectedVersion(f,role,'G01');
+  f.state.session.people.push({id:'chegada-nova',name:'Chegada nova',group:null,paperAt:null});
+  f.state.session.groups[3].guide='Outro apoio';f.state.revision=50;
+  const out=await f.call(0,'11111111-1111-4111-8111-111111111111',role,action,{group:'G01',slot:0,physicallySafe:true,expectedGroupVersion});
+  assert.equal(out.code,200,JSON.stringify(out.body));assert.equal(f.state.writes,1);assert.equal(f.state.revision,51);
+  assert.equal(f.state.session.people.at(-1).group,null);assert.equal(f.state.session.groups[3].guide,'Outro apoio');
+ });
+ test(label+': alteração no próprio grupo exige conferência e devolve painel atualizado, sem fechar grupo com senha pendente',async()=>{
+  const f=apiFixture(rehearsal);f.state.session.groups[0].status='forming';
+  const expectedGroupVersion=projectedVersion(f,'telao','G01');
+  f.state.session.people[0].paperAt=null;f.state.revision=50;
+  const out=await f.call(0,'11111111-1111-4111-8111-111111111111','telao','close',{group:'G01',expectedGroupVersion});
+  assert.equal(out.code,409);assert.equal(f.state.writes,0);assert.match(out.body.error,/G01 foi alterado/);
+  assert.equal(out.body.db.revision,50);assert.equal(out.body.db.sessions[day].groups[0].paperPending,1);
+  assert.notEqual(out.body.db.sessions[day].groups[0].commandVersion,expectedGroupVersion);
+  assert.equal(f.state.session.groups[0].status,'forming');
+ });
+ test(label+': dois operadores fecham grupos diferentes; fechar o mesmo grupo duas vezes é impedido',async()=>{
+  const f=apiFixture(rehearsal);f.state.session.groups[0].status='forming';f.state.session.groups[1].status='forming';f.state.revision=10;
+  const a={group:'G01',expectedGroupVersion:projectedVersion(f,'telao','G01')},b={group:'G02',expectedGroupVersion:projectedVersion(f,'telao','G02')};
+  const results=await Promise.all([
+   f.call(10,'11111111-1111-4111-8111-111111111111','telao','close',a),
+   f.call(10,'22222222-2222-4222-8222-222222222222','telao','close',b),
+   f.call(10,'33333333-3333-4333-8333-333333333333','telao','close',a)
+  ]);
+  assert.deepEqual(results.map(r=>r.code),[200,200,409]);assert.equal(f.state.writes,2);assert.equal(f.state.revision,12);
+  assert.equal((await f.call(10,'11111111-1111-4111-8111-111111111111','telao','close',a)).code,200);assert.equal(f.state.writes,2);
+ });
+}
 const Module=require('node:module'),React=require('react'),{renderToStaticMarkup}=require('react-dom/server'),{transformSync}=require('next/dist/build/swc');
 function panels(react=React){const filename=path.resolve(__dirname,'../components/CircuitPanels.jsx'),m=new Module(filename,module);m.filename=filename;m.paths=Module._nodeModulePaths(path.dirname(filename));m.require=id=>id==='react'?react:Module.prototype.require.call(m,id);m._compile(transformSync(fs.readFileSync(filename,'utf8'),{filename,jsc:{parser:{syntax:'ecmascript',jsx:true},transform:{react:{runtime:'automatic'}}},module:{type:'commonjs'}}).code,filename);return m.exports;}
 test('operator renders exactly three cards and finished groups leave them without leaking participant names',()=>{

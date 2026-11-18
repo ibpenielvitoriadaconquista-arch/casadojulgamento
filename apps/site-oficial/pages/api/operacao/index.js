@@ -33,19 +33,19 @@ export default async function handler(req,res){
     if(prev.rows[0].payload_hash!==hash)throw fail(409,'Identificador de comando reutilizado.');
     return {db:wrap(r.rows[0]),message:prev.rows[0].message};
    }
-   // Assignment revalidates every selected person and destination under this row lock.
-   // Unrelated arrivals must not invalidate the coordinator's selection.
+   // Targeted commands revalidate their person or group under this row lock.
+   // Unrelated arrivals must not invalidate confirmed work in other groups.
    if(Number(r.rows[0].revision)!==revision&&!ops.canRevalidate(action,arg))throw fail(409,'Outro colaborador atualizou a sessão. Atualize e confira a seleção antes de repetir.');
    let next;
    if(action==='caravanAdmit'){
     const reservations=await capacity.reservations(client,tickets.EVENT_ID,session,tickets.bahiaDay());
     if(r.rows[0].state.people.length+reservations>=ops.capacityFor(session).total)throw fail(409,'Sessão lotada ou com vagas reservadas para credenciamentos em andamento.');
    }
-   try{next=live.command(wrap(r.rows[0]),session,role,action,{...arg,actorId:user.user_id});}catch(e){if(e.groupLimit)throw Object.assign(fail(409,e.message),{groupLimit:e.groupLimit});throw fail(422,e.message);}
+   try{next=live.command(wrap(r.rows[0]),session,role,action,{...arg,actorId:user.user_id});}catch(e){if(e.groupConflict)throw Object.assign(fail(409,e.message),{db:live.project(wrap(r.rows[0]),role)});if(e.groupLimit)throw Object.assign(fail(409,e.message),{groupLimit:e.groupLimit});throw fail(422,e.message);}
    await client.query('UPDATE peniel_ops.session_state SET state=$2::jsonb,revision=$3,updated_at=now() WHERE session_date=$1',[session,JSON.stringify(next.db.sessions[session]),next.db.revision]);
    await client.query('INSERT INTO peniel_ops.command_log(session_date,actor_id,request_id,payload_hash,action,message,revision) VALUES($1,$2,$3,$4,$5,$6,$7)',[session,user.user_id,requestId,hash,action,next.message,next.db.revision]);
    return next;
   });
   return res.json({...result,db:live.project(result.db,role)});
- }catch(e){if(!e.status)console.error('official_operation_api_failure',{code:String(e.code||e.name||'unknown').slice(0,60),method:req.method});return res.status(e.status||503).json({error:e.status?e.message:'Servidor da operação não conseguiu consultar o banco. Nenhuma confirmação foi recebida; tente novamente.',...(e.groupLimit?{groupLimit:e.groupLimit}:{})});}
+ }catch(e){if(!e.status)console.error('official_operation_api_failure',{code:String(e.code||e.name||'unknown').slice(0,60),method:req.method});return res.status(e.status||503).json({error:e.status?e.message:'Servidor da operação não conseguiu consultar o banco. Nenhuma confirmação foi recebida; tente novamente.',...(e.groupLimit?{groupLimit:e.groupLimit}:{}),...(e.db?{db:e.db}:{})});}
 }

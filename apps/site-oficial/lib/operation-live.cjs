@@ -1,9 +1,20 @@
 const ops = require('./operation-training.cjs');
 const caravans = require('./caravans.cjs');
+const {createHash}=require('node:crypto');
+// Covers only this group's participants, paper delivery and stage, not other arrivals.
+// Hashed before role redaction so Telão never receives participant identifiers.
+function groupVersion(s,id){
+ const g=s.groups.find(g=>g.id===id);if(!g)return null;
+ const members=[...g.members].sort().map(id=>{const p=s.people.find(p=>p.id===id);return [id,p?.group??null,p?.assignedAt??null,p?.paperAt??null];});
+ const expectedCaravan=caravans.list(s).filter(c=>c.group===id).flatMap(c=>c.members.map(m=>m.code)).sort();
+ const stage=['status','calledAt','closedAt','arrivedAt','startedAt','safeAt','finishedAt','caravanDeferred','capacityOverride'].map(key=>[key,g[key]??null]);
+ return createHash('sha256').update(JSON.stringify({id,stage,members,expectedCaravan})).digest('hex');
+}
 function command(state, session, role, action, arg, now) {
   if (['scan','reset','takeover'].includes(action)) throw Error('Ação indisponível na operação real.');
   const s=state.sessions[session];
   if(s?.closedAt)throw Error('Apresentação encerrada. Histórico disponível somente para consulta.');
+  if(ops.isGroupCommand(action)&&arg.expectedGroupVersion!==undefined&&arg.expectedGroupVersion!==groupVersion(s,arg.group))throw Object.assign(Error(arg.group+' foi alterado ou a ação já foi executada. Confira o estado atual desse grupo antes de confirmar novamente.'),{groupConflict:true});
   if(role==='caravanas'){
     if(!['caravanSave','caravanDelete','caravanTransfer','caravanAuthorize'].includes(action))throw Error('Este acesso administra somente cadastros e recebimentos de caravanas.');
     if(action==='caravanAuthorize'&&!['dinheiro','pix_igreja','revogar'].includes(arg.method))throw Error('Somente Gestão autoriza cortesias.');
@@ -55,6 +66,7 @@ function admit(state, session, arrival, now=new Date().toISOString()) {
 function project(state, role) {
   if(!Object.hasOwn(ops.ROLES,role))throw Error('Posto desativado ou inválido.');
   const next=structuredClone(state);
+  if(['geral','coordenacao','telao','apoio'].includes(role))for(const s of Object.values(next.sessions))for(const g of s.groups)g.commandVersion=groupVersion(s,g.id);
   for(const s of Object.values(next.sessions))delete s.trainingTickets;
   if(!['geral','coordenacao','caravanas'].includes(role))for(const s of Object.values(next.sessions)){delete s.caravans;delete s.caravanReleased;}
   if(role==='caravanas')for(const [day,s] of Object.entries(next.sessions)){
@@ -78,4 +90,4 @@ function project(state, role) {
   if(role==='portaria') for(const s of Object.values(next.sessions)){s.history=[];s.lastAssignment=null;}
   return next;
 }
-module.exports={command,admit,project};
+module.exports={command,admit,project,groupVersion};
