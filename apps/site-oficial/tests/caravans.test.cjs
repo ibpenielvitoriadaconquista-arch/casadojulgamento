@@ -62,7 +62,7 @@ test('closed caravan requires explanation for missing members and keeps audit re
 test('deferred caravan does not block later groups; resume preserves circuit safety',()=>{
  let db=arrival(register());db=arrival(db,'88888888','Público');
  for(const [code,group] of [[member.code,'G03'],['88888888','G09']]){db=command(db,'assign',{ids:[code],group});db=command(db,'deliver',{ids:[code]});db=command(db,'close',{group});}
- assert.throws(()=>command(db,'call',{group:'G09'}),/G03/);
+ assert.equal(command(db,'call',{group:'G09'}).sessions[day].groups.find(g=>g.id==='G09').status,'called');
  db=command(db,'caravanDefer',{group:'G03',reason:'Aguardar ônibus'});
  assert.throws(()=>command(db,'call',{group:'G03'}),/Retome/);
  db=command(db,'call',{group:'G09'});db=command(db,'arrive',{group:'G09'},'apoio');db=command(db,'start',{group:'G09',physicallySafe:true},'apoio');

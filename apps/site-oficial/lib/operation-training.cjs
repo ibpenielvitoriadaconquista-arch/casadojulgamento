@@ -10,7 +10,7 @@ const SESSIONS = [
 const ARCHIVED_SESSIONS=['2026-11-09'];
 const DEFAULT_SESSION='2026-11-13';
 const CIRCUIT_LIMIT=3;
-const circuitLimitFor=day=>day==='2026-11-14'?4:CIRCUIT_LIMIT;
+const circuitLimitFor=day=>['2026-11-14','2026-11-19'].includes(day)?4:CIRCUIT_LIMIT;
 const LABELS={forming:'Em formação',closed:'Fechado no salão',called:'Chamado para espera',waiting:'Na sala de espera',circuit:'No circuito',safe:'No ponto seguro',finished:'Finalizado'};
 const ROLES={geral:'Painel geral',portaria:'Portaria',caixa:'Caixa',coordenacao:'Coordenação',apoio:'Apoio',telao:'Telão',caravanas:'Administrador de caravanas'};
 const ALLOWED={geral:['scan','assign','deliver','undoDelivery','move','close','reopen','call','manualCall','clearManualCall','arrive','start','safe','finish','pause','takeover','guide','reset','addGroup'],portaria:['scan'],caixa:[],caravanas:[],coordenacao:['assign','deliver','undoDelivery','move','addGroup'],apoio:['arrive','start','safe','finish'],telao:['close','reopen','call','manualCall','clearManualCall']};
@@ -35,7 +35,7 @@ function callBlock(s,day){
  if(wait(s))return 'Aguarde o Apoio 1 receber e iniciar '+wait(s).id+'. A sala de espera está ocupada.';
  return '';
 }
-function nextToCall(s){return s.groups.find(g=>!g.caravanDeferred&&g.members.length&&['forming','closed'].includes(g.status));}
+function nextToCall(s){const available=s.groups.filter(g=>!g.caravanDeferred&&g.members.length&&['forming','closed'].includes(g.status));return available.find(g=>g.status==='closed')||available[0];}
 function summarize(s){return {arrived:s.people.length,pending:s.people.filter(p=>!p.group).length,paper:s.people.filter(p=>p.group&&!p.paperAt).length,active:active(s).length};}
 function nextGroupId(s){
  const numbers=s.groups.map(g=>/^G[0-9]+$/.test(g.id)?Number(g.id.slice(1)):NaN);
@@ -131,8 +131,6 @@ function apply(db,sessionId,role,action,arg={},now=new Date().toISOString()){
     if(g.caravanDeferred)throw Error('Retome a prioridade deste grupo antes de chamar.');
     const blocked=callBlock(s,sessionId);if(blocked)throw Error(blocked);
     if(g.members.some(id=>!person(id).paperAt))throw Error('Há senha pendente de entrega neste grupo.');
-    const earlier=s.groups.slice(0,s.groups.indexOf(g)).find(x=>!x.caravanDeferred&&x.members.length&&['forming','closed'].includes(x.status));
-    if(earlier)throw Error(earlier.id+' ainda aguarda no salão. Respeite a ordem dos grupos.');
     const slots=circuitSlots(s,sessionId);slots.forEach((existing,index)=>{if(existing)existing.circuitSlot=index;});const slot=arg.slot??slots.indexOf(null);if(!Number.isInteger(slot)||slot<0||slot>=slots.length||slots[slot])throw Error('Esta vaga foi ocupada. Atualize o painel.');g.circuitSlot=slot;g.status='called';g.calledAt=now;delete s.manualCall;message=g.id+' chamado no telão. Sala de espera reservada.';
   }else if(action==='arrive'){
     const g=group(arg.group);if(s.paused)throw Error('Movimentações pausadas.');if(!g||g.status!=='called')throw Error('Aguarde a chamada do operador do Telão.');
@@ -142,8 +140,6 @@ function apply(db,sessionId,role,action,arg={},now=new Date().toISOString()){
     if(!arg.physicallySafe)throw Error('O apoio precisa confirmar as condições físicas de segurança.');
     if(active(s).length>=circuitLimitFor(sessionId))throw Error('O circuito está cheio. Aguarde uma finalização.');
     if(active(s).some(x=>x.status==='circuit'))throw Error('O grupo em percurso precisa confirmar o ponto seguro.');
-    const previous=s.groups.slice(0,s.groups.indexOf(g)).filter(x=>x.members.length&&!x.caravanDeferred);
-    if(previous.some(x=>!['safe','finished'].includes(x.status)))throw Error('O grupo anterior precisa confirmar o ponto seguro.');
     g.status='circuit';g.startedAt=now;message=g.id+' iniciou por confirmação do apoio. Sala de espera LIVRE.';
   }else if(action==='safe'){
     const g=group(arg.group);if(!g||g.status!=='circuit')throw Error('Grupo não está em percurso.');

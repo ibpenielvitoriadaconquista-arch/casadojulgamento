@@ -21,7 +21,6 @@ test('safe signal survives reload/call and is acknowledged only by next arrival'
 test('Telão may close and call but cannot assign people, change payments or finish; coordination cannot call',()=>{
  const x=setup();for(const action of ['call','close','reopen'])assert.throws(()=>x.run('coordenacao',action,{group:'G01'}),/outro posto/);
  for(const action of ['assign','deliver','arrive','start','safe','finish','pause','caravanAuthorize'])assert.throws(()=>x.run('telao',action,{group:'G01',ids:['ticket-1']}));
- assert.throws(()=>x.run('telao','call',{group:'G02'}),/G01/);
  x.run('geral','pause');assert.throws(()=>x.run('telao','call',{group:'G01'}),/pausad/);
 });
 test('legacy state is displayed without writes and occupied slot cannot be overwritten',()=>{
@@ -62,7 +61,7 @@ test('two operators calling simultaneously reserve one slot once; retry is idemp
  assert.equal((await f.call(1,b)).code,422);assert.equal(f.state.writes,1);
 });
 const Module=require('node:module'),React=require('react'),{renderToStaticMarkup}=require('react-dom/server'),{transformSync}=require('next/dist/build/swc');
-function panels(){const filename=path.resolve(__dirname,'../components/CircuitPanels.jsx'),m=new Module(filename,module);m.filename=filename;m.paths=Module._nodeModulePaths(path.dirname(filename));m._compile(transformSync(fs.readFileSync(filename,'utf8'),{filename,jsc:{parser:{syntax:'ecmascript',jsx:true},transform:{react:{runtime:'automatic'}}},module:{type:'commonjs'}}).code,filename);return m.exports;}
+function panels(react=React){const filename=path.resolve(__dirname,'../components/CircuitPanels.jsx'),m=new Module(filename,module);m.filename=filename;m.paths=Module._nodeModulePaths(path.dirname(filename));m.require=id=>id==='react'?react:Module.prototype.require.call(m,id);m._compile(transformSync(fs.readFileSync(filename,'utf8'),{filename,jsc:{parser:{syntax:'ecmascript',jsx:true},transform:{react:{runtime:'automatic'}}},module:{type:'commonjs'}}).code,filename);return m.exports;}
 test('operator renders exactly three cards and finished groups leave them without leaking participant names',()=>{
  const x=setup();enter(x,'G01',0);x.run('apoio','safe',{group:'G01'});const {CircuitOperator}=panels();
  const render=()=>renderToStaticMarkup(React.createElement(CircuitOperator,{session:live.project(x.db,'telao').sessions[day],disabled:false,confirm(){},publicHref:'/operacao/telao?exibir=1'}));
@@ -82,4 +81,78 @@ test('November 14 can reserve the fourth slot; a fifth call waits for a finish',
  const next=live.command(db,day14,'telao','call',{group:'G04',slot:3}).db;
  assert.equal(ops.circuitSlots(next.sessions[day14],day14)[3].id,'G04');
  assert.throws(()=>live.command(next,day14,'telao','call',{group:'G05'}),/quatro vagas/);
+});
+
+function unorderedSetup(){
+ const day19='2026-11-19';let db=ops.fresh();let clock=Date.parse('2026-11-19T22:00:00Z');
+ const s=db.sessions[day19];
+ for(let i=0;i<6;i++){
+  const g=s.groups[i],id='out-of-order-'+i;g.members=[id];g.status=i===1?'forming':'closed';
+  s.people.push({id,name:'Pessoa de teste '+i,group:g.id,paperAt:i===1?null:'entregue'});
+ }
+ const run=(role,action,arg)=>{db=live.command(db,day19,role,action,arg,new Date(clock+=1000).toISOString()).db;};
+ return {get db(){return db},get s(){return db.sessions[day19]},run,day:day19};
+}
+test('November 19 can call G04, G03, G01, G02 out of numerical order; four occupied cards block only the fifth call',()=>{
+ const x=unorderedSetup();
+ assert.equal(ops.circuitLimitFor(x.day),4);
+ for(const [id,slot] of [['G04',3],['G03',0],['G01',1],['G02',2]]){
+  if(id==='G02')x.run('coordenacao','deliver',{ids:x.s.groups[1].members,expectedGroup:'G02'});
+  if(id==='G02')x.run('telao','close',{group:id});
+  x.run('telao','call',{group:id,slot});
+  assert.equal(ops.circuitSlots(x.s,x.day)[slot].id,id);
+  x.run('apoio','arrive',{group:id});x.run('apoio','start',{group:id,physicallySafe:true});x.run('apoio','safe',{group:id});
+ }
+ assert.equal(x.s.groups[4].status,'closed');assert.equal(ops.occupied(x.s).length,4);
+ const before=JSON.stringify(x.db);
+ assert.throws(()=>x.run('telao','call',{group:'G06',slot:3}),/quatro vagas/);
+ assert.equal(JSON.stringify(x.db),before);
+ x.run('apoio','finish',{group:'G04'});assert.equal(ops.circuitSlots(x.s,x.day)[3],null);
+ x.run('telao','call',{group:'G06',slot:3});
+ assert.deepEqual(ops.circuitSlots(x.s,x.day).map(g=>g.id),['G03','G01','G02','G06']);
+ assert.equal(x.s.groups[4].status,'closed');assert.equal(x.s.people.length,6);
+});
+test('nonsequential calls keep paper delivery, waiting-area, safe-point and pause checks',()=>{
+ const x=unorderedSetup();
+ assert.throws(()=>x.run('telao','close',{group:'G02'}),/senhas/);
+ x.run('telao','call',{group:'G04',slot:0});
+ assert.throws(()=>x.run('telao','call',{group:'G03',slot:1}),/sala de espera/);
+ x.run('apoio','arrive',{group:'G04'});x.run('apoio','start',{group:'G04',physicallySafe:true});
+ x.run('telao','call',{group:'G03',slot:1});x.run('apoio','arrive',{group:'G03'});
+ assert.throws(()=>x.run('apoio','start',{group:'G03',physicallySafe:true}),/ponto seguro/);
+ x.run('apoio','safe',{group:'G04'});
+ assert.throws(()=>x.run('apoio','start',{group:'G03'}),/segurança/);
+ x.run('geral','pause');assert.throws(()=>x.run('apoio','start',{group:'G03',physicallySafe:true}),/pausad/);
+ x.run('geral','pause');x.run('apoio','start',{group:'G03',physicallySafe:true});
+ assert.equal(x.s.groups[1].status,'forming');assert.equal(x.s.groups[2].status,'circuit');
+});
+test('November 19 renders four selectable cards with G03 ready while G02 is still forming',()=>{
+ const x=unorderedSetup();x.s.groups[0].status='finished';x.s.groups[3].caravanDeferred=true;
+ const before=JSON.stringify(x.db),{CircuitOperator}=panels();
+ const html=renderToStaticMarkup(React.createElement(CircuitOperator,{session:live.project(x.db,'telao').sessions[x.day],day:x.day,disabled:false,confirm(){},publicHref:'/operacao/telao?sessao='+x.day}));
+ assert.equal((html.match(/class="op-circuit-slot /g)||[]).length,4);
+ const cards=html.match(/<article class="op-circuit-slot is-empty">.*?<\/article>/g);
+ assert.equal(cards.length,4);
+ for(const card of cards){
+  assert.match(card,/<select id="op-slot-group-[0-3]"/);assert.match(card,/<option value="G03" selected=""/);
+  assert.doesNotMatch(card,/<option value="G02"|<option value="G04"/);
+  assert.match(card,/<button class="op-btn gold">\+ Chamar grupo · G03<\/button>/);
+ }
+ assert.equal(ops.nextToCall(x.s).id,'G03');assert.equal(JSON.stringify(x.db),before);
+});
+test('the fourth card sends the group explicitly chosen by the operator rather than the first closed group',()=>{
+ const x=unorderedSetup(),commands=[];
+ const {CircuitOperator}=panels({...React,useState:initial=>[typeof initial==='string'?'':{3:'G06'},()=>{}]});
+ const tree=CircuitOperator({session:live.project(x.db,'telao').sessions[x.day],day:x.day,disabled:false,confirm:(message,action,arg)=>commands.push({action,arg}),publicHref:'/operacao/telao'});
+ function elements(node,predicate){
+  if(!node)return [];
+  if(Array.isArray(node))return node.flatMap(child=>elements(child,predicate));
+  return [...(predicate(node)?[node]:[]),...elements(node.props?.children,predicate)];
+ }
+ const cards=elements(tree,node=>node.type==='article'&&node.props.className==='op-circuit-slot is-empty');
+ const select=elements(cards[3],node=>node.type==='select')[0];
+ assert.equal(select.props.value,'G06');
+ const button=elements(cards[3],node=>node.type==='button')[0];assert.equal(button.props.disabled,false);
+ button.props.onClick();assert.deepEqual(commands,[{action:'call',arg:{group:'G06',slot:3}}]);
+ assert.equal(x.s.groups[1].status,'forming');
 });
