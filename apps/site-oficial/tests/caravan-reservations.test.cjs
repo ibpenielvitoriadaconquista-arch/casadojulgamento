@@ -56,3 +56,14 @@ test('transferring a known person preserves the remaining unnamed reservation an
  assert.equal(original.members.length,0);assert.equal(caravans.expectedCount(original),1);
  assert.equal(other.members.length,1);assert.equal(caravans.expectedCount(other),1);
 });
+test('November 20 G06 can protect 26 Filadelfia plus 18 Mortugaba places without increasing daily capacity',()=>{
+ const date='2026-11-20',state=ops.freshSession(date),g=state.groups.find(g=>g.id==='G06');
+ g.capacityOverride=44;
+ assert.equal(ops.groupSizeFor(date,g),44);
+ assert.equal(ops.groupSizeFor('2026-11-21',g),35);
+ assert.equal(ops.groupSizeFor(date,{id:'G07',capacityOverride:44}),35);
+ assert.equal(ops.groupSizeFor(date,{id:'G06',capacityOverride:45}),35);
+ const catalog={id_event:'798621',tickets:rules.ENTRIES.map(e=>({title:e.category,prices:[{id_ticket:e.entryId,id_ticket_price:e.priceId}]}))};
+ const result=stock.calculate({session:date,state,catalog,attendees:[],queriedAt:now});
+ assert.equal(result.protectedCaravanPlaces,114);assert.equal(result.capacity,750);assert.equal(result.available,636);
+});

@@ -16,7 +16,7 @@ function capacityFor(session){
  return {groups,groupSize,total};
 }
 function groupSizeFor(session,group){
- if(session==='2026-11-20'&&group?.id==='G06'&&group.capacityOverride===38)return 38;
+ if(session==='2026-11-20'&&group?.id==='G06'&&[38,44].includes(group.capacityOverride))return group.capacityOverride;
  if(session==='2026-11-19'){
   if(group?.id==='G03'&&[36,37].includes(group.capacityOverride))return group.capacityOverride;
   if(['G05','G08'].includes(group?.id)&&group.capacityOverride===39)return 39;
