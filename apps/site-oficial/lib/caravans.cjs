@@ -7,9 +7,7 @@ const groupsFor=day=>day==='2026-11-13'?['G04','G05','G06']:day==='2026-11-14'?[
 const publicClosed=day=>DAYS.includes(day);
 const lockedReservations=day=>['2026-11-14','2026-11-20','2026-11-21'].includes(day);
 const enabled=day=>DAYS.includes(day)||day==='2026-10-22';
-const managementRoster=(s,day,id)=>day==='2026-11-19'&&id==='G02'&&(s.caravans||[]).find(c=>c.managementRelease===true&&c.group===id&&c.preassignment?.group===id);
-const reserved=(s,day,id)=>enabled(day)&&(!!managementRoster(s,day,id)||(groupsFor(day).includes(id)&&(lockedReservations(day)||!(s.caravanReleased||[]).includes(id))));
-const reservedGroups=(s,day)=>[...new Set([...groupsFor(day),...(s.caravans||[]).filter(c=>managementRoster(s,day,c.group)).map(c=>c.group)])].filter(id=>reserved(s,day,id));
+const reserved=(s,day,id)=>enabled(day)&&groupsFor(day).includes(id)&&(lockedReservations(day)||!(s.caravanReleased||[]).includes(id));
 const list=s=>s.caravans||[];
 const expectedCount=c=>Number.isSafeInteger(c.expectedCount)&&c.expectedCount>c.members.length?c.expectedCount:c.members.length;
 const unnamedCount=c=>expectedCount(c)-c.members.length;
@@ -19,7 +17,7 @@ const phone=value=>String(value||'').replace(/\D/g,'');
 const bahiaDay=now=>new Intl.DateTimeFormat('en-CA',{timeZone:'America/Bahia',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(now));
 function identity(s,code){
  const c=list(s).find(c=>c.members.some(m=>m.code===String(code)));
- return c?{id:c.id,name:c.name,city:c.city,group:c.group,...(c.managementRelease?{managementRelease:true}:{})}:null;
+ return c?{id:c.id,name:c.name,city:c.city,group:c.group}:null;
 }
 function text(value,label,max=100,optional=false){
  const x=String(value||'').trim();
@@ -34,8 +32,6 @@ function handle(s,day,action,arg,now){
  if(!enabled(day))throw Error('Selecione uma apresentação de novembro ou a sessão Lote 1 de testes.');
  const limit=capacityFor(day).groupSize;
  s.caravans??=[];
- const protectedList=s.caravans.find(c=>c.id===arg.id||c.members.some(m=>m.code===arg.code));
- if(protectedList?.managementRelease)throw Error('Liberação direta da Gestão: preserve a pré-atribuição e confirme apenas a chegada pela Portaria.');
  if(action==='caravanTraining'){
   const c=s.caravans.find(c=>c.id===arg.id);
   if(!c||c.authorization?.status!=='authorized')throw Error('Confirme primeiro o recebimento ou cortesia desta lista.');
@@ -129,7 +125,7 @@ function gateRows(s,day,now=new Date().toISOString()){
  return list(s).flatMap(c=>c.members.filter(m=>native(m.code)).map(m=>{
   const p=s.people.find(p=>p.id===m.code);
   const training=c.trainingOverride?.day===bahiaDay(now)&&c.trainingOverride?.codes?.includes(m.code);
-  return {managementRelease:c.managementRelease===true,code:m.code,name:m.name,phone:m.phone||'',contact:c.contact||'',responsible:c.responsible,caravanId:c.id,caravanName:c.name,city:c.city,date:day,group:c.group,training:!!training,authorized:c.authorization?.status==='authorized',admitted:!!p,arrivedAt:p?.arrivedAt||null,eligible:!p&&(day===bahiaDay(now)||training)&&c.authorization?.status==='authorized'};
+  return {code:m.code,name:m.name,phone:m.phone||'',contact:c.contact||'',responsible:c.responsible,caravanId:c.id,caravanName:c.name,city:c.city,date:day,group:c.group,training:!!training,authorized:c.authorization?.status==='authorized',admitted:!!p,arrivedAt:p?.arrivedAt||null,eligible:!p&&(day===bahiaDay(now)||training)&&c.authorization?.status==='authorized'};
  }));
 }
-module.exports={publicClosed,DAYS,GROUPS,groupsFor,enabled,reserved,reservedGroups,managementRoster,list,expectedCount,unnamedCount,pendingCount,identity,compatible,handle,native,bahiaDay,gateRows};
+module.exports={publicClosed,DAYS,GROUPS,groupsFor,enabled,reserved,list,expectedCount,unnamedCount,pendingCount,identity,compatible,handle,native,bahiaDay,gateRows};

@@ -26,8 +26,8 @@ function command(state, session, role, action, arg, now) {
     if(row.admitted)throw Error('Este integrante já entrou. Não autorize outra entrada.');
     if(!row.eligible)throw Error(row.authorized?'Entrada permitida somente no dia da apresentação.':'Aguarde autorização do Caixa ou da Gestão para esta caravana.');
     const result=admit(state,session,{verified:true,participantId:row.code,registrationId:row.code,entryId:'caravan-native',name:row.name},at);
-    const p=result.db.sessions[session].people.find(p=>p.id===row.code);p.source=row.managementRelease?'management-release':'caravan';p.admittedBy=arg.actorId;if(row.training)p.training=true;
-    const message=row.managementRelease?row.name+': chegada confirmada pela Portaria. Pré-atribuição da Gestão mantida em '+row.group+'; entrega da senha já informada pela Gestão.':row.name+' · '+row.caravanName+' · '+row.city+': entrada da caravana registrada. Encaminhar à Coordenação para '+row.group+'.';
+    const p=result.db.sessions[session].people.find(p=>p.id===row.code);p.source='caravan';p.admittedBy=arg.actorId;if(row.training)p.training=true;
+    const message=row.name+' · '+row.caravanName+' · '+row.city+': entrada da caravana registrada. Encaminhar à Coordenação para '+row.group+'.';
     const current=result.db.sessions[session];current.history.unshift({at,role:ops.ROLES[role],action,text:message});current.history=current.history.slice(0,500);
     return {db:result.db,message};
   }
@@ -61,15 +61,7 @@ function admit(state, session, arrival, now=new Date().toISOString()) {
   if (s.people.some(p=>p.id===id)) return {db:next,duplicate:true};
   if(s.people.length>=ops.capacityFor(session).total) throw Error('Sessão lotada. Encaminhar à coordenação.');
   const caravan=caravans.enabled(session)?caravans.identity(s,id):null;
-  const preassigned=caravans.managementRoster(s,session,caravan?.group);
-  let preassignment=null;
-  if(preassigned&&preassigned.members.some(m=>m.code===id)){
-    const g=s.groups.find(g=>g.id===preassigned.group),paper=preassigned.preassignment?.paperDeliveredAt;
-    if(preassigned.authorization?.status!=='authorized'||!paper||!Number.isFinite(Date.parse(paper))||!g||g.status!=='forming'||g.members.length>=ops.groupSizeFor(session,g))throw Error('Pré-atribuição indisponível. Gestão deve conferir o grupo antes da entrada.');
-    preassignment={group:g.id,assignedAt:now,paperAt:paper,paperBy:preassigned.preassignment.by,assignmentSource:'management-preassignment'};
-    g.members.push(id);
-  }
-  s.people.push({id,name:String(arrival.name).trim().slice(0,150),family:arrival.familyId?String(arrival.familyId):id,participantId:String(arrival.participantId),entryId:arrival.entryId?String(arrival.entryId):null,activityId:arrival.activityId?String(arrival.activityId):null,group:null,paperAt:null,arrivedAt:now,...(caravan?{caravan}:{}),...(preassignment||{})});
+  s.people.push({id,name:String(arrival.name).trim().slice(0,150),family:arrival.familyId?String(arrival.familyId):id,participantId:String(arrival.participantId),entryId:arrival.entryId?String(arrival.entryId):null,activityId:arrival.activityId?String(arrival.activityId):null,group:null,paperAt:null,arrivedAt:now,...(caravan?{caravan}:{})});
   next.revision++;return {db:next,duplicate:false};
 }
 function project(state, role) {
@@ -79,7 +71,6 @@ function project(state, role) {
   for(const s of Object.values(next.sessions))delete s.trainingTickets;
   if(!['geral','coordenacao','caravanas'].includes(role))for(const s of Object.values(next.sessions)){delete s.caravans;delete s.caravanReleased;}
   if(role==='caravanas')for(const [day,s] of Object.entries(next.sessions)){
-    s.caravans=caravans.list(s).filter(c=>!c.managementRelease);
     const codes=new Set(caravans.list(s).flatMap(c=>c.members.map(m=>m.code)));
     s.people=s.people.filter(p=>codes.has(p.id)).map(p=>({id:p.id,name:p.name,group:p.group,arrivedAt:p.arrivedAt}));
     s.groups=s.groups.filter(g=>caravans.groupsFor(day).includes(g.id)).map(g=>({...g,guide:null}));

@@ -12,7 +12,7 @@ function calculate({session,attendees,catalog,state,queriedAt}){
   if(typeof p.confirmed!=='boolean')throw fail('Confirmação Even3 não reconhecida. Confira antes de vender.');
   if(p.confirmed===true)confirmed.add(code);else unconfirmed++;
  }
- const cap=capacityFor(session),reservedGroups=caravans.reservedGroups(state,session);
+ const cap=capacityFor(session),reservedGroups=caravans.groupsFor(session).filter(g=>caravans.reserved(state,session,g));
  const codesInCaravans=new Set(caravans.list(state).filter(c=>reservedGroups.includes(c.group)).flatMap(c=>c.members.map(m=>m.code)));
  const overlap=[...confirmed].filter(c=>codesInCaravans.has(c)).length;
  const protectedCaravanPlaces=Math.max(0,reservedGroups.reduce((count,id)=>count+groupSizeFor(session,state.groups?.find(g=>g.id===id)),0)-overlap);
