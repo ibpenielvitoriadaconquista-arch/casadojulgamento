@@ -9,6 +9,6 @@ export default async function handler(req,res){
   const {session}=req.query;if(!caravans.enabled(session))throw fail(400,'Selecione uma apresentação ou o Lote 1 de testes.');
   const r=await query('SELECT state,revision FROM peniel_ops.session_state WHERE session_date=$1',[session]);
   if(!r.rows[0])throw fail(503,'Sessão não preparada.');
-  return res.json({revision:Number(r.rows[0].revision),members:caravans.gateRows(r.rows[0].state,session)});
+  return res.json({revision:Number(r.rows[0].revision),members:caravans.gateRows(r.rows[0].state,session),pendingLists:caravans.list(r.rows[0].state).filter(c=>caravans.unnamedCount(c)>0).map(c=>({id:c.id,name:c.name,group:c.group,pending:caravans.unnamedCount(c)}))});
  }catch(e){return res.status(e.status||503).json({error:e.status?e.message:'Não foi possível consultar as caravanas. Nenhuma entrada foi registrada.'});}
 }

@@ -9,6 +9,9 @@ const lockedReservations=day=>['2026-11-14','2026-11-20','2026-11-21'].includes(
 const enabled=day=>DAYS.includes(day)||day==='2026-10-22';
 const reserved=(s,day,id)=>enabled(day)&&groupsFor(day).includes(id)&&(lockedReservations(day)||!(s.caravanReleased||[]).includes(id));
 const list=s=>s.caravans||[];
+const expectedCount=c=>Number.isSafeInteger(c.expectedCount)&&c.expectedCount>c.members.length?c.expectedCount:c.members.length;
+const unnamedCount=c=>expectedCount(c)-c.members.length;
+const pendingCount=(s,group)=>list(s).filter(c=>c.group===group).reduce((n,c)=>n+unnamedCount(c),0);
 const native=code=>/^CAR-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(code||''));
 const phone=value=>String(value||'').replace(/\D/g,'');
 const bahiaDay=now=>new Intl.DateTimeFormat('en-CA',{timeZone:'America/Bahia',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(now));
@@ -43,7 +46,8 @@ function handle(s,day,action,arg,now){
   if(!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(arg.id||'')))throw Error('Identificador da caravana inválido.');
   const group=s.groups.find(g=>g.id===arg.group);
   if(!group||!reserved(s,day,group.id)||group.status!=='forming')throw Error('Escolha um grupo de caravana reservado e em formação.');
-  if(!Array.isArray(arg.members)||!arg.members.length||arg.members.length>limit)throw Error(`Cadastre entre 1 e ${limit} integrantes por lista. Divida caravanas maiores entre os grupos.`);
+  const expected=arg.expectedCount??arg.members?.length;
+  if(!Array.isArray(arg.members)||!Number.isSafeInteger(expected)||expected<1||expected<arg.members.length||expected>limit)throw Error(`Cadastre entre 1 e ${limit} integrantes previstos por lista. Informe os nomes disponíveis sem criar participantes fictícios.`);
   const members=arg.members.map(m=>({code:String(m.code||'').trim(),name:text(m.name,'o nome do integrante',150),phone:phone(m.phone),source:native(m.code)?'native':'even3'}));
   const codes=new Set();
   for(const m of members){
@@ -60,16 +64,18 @@ function handle(s,day,action,arg,now){
   const others=s.caravans.filter(c=>c.id!==arg.id&&c.group===group.id).flatMap(c=>c.members.map(m=>m.code));
   const occupied=new Set([...others,...group.members,...codes]);
   const groupLimit=groupSizeFor(day,group);
-  if(occupied.size>groupLimit)throw Error(`Este grupo já tem ${groupLimit} vagas ocupadas ou reservadas. Escolha outro grupo de caravana.`);
+  const unnamedOthers=s.caravans.filter(c=>c.id!==arg.id&&c.group===group.id).reduce((n,c)=>n+unnamedCount(c),0);
+  if(occupied.size+unnamedOthers+expected-members.length>groupLimit)throw Error(`Este grupo já tem ${groupLimit} vagas ocupadas ou reservadas. Escolha outro grupo de caravana.`);
   const eta=String(arg.eta||'');if(eta&&!/^([01]\d|2[0-3]):[0-5]\d$/.test(eta))throw Error('Horário previsto inválido.');
-  const unchanged=old&&members.length===old.members.length&&members.every(m=>old.members.some(x=>x.code===m.code&&x.name===m.name));
-  const c={id:arg.id,name:text(arg.name,'o nome da caravana'),city:text(arg.city,'a cidade'),responsible:text(arg.responsible,'o responsável'),contact:text(arg.contact,'o contato',80,true),eta,group:group.id,members,authorization:unchanged?old.authorization||null:null,authorizationHistory:old?.authorizationHistory||[],updatedAt:now};
+  const unchanged=old&&expected===expectedCount(old)&&members.length===old.members.length&&members.every(m=>old.members.some(x=>x.code===m.code&&x.name===m.name));
+  const c={id:arg.id,name:text(arg.name,'o nome da caravana'),city:text(arg.city,'a cidade'),responsible:text(arg.responsible,'o responsável'),contact:text(arg.contact,'o contato',80,true),eta,group:group.id,members,...(expected>members.length?{expectedCount:expected}:{}),authorization:unchanged?old.authorization||null:null,authorizationHistory:old?.authorizationHistory||[],updatedAt:now};
   s.caravans=s.caravans.filter(c=>c.id!==arg.id);s.caravans.push(c);
   for(const p of s.people){const match=identity(s,p.id);if(match)p.caravan=match;}
-  return c.name+' · '+c.city+': '+members.length+' integrante(s) reservado(s) em '+group.id+'. Cadastro não emite ingresso nem registra chegada.';
+  return c.name+' · '+c.city+': '+expected+' integrante(s) previsto(s) em '+group.id+'. '+members.length+' nome(s) informado(s). Cadastro não emite ingresso nem registra chegada.';
  }
  if(action==='caravanAuthorize'){
   const c=s.caravans.find(c=>c.id===arg.id);if(!c)throw Error('Caravana não localizada.');
+  if(!c.members.length)throw Error('Informe os nomes dos participantes antes de confirmar pagamento e autorizar entradas.');
   if(!['dinheiro','pix_igreja','cortesia','revogar'].includes(arg.method))throw Error('Informe recebimento ou cortesia autorizada.');
   if(!c.members.some(m=>native(m.code)))throw Error('Esta lista utiliza ingressos Even3.');
   c.authorization={status:arg.method==='revogar'?'revoked':'authorized',method:arg.method,reference:text(arg.reference,'a referência ou justificativa',200),by:arg.actorId,at:now};
@@ -89,11 +95,12 @@ function handle(s,day,action,arg,now){
   if(!to||to.id===c.group||!reserved(s,day,to.id)||to.status!=='forming')throw Error('Escolha outro grupo de caravana em formação.');
   if(!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(arg.id||''))||s.caravans.some(x=>x.id===arg.id))throw Error('Identificador de remanejamento inválido.');
   const occupied=new Set([...to.members,...s.caravans.filter(x=>x.group===to.id).flatMap(x=>x.members.map(m=>m.code))]);
-  if(occupied.size>=groupSizeFor(day,to))throw Error('Grupo de destino sem vagas reserváveis.');
+  if(occupied.size+pendingCount(s,to.id)>=groupSizeFor(day,to))throw Error('Grupo de destino sem vagas reserváveis.');
   const reason=text(arg.reason,'o motivo',300),m=c.members.find(m=>m.code===arg.code);
-  c.members=c.members.filter(m=>m.code!==arg.code);
-  s.caravans=s.caravans.filter(x=>x.members.length);
-  s.caravans.push({...c,id:arg.id,group:to.id,members:[m],updatedAt:now});
+  const previousExpected=expectedCount(c);c.members=c.members.filter(m=>m.code!==arg.code);
+  if(c.expectedCount)c.expectedCount=previousExpected-1;
+  s.caravans=s.caravans.filter(x=>expectedCount(x)>0);
+  s.caravans.push({...c,id:arg.id,group:to.id,members:[m],expectedCount:1,updatedAt:now});
   if(p)p.caravan=identity(s,p.id);
   return m.name+': reserva de '+c.group+' remanejada para '+to.id+'. Motivo: '+reason;
  }
@@ -121,4 +128,4 @@ function gateRows(s,day,now=new Date().toISOString()){
   return {code:m.code,name:m.name,phone:m.phone||'',contact:c.contact||'',responsible:c.responsible,caravanId:c.id,caravanName:c.name,city:c.city,date:day,group:c.group,training:!!training,authorized:c.authorization?.status==='authorized',admitted:!!p,arrivedAt:p?.arrivedAt||null,eligible:!p&&(day===bahiaDay(now)||training)&&c.authorization?.status==='authorized'};
  }));
 }
-module.exports={publicClosed,DAYS,GROUPS,groupsFor,enabled,reserved,list,identity,compatible,handle,native,bahiaDay,gateRows};
+module.exports={publicClosed,DAYS,GROUPS,groupsFor,enabled,reserved,list,expectedCount,unnamedCount,pendingCount,identity,compatible,handle,native,bahiaDay,gateRows};

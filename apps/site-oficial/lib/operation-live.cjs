@@ -6,7 +6,7 @@ const {createHash}=require('node:crypto');
 function groupVersion(s,id){
  const g=s.groups.find(g=>g.id===id);if(!g)return null;
  const members=[...g.members].sort().map(id=>{const p=s.people.find(p=>p.id===id);return [id,p?.group??null,p?.assignedAt??null,p?.paperAt??null];});
- const expectedCaravan=caravans.list(s).filter(c=>c.group===id).flatMap(c=>c.members.map(m=>m.code)).sort();
+ const expectedCaravan=caravans.list(s).filter(c=>c.group===id).map(c=>[c.id,caravans.expectedCount(c),c.members.map(m=>m.code).sort()]).sort((a,b)=>String(a[0]).localeCompare(String(b[0])));
  const stage=['status','calledAt','closedAt','arrivedAt','startedAt','safeAt','finishedAt','caravanDeferred','capacityOverride'].map(key=>[key,g[key]??null]);
  return createHash('sha256').update(JSON.stringify({id,stage,members,expectedCaravan})).digest('hex');
 }
@@ -46,7 +46,8 @@ function command(state, session, role, action, arg, now) {
   if(caravans.enabled(session)&&action==='close'){
     const g=s.groups.find(g=>g.id===arg.group);
     const missing=caravans.list(s).filter(c=>c.group===arg.group).flatMap(c=>c.members).filter(m=>!g?.members.includes(m.code));
-    if(missing.length&&!String(arg.caravanMissingReason||'').trim())throw Error('Faltam '+missing.length+' integrantes previstos. Aguarde, adie a chamada ou informe o motivo para fechar sem eles.');
+    const missingCount=missing.length+caravans.pendingCount(s,arg.group);
+    if(missingCount&&!String(arg.caravanMissingReason||'').trim())throw Error('Faltam '+missingCount+' integrantes previstos. Aguarde, adie a chamada ou informe o motivo para fechar sem eles.');
   }
   if(action==='start'&&ops.active(s).some(g=>g.status==='circuit'))throw Error('O grupo anterior precisa confirmar o ponto seguro.');
   return ops.apply(state, session, role, action, arg, now);
@@ -84,7 +85,7 @@ function project(state, role) {
   if(role==='telao') for(const [day,s] of Object.entries(next.sessions)) {
     // No names or ticket identifiers sent to these roles, including hidden history.
     s.people=s.people.map(p=>({group:p.group,paperAt:p.paperAt}));
-    s.groups=s.groups.map(g=>({...g,guide:null,caravanMissing:caravans.list(state.sessions[day]).filter(c=>c.group===g.id).flatMap(c=>c.members).filter(m=>!g.members.includes(m.code)).length,paperPending:g.members.filter(id=>!state.sessions[day].people.find(p=>p.id===id)?.paperAt).length,members:g.members.map(()=>null)}));
+    s.groups=s.groups.map(g=>({...g,guide:null,caravanMissing:caravans.list(state.sessions[day]).filter(c=>c.group===g.id).flatMap(c=>c.members).filter(m=>!g.members.includes(m.code)).length+caravans.pendingCount(state.sessions[day],g.id),paperPending:g.members.filter(id=>!state.sessions[day].people.find(p=>p.id===id)?.paperAt).length,members:g.members.map(()=>null)}));
     s.history=[];s.lastAssignment=null;
   }
   if(role==='portaria') for(const s of Object.values(next.sessions)){s.history=[];s.lastAssignment=null;}
