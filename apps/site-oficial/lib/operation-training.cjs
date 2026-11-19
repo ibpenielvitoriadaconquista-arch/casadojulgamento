@@ -13,7 +13,7 @@ const CIRCUIT_LIMIT=3;
 const circuitLimitFor=day=>['2026-11-14','2026-11-19'].includes(day)?4:CIRCUIT_LIMIT;
 const LABELS={forming:'Em formação',closed:'Fechado no salão',called:'Chamado para espera',waiting:'Na sala de espera',circuit:'No circuito',safe:'No ponto seguro',finished:'Finalizado'};
 const ROLES={geral:'Painel geral',portaria:'Portaria',caixa:'Caixa',coordenacao:'Coordenação',apoio:'Apoio',telao:'Telão',caravanas:'Administrador de caravanas'};
-const ALLOWED={geral:['scan','assign','deliver','undoDelivery','move','close','reopen','call','manualCall','clearManualCall','arrive','start','safe','finish','pause','takeover','guide','reset','addGroup'],portaria:['scan'],caixa:[],caravanas:[],coordenacao:['assign','deliver','undoDelivery','move','addGroup'],apoio:['arrive','start','safe','finish'],telao:['close','reopen','call','manualCall','clearManualCall']};
+const ALLOWED={geral:['confirmArrival','scan','assign','deliver','undoDelivery','move','close','reopen','call','manualCall','clearManualCall','arrive','start','safe','finish','pause','takeover','guide','reset','addGroup'],portaria:['scan'],caixa:[],caravanas:[],coordenacao:['confirmArrival','assign','deliver','undoDelivery','move','addGroup'],apoio:['arrive','start','safe','finish'],telao:['close','reopen','call','manualCall','clearManualCall']};
 function freshSession(sessionId=SESSIONS[0].id){return {counter:0,paused:false,coordinator:'Titular',people:[],groups:Array.from({length:capacityFor(sessionId).groups},(_,i)=>({id:'G'+String(i+1).padStart(2,'0'),status:'forming',guide:'',members:[]})),history:[],lastAssignment:null};}
 function fresh(){return {schema:5,revision:0,sessions:Object.fromEntries(SESSIONS.map(s=>[s.id,freshSession(s.id)]))};}
 function active(s){return s.groups.filter(g=>['circuit','safe'].includes(g.status));}
@@ -36,7 +36,7 @@ function callBlock(s,day){
  return '';
 }
 function nextToCall(s){const available=s.groups.filter(g=>!g.caravanDeferred&&g.members.length&&['forming','closed'].includes(g.status));return available.find(g=>g.status==='closed')||available[0];}
-function summarize(s){return {arrived:s.people.length,pending:s.people.filter(p=>!p.group).length,paper:s.people.filter(p=>p.group&&!p.paperAt).length,active:active(s).length};}
+function summarize(s){return {arrived:s.people.filter(p=>p.arrivalPending!==true).length,pending:s.people.filter(p=>!p.group).length,paper:s.people.filter(p=>p.group&&!p.paperAt).length,active:active(s).length};}
 function nextGroupId(s){
  const numbers=s.groups.map(g=>/^G[0-9]+$/.test(g.id)?Number(g.id.slice(1)):NaN);
  if(numbers.some(n=>!Number.isSafeInteger(n)||n<1)||new Set(s.groups.map(g=>g.id)).size!==s.groups.length)throw Error('Numeração dos grupos inválida. Procure a Gestão.');
@@ -48,6 +48,7 @@ const GROUP_COMMANDS=['close','reopen','call','arrive','start','safe','finish'];
 function isGroupCommand(action){return GROUP_COMMANDS.includes(action);}
 function canRevalidate(action,arg){
  if(action==='assign')return true;
+ if(action==='confirmArrival')return /^MGT-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(arg.id||''));
  if(action==='deliver')return typeof arg.expectedGroup==='string'&&!!arg.expectedGroup;
  if(isGroupCommand(action))return typeof arg.group==='string'&&!!arg.group&&typeof arg.expectedGroupVersion==='string'&&/^[0-9a-f]{64}$/.test(arg.expectedGroupVersion);
  if(action!=='move')return false;
@@ -87,6 +88,12 @@ function apply(db,sessionId,role,action,arg={},now=new Date().toISOString()){
     const n=++s.counter,names=['Ana','Bruno','Carla','Diego','Elisa','Felipe','Giovana','Hugo','Isabela','João','Larissa','Marcos'];
     const p={id:'TESTE-'+sessionId.slice(5)+'-'+String(n).padStart(3,'0'),name:names[(n-1)%names.length]+' · Teste '+String(n).padStart(3,'0'),family:'F'+String(Math.ceil(n/3)).padStart(3,'0'),group:null,paperAt:null,arrivedAt:now,eventId:arg.eventId||'sim-'+n};
     s.people.push(p);message=p.name+' chegou. Aguardando escolha de grupo no corredor.';
+  }else if(action==='confirmArrival'){
+    const p=person(arg.id);
+    if(!p||p.source!=='management-list'||p.managementAuthorization?.status!=='authorized'||p.arrivalPending!==true||p.arrivedAt)throw Error('Chegada já confirmada ou cadastro sem autorização nominal da Gestão.');
+    if(!p.group||!['forming','closed'].includes(group(p.group)?.status))throw Error('Confira o grupo desta pessoa antes de registrar a chegada.');
+    p.arrivalPending=false;p.arrivedAt=now;p.admittedBy=arg.actorId;
+    message=p.name+': chegada confirmada. Grupo '+p.group+' mantido.';
   }else if(action==='assign'){
     const ids=[...new Set(arg.ids||[])],g=group(arg.group);
     if(!ids.length)throw Error('Selecione pelo menos uma pessoa na fila.');
@@ -118,6 +125,7 @@ function apply(db,sessionId,role,action,arg={},now=new Date().toISOString()){
     s.lastAssignment={group:to.id,ids:[p.id],at:now};message=p.name+': '+from.id+' → '+to.id+'. Entregue a nova senha. Motivo: '+arg.reason+exception;
   }else if(action==='close'){
     const g=group(arg.group);if(!g||g.status!=='forming'||!g.members.length)throw Error('O grupo precisa estar em formação e ter ao menos uma pessoa.');
+    if(g.members.some(id=>person(id)?.arrivalPending===true))throw Error('Confirme a chegada das pessoas atribuídas antes de fechar o grupo.');
     if(g.members.some(id=>!person(id).paperAt))throw Error('Confirme a entrega de todas as senhas antes de fechar o grupo.');
     g.status='closed';g.closedAt=now;message=g.id+' fechado com '+g.members.length+'/'+groupSizeFor(sessionId,g)+'. Todos receberam senha.'+(arg.caravanMissingReason?' Fechamento sem todos os integrantes previstos: '+String(arg.caravanMissingReason).trim().slice(0,300):'');
   }else if(action==='reopen'){
@@ -133,6 +141,7 @@ function apply(db,sessionId,role,action,arg={},now=new Date().toISOString()){
     if(!g||g.status!=='closed')throw Error('Feche o grupo antes de chamar.');
     if(g.caravanDeferred)throw Error('Retome a prioridade deste grupo antes de chamar.');
     const blocked=callBlock(s,sessionId);if(blocked)throw Error(blocked);
+    if(g.members.some(id=>person(id)?.arrivalPending===true))throw Error('Há pessoas atribuídas aguardando confirmação de chegada.');
     if(g.members.some(id=>!person(id).paperAt))throw Error('Há senha pendente de entrega neste grupo.');
     const slots=circuitSlots(s,sessionId);slots.forEach((existing,index)=>{if(existing)existing.circuitSlot=index;});const slot=arg.slot??slots.indexOf(null);if(!Number.isInteger(slot)||slot<0||slot>=slots.length||slots[slot])throw Error('Esta vaga foi ocupada. Atualize o painel.');g.circuitSlot=slot;g.status='called';g.calledAt=now;delete s.manualCall;message=g.id+' chamado no telão. Sala de espera reservada.';
   }else if(action==='arrive'){

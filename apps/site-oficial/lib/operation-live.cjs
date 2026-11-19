@@ -5,7 +5,7 @@ const {createHash}=require('node:crypto');
 // Hashed before role redaction so Telão never receives participant identifiers.
 function groupVersion(s,id){
  const g=s.groups.find(g=>g.id===id);if(!g)return null;
- const members=[...g.members].sort().map(id=>{const p=s.people.find(p=>p.id===id);return [id,p?.group??null,p?.assignedAt??null,p?.paperAt??null];});
+ const members=[...g.members].sort().map(id=>{const p=s.people.find(p=>p.id===id);return [id,p?.group??null,p?.assignedAt??null,p?.paperAt??null,p?.arrivalPending===true,p?.arrivedAt??null];});
  const expectedCaravan=caravans.list(s).filter(c=>c.group===id).map(c=>[c.id,caravans.expectedCount(c),c.members.map(m=>m.code).sort()]).sort((a,b)=>String(a[0]).localeCompare(String(b[0])));
  const stage=['status','calledAt','closedAt','arrivedAt','startedAt','safeAt','finishedAt','caravanDeferred','capacityOverride'].map(key=>[key,g[key]??null]);
  return createHash('sha256').update(JSON.stringify({id,stage,members,expectedCaravan})).digest('hex');
@@ -14,6 +14,7 @@ function command(state, session, role, action, arg, now) {
   if (['scan','reset','takeover'].includes(action)) throw Error('Ação indisponível na operação real.');
   const s=state.sessions[session];
   if(s?.closedAt)throw Error('Apresentação encerrada. Histórico disponível somente para consulta.');
+  if(action==='confirmArrival'&&caravans.bahiaDay(now||new Date().toISOString())!==session)throw Error('Confirme a chegada somente no dia da apresentação.');
   if(ops.isGroupCommand(action)&&arg.expectedGroupVersion!==undefined&&arg.expectedGroupVersion!==groupVersion(s,arg.group))throw Object.assign(Error(arg.group+' foi alterado ou a ação já foi executada. Confira o estado atual desse grupo antes de confirmar novamente.'),{groupConflict:true});
   if(role==='caravanas'){
     if(!['caravanSave','caravanDelete','caravanTransfer','caravanAuthorize'].includes(action))throw Error('Este acesso administra somente cadastros e recebimentos de caravanas.');
@@ -84,8 +85,8 @@ function project(state, role) {
   }
   if(role==='telao') for(const [day,s] of Object.entries(next.sessions)) {
     // No names or ticket identifiers sent to these roles, including hidden history.
-    s.people=s.people.map(p=>({group:p.group,paperAt:p.paperAt}));
-    s.groups=s.groups.map(g=>({...g,guide:null,caravanMissing:caravans.list(state.sessions[day]).filter(c=>c.group===g.id).flatMap(c=>c.members).filter(m=>!g.members.includes(m.code)).length+caravans.pendingCount(state.sessions[day],g.id),paperPending:g.members.filter(id=>!state.sessions[day].people.find(p=>p.id===id)?.paperAt).length,members:g.members.map(()=>null)}));
+    s.people=s.people.map(p=>({group:p.group,paperAt:p.paperAt,arrivalPending:p.arrivalPending===true}));
+    s.groups=s.groups.map(g=>({...g,guide:null,arrivalPending:g.members.filter(id=>state.sessions[day].people.find(p=>p.id===id)?.arrivalPending===true).length,caravanMissing:caravans.list(state.sessions[day]).filter(c=>c.group===g.id).flatMap(c=>c.members).filter(m=>!g.members.includes(m.code)).length+caravans.pendingCount(state.sessions[day],g.id),paperPending:g.members.filter(id=>!state.sessions[day].people.find(p=>p.id===id)?.paperAt).length,members:g.members.map(()=>null)}));
     s.history=[];s.lastAssignment=null;
   }
   if(role==='portaria') for(const s of Object.values(next.sessions)){s.history=[];s.lastAssignment=null;}

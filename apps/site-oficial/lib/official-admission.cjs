@@ -54,7 +54,7 @@ function createService({query,transaction,even3,now=()=>new Date().toISOString()
    let availability;
    if(needsDateAuthorization){
     const queue=(await query('SELECT state FROM peniel_ops.session_state WHERE session_date=$1',[session])).rows[0];
-    if(queue){const reserved=await capacity.reservations({query},EVENT,session,tickets.bahiaDay(new Date(now())),code),limit=capacityFor(session).total;availability={limit,arrived:queue.state.people.length,reserved,remaining:Math.max(0,limit-queue.state.people.length-reserved)};}
+    if(queue){const reserved=await capacity.reservations({query},EVENT,session,tickets.bahiaDay(new Date(now())),code),limit=capacityFor(session).total;availability={limit,arrived:queue.state.people.filter(p=>p.arrivalPending!==true).length,reserved:reserved+queue.state.people.filter(p=>p.arrivalPending===true).length,remaining:Math.max(0,limit-queue.state.people.length-reserved)};}
    }
    return result(p,entry,{needsDateAuthorization,availability,message:blockedReason});
   }
@@ -67,7 +67,7 @@ function createService({query,transaction,even3,now=()=>new Date().toISOString()
   if(trainingDateAutomatic){
    if(!queue)throw fail(503,'Sessão de treinamento indisponível.');
    const reserved=await capacity.reservations({query},EVENT,session,tickets.bahiaDay(new Date(now())),code),limit=capacityFor(session).total;
-   availability={limit,arrived:queue.people.length,reserved,remaining:Math.max(0,limit-queue.people.length-reserved)};
+   availability={limit,arrived:queue.people.filter(p=>p.arrivalPending!==true).length,reserved:reserved+queue.people.filter(p=>p.arrivalPending===true).length,remaining:Math.max(0,limit-queue.people.length-reserved)};
    if(!availability.remaining)return result(p,entry,{availability,message:'Sessão de treinamento lotada.'});
   }
   return result(p,entry,{eligible:true,status:'ready',caravan,trainingDateAutomatic,availability,needsDateAuthorization:false,entry:{id:entry.entryId,date:destination.session,label:entry.label+(entry.session!==destination.session?' → '+destination.label:'')},message:trainingDateAutomatic&&attempt?.status!=='confirmed'?'Lote 1: data liberada automaticamente para treinamento. Confirmar chegada fará credenciamento REAL na Even3 e consumirá este ingresso.':attempt?.status==='confirmed'?'Even3 já confirmou. Concluir encaminhamento à Coordenação.':'Ingresso validado. Confirme para credenciar na Even3 e liberar a entrada.'});
