@@ -10,4 +10,5 @@ function input(body){
  const eta=String(body.eta||'');if(eta&&!/^([01]\d|2[0-3]):[0-5]\d$/.test(eta))throw Error('Confira o horário de chegada.');
  return {session:day,name,city,responsible,contact,eta,members};
 }
-module.exports={input,groupsFor:caravans.groupsFor,publicClosed:caravans.publicClosed};
+function availableFor(availability,row,group){return (availability?.[group]||0)+(row.payload.reservedCaravanId&&row.payload.preferredGroup===group?row.payload.members.length:0);}
+module.exports={availableFor,input,groupsFor:caravans.groupsFor,publicClosed:caravans.publicClosed};

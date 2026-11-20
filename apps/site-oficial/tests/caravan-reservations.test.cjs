@@ -65,5 +65,5 @@ test('November 20 G06 can protect 26 Filadelfia plus 18 Mortugaba places without
  assert.equal(ops.groupSizeFor(date,{id:'G06',capacityOverride:45}),35);
  const catalog={id_event:'798621',tickets:rules.ENTRIES.map(e=>({title:e.category,prices:[{id_ticket:e.entryId,id_ticket_price:e.priceId}]}))};
  const result=stock.calculate({session:date,state,catalog,attendees:[],queriedAt:now});
- assert.equal(result.protectedCaravanPlaces,114);assert.equal(result.capacity,750);assert.equal(result.available,636);
+ assert.equal(result.protectedCaravanPlaces,149);assert.equal(result.capacity,750);assert.equal(result.available,601);
 });

@@ -3,7 +3,7 @@
 const {capacityFor,groupSizeFor}=require('./session-capacity.cjs');
 const DAYS=['2026-11-09','2026-11-13','2026-11-14','2026-11-19','2026-11-20','2026-11-21'];
 const GROUPS=['G06','G07','G08'];
-const groupsFor=day=>day==='2026-11-13'?['G04','G05','G06']:day==='2026-11-14'?['G03','G04','G06','G08']:day==='2026-11-19'?['G03','G05','G08']:['2026-11-09','2026-11-21'].includes(day)?['G03','G04','G05']:day==='2026-10-22'?[...GROUPS,'G09']:GROUPS;
+const groupsFor=day=>day==='2026-11-20'?['G04','G06','G07','G09']:day==='2026-11-13'?['G04','G05','G06']:day==='2026-11-14'?['G03','G04','G06','G08']:day==='2026-11-19'?['G03','G05','G08']:['2026-11-09','2026-11-21'].includes(day)?['G03','G04','G05']:day==='2026-10-22'?[...GROUPS,'G09']:GROUPS;
 const publicClosed=day=>DAYS.includes(day);
 const lockedReservations=day=>['2026-11-14','2026-11-20','2026-11-21'].includes(day);
 const enabled=day=>DAYS.includes(day)||day==='2026-10-22';
@@ -12,6 +12,10 @@ const list=s=>s.caravans||[];
 const expectedCount=c=>Number.isSafeInteger(c.expectedCount)&&c.expectedCount>c.members.length?c.expectedCount:c.members.length;
 const unnamedCount=c=>expectedCount(c)-c.members.length;
 const pendingCount=(s,group)=>list(s).filter(c=>c.group===group).reduce((n,c)=>n+unnamedCount(c),0);
+const memberAuthorization=(c,m)=>Object.hasOwn(m,'authorization')?m.authorization:c.authorization;
+const memberAuthorized=(c,m)=>memberAuthorization(c,m)?.status==='authorized';
+const authorizedCount=c=>c.members.filter(m=>memberAuthorized(c,m)).length;
+const authorizationStatus=c=>c.members.length&&authorizedCount(c)===c.members.length?'authorized':authorizedCount(c)?'partial':c.authorization?.status==='revoked'?'revoked':'pending';
 const native=code=>/^CAR-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(code||''));
 const phone=value=>String(value||'').replace(/\D/g,'');
 const bahiaDay=now=>new Intl.DateTimeFormat('en-CA',{timeZone:'America/Bahia',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(now));
@@ -48,7 +52,8 @@ function handle(s,day,action,arg,now){
   if(!group||!reserved(s,day,group.id)||group.status!=='forming')throw Error('Escolha um grupo de caravana reservado e em formação.');
   const expected=arg.expectedCount??arg.members?.length;
   if(!Array.isArray(arg.members)||!Number.isSafeInteger(expected)||expected<1||expected<arg.members.length||expected>limit)throw Error(`Cadastre entre 1 e ${limit} integrantes previstos por lista. Informe os nomes disponíveis sem criar participantes fictícios.`);
-  const members=arg.members.map(m=>({code:String(m.code||'').trim(),name:text(m.name,'o nome do integrante',150),phone:phone(m.phone),source:native(m.code)?'native':'even3'}));
+  let members=arg.members.map(m=>({code:String(m.code||'').trim(),name:text(m.name,'o nome do integrante',150),phone:phone(m.phone),source:native(m.code)?'native':'even3'}));
+  members=members.map(m=>{const before=old?.members.find(x=>x.code===m.code&&x.name===m.name);return before&&Object.hasOwn(before,'authorization')?{...m,authorization:before.authorization}:m;});
   const codes=new Set();
   for(const m of members){
    if((!native(m.code)&&!/^[0-9]{6,20}$/.test(m.code))||codes.has(m.code))throw Error('Use identificadores individuais distintos e válidos.');
@@ -78,8 +83,10 @@ function handle(s,day,action,arg,now){
   if(!c.members.length)throw Error('Informe os nomes dos participantes antes de confirmar pagamento e autorizar entradas.');
   if(!['dinheiro','pix_igreja','cortesia','revogar'].includes(arg.method))throw Error('Informe recebimento ou cortesia autorizada.');
   if(!c.members.some(m=>native(m.code)))throw Error('Esta lista utiliza ingressos Even3.');
+  const previousMemberAuthorizations=c.members.filter(m=>Object.hasOwn(m,'authorization')).map(m=>({code:m.code,name:m.name,authorization:m.authorization}));
   c.authorization={status:arg.method==='revogar'?'revoked':'authorized',method:arg.method,reference:text(arg.reference,'a referência ou justificativa',200),by:arg.actorId,at:now};
-  c.authorizationHistory??=[];c.authorizationHistory.push({...c.authorization,members:c.members.map(m=>({code:m.code,name:m.name}))});
+  c.authorizationHistory??=[];c.authorizationHistory.push({...c.authorization,members:c.members.map(m=>({code:m.code,name:m.name})),...(previousMemberAuthorizations.length?{previousMemberAuthorizations}:{})});
+  c.members=c.members.map(({authorization,...m})=>m);
   return c.name+(arg.method==='revogar'?' com autorização revogada para novas entradas.':' com entrada autorizada pelo Caixa/Gestão para '+c.members.length+' integrante(s).');
  }
  if(action==='caravanDelete'){
@@ -125,7 +132,7 @@ function gateRows(s,day,now=new Date().toISOString()){
  return list(s).flatMap(c=>c.members.filter(m=>native(m.code)).map(m=>{
   const p=s.people.find(p=>p.id===m.code);
   const training=c.trainingOverride?.day===bahiaDay(now)&&c.trainingOverride?.codes?.includes(m.code);
-  return {code:m.code,name:m.name,phone:m.phone||'',contact:c.contact||'',responsible:c.responsible,caravanId:c.id,caravanName:c.name,city:c.city,date:day,group:c.group,training:!!training,authorized:c.authorization?.status==='authorized',admitted:!!p,arrivedAt:p?.arrivedAt||null,eligible:!p&&(day===bahiaDay(now)||training)&&c.authorization?.status==='authorized'};
+  return {authorizedCount:authorizedCount(c),memberCount:c.members.length,code:m.code,name:m.name,phone:m.phone||'',contact:c.contact||'',responsible:c.responsible,caravanId:c.id,caravanName:c.name,city:c.city,date:day,group:c.group,training:!!training,authorized:memberAuthorized(c,m),admitted:!!p,arrivedAt:p?.arrivedAt||null,eligible:!p&&(day===bahiaDay(now)||training)&&memberAuthorized(c,m)};
  }));
 }
-module.exports={publicClosed,DAYS,GROUPS,groupsFor,enabled,reserved,list,expectedCount,unnamedCount,pendingCount,identity,compatible,handle,native,bahiaDay,gateRows};
+module.exports={publicClosed,DAYS,GROUPS,groupsFor,enabled,reserved,list,expectedCount,unnamedCount,pendingCount,identity,compatible,handle,memberAuthorization,memberAuthorized,authorizedCount,authorizationStatus,native,bahiaDay,gateRows};

@@ -128,7 +128,7 @@ test('three Lote 1 caravan groups complete gate, coordination, paper, call and g
   assert.equal(db.sessions[lot].groups.find(g=>g.id===group).status,'finished');
  }
  assert.equal(db.sessions[lot].people.length,15);assert.equal(db.sessions['2026-11-09'].people.length,0);
- for(const day of caravans.DAYS)assert.equal(caravans.reserved(db.sessions[day],day,'G09'),false);
+ for(const day of caravans.DAYS)assert.equal(caravans.reserved(db.sessions[day],day,'G09'),day==='2026-11-20');
 });
 
 test('November 14 accepts 35, rejects 36, and sends 28 paid caravan members through manual coordination',()=>{

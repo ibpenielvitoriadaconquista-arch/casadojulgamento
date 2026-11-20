@@ -21,7 +21,7 @@ export default async function handler(req,res){
   if(req.method!=='POST')throw fail(405,'Método não permitido.');sameOrigin(req);
   if(!['geral','caravanas'].includes(user.role))throw fail(403,'Somente Gestão pode confirmar o recebimento e importar.');
   const {id,group,method,reference,confirmed}=req.body||{};
-  if(!Number.isSafeInteger(Number(id))||!['G03','G04','G05','G06','G07','G08'].includes(group)||!['dinheiro','pix_igreja','cortesia'].includes(method)||confirmed!==true||String(reference||'').trim().length<10||String(reference).length>200)throw fail(400,'Confira grupo, recebimento, referência e confirmação.');
+  if(!Number.isSafeInteger(Number(id))||!['G03','G04','G05','G06','G07','G08','G09'].includes(group)||!['dinheiro','pix_igreja','cortesia'].includes(method)||confirmed!==true||String(reference||'').trim().length<10||String(reference).length>200)throw fail(400,'Confira grupo, recebimento, referência e confirmação.');
   if(user.role==='caravanas'&&method==='cortesia')throw fail(403,'Somente Gestão autoriza cortesias.');
   const result=await transaction(async db=>{
    const row=(await db.query('SELECT * FROM peniel_ops.caravan_requests WHERE id=$1 FOR UPDATE',[id])).rows[0];
