@@ -52,3 +52,17 @@ test('November 20 G09 accommodates Exercito 20 plus Adsa 22 while each list keep
  assert.equal(db.sessions[day].groups[8].members.length,42);assert.equal(new Set(db.sessions[day].people.map(p=>p.id)).size,42);
  db=run(db,'deliver',{ids:db.sessions[day].groups[8].members,expectedGroup:'G09'},'coordenacao');db=run(db,'close',{group:'G09'},'telao');assert.equal(db.sessions[day].groups[8].status,'closed');
 });
+
+test('November 20 G07 accepts 43 authorized caravan members and asks confirmation only for the 44th assignment',()=>{
+ let db=fixture();db.sessions[day].groups[6].capacityOverride=43;
+ assert.equal(ops.groupSizeFor(day,db.sessions[day].groups[6]),43);
+ assert.equal(ops.groupSizeFor('2026-11-21',{id:'G07',capacityOverride:43}),35);
+ assert.equal(ops.groupSizeFor(day,{id:'G08',capacityOverride:43}),35);
+ for(const count of [20,23]){const id=randomUUID();db=run(db,'caravanSave',{id,name:'Lista G07 '+count,city:'Planalto',responsible:'Responsável',group:'G07',members:members(count)});db=run(db,'caravanAuthorize',{id,method:'pix_igreja',reference:'Recebimento confirmado para validação local'});}
+ for(const c of db.sessions[day].caravans)for(const m of c.members){db=run(db,'caravanAdmit',{code:m.code},'portaria');db=run(db,'assign',{ids:[m.code],group:'G07'},'coordenacao');}
+ assert.equal(db.sessions[day].groups[6].members.length,43);
+ assert.throws(()=>run(db,'caravanSave',{id:randomUUID(),name:'Excesso',city:'Planalto',responsible:'Responsável',group:'G07',members:members(1)}),/43 vagas/);
+ const extra=members(1)[0];db.sessions[day].caravans.push({id:randomUUID(),name:'Lista anteriormente cadastrada',group:'G07',members:[extra],authorization:{status:'authorized'}});db=run(db,'caravanAdmit',{code:extra.code},'portaria');
+ assert.throws(()=>run(db,'assign',{ids:[extra.code],group:'G07'},'coordenacao'),e=>e.groupLimit?.limit===43&&e.groupLimit?.total===44);
+ db=run(db,'deliver',{ids:db.sessions[day].groups[6].members,expectedGroup:'G07'},'coordenacao');db=run(db,'close',{group:'G07',caravanMissingReason:'A pessoa excedente aguarda decisão da Gestão'},'telao');assert.equal(db.sessions[day].groups[6].status,'closed');
+});
