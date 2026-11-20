@@ -12,7 +12,7 @@ const list=s=>s.caravans||[];
 const expectedCount=c=>Number.isSafeInteger(c.expectedCount)&&c.expectedCount>c.members.length?c.expectedCount:c.members.length;
 const unnamedCount=c=>expectedCount(c)-c.members.length;
 const pendingCount=(s,group)=>list(s).filter(c=>c.group===group).reduce((n,c)=>n+unnamedCount(c),0);
-const memberAuthorization=(c,m)=>Object.hasOwn(m,'authorization')?m.authorization:c.authorization;
+const memberAuthorization=(c,m)=>c.authorization?.status==='revoked'?c.authorization:Object.hasOwn(m,'authorization')?m.authorization:c.authorization;
 const memberAuthorized=(c,m)=>memberAuthorization(c,m)?.status==='authorized';
 const authorizedCount=c=>c.members.filter(m=>memberAuthorized(c,m)).length;
 const authorizationStatus=c=>c.members.length&&authorizedCount(c)===c.members.length?'authorized':authorizedCount(c)?'partial':c.authorization?.status==='revoked'?'revoked':'pending';

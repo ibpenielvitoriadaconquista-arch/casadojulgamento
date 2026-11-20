@@ -34,3 +34,5 @@ test('G09 pending reservation is approved into its existing roster with no dupli
  assert.equal(requests.availableFor({G09:15},{payload},'G09'),35);assert.equal(requests.availableFor({G04:42},{payload},'G04'),42);
  const res={setHeader(){},status(n){this.code=n;return this;},json(v){this.body=v;this.code||=200;}};await handler({method:'POST',body:{id:19,group:'G09',method:'pix_igreja',reference:'Pagamento conferido pelo responsável',confirmed:true}},res);assert.equal(res.code,200);assert.equal(imported,true);assert.equal(row.state.caravans.length,1);assert.deepEqual(row.state.caravans[0].members.map(m=>m.code),codes);assert.equal(cv.authorizedCount(row.state.caravans[0]),20);assert.equal(row.state.people.length,0);
 });
+
+test('revoking a list blocks every individual grant even before its stored overrides are cleared',()=>{const db=partial(),c=db.sessions[day].caravans[0];c.authorization={status:'revoked'};assert.equal(cv.authorizedCount(c),0);assert.equal(cv.authorizationStatus(c),'revoked');assert.ok(cv.gateRows(db.sessions[day],day,at).every(r=>!r.authorized&&!r.eligible));});
