@@ -10,7 +10,7 @@ const SESSIONS = [
 const ARCHIVED_SESSIONS=['2026-11-09'];
 const DEFAULT_SESSION='2026-11-13';
 const CIRCUIT_LIMIT=3;
-const circuitLimitFor=day=>['2026-11-14','2026-11-19'].includes(day)?4:CIRCUIT_LIMIT;
+const circuitLimitFor=day=>['2026-11-14','2026-11-19','2026-11-20'].includes(day)?4:CIRCUIT_LIMIT;
 const LABELS={forming:'Em formação',closed:'Fechado no salão',called:'Chamado para espera',waiting:'Na sala de espera',circuit:'No circuito',safe:'No ponto seguro',finished:'Finalizado'};
 const ROLES={geral:'Painel geral',portaria:'Portaria',caixa:'Caixa',coordenacao:'Coordenação',apoio:'Apoio',telao:'Telão',caravanas:'Administrador de caravanas'};
 const ALLOWED={geral:['confirmArrival','scan','assign','deliver','undoDelivery','move','close','reopen','call','manualCall','clearManualCall','arrive','start','safe','finish','pause','takeover','guide','reset','addGroup'],portaria:['scan'],caixa:[],caravanas:[],coordenacao:['confirmArrival','assign','deliver','undoDelivery','move','addGroup'],apoio:['arrive','start','safe','finish'],telao:['close','reopen','call','manualCall','clearManualCall']};
