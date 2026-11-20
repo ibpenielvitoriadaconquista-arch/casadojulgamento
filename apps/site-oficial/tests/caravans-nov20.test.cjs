@@ -36,3 +36,19 @@ test('G09 pending reservation is approved into its existing roster with no dupli
 });
 
 test('revoking a list blocks every individual grant even before its stored overrides are cleared',()=>{const db=partial(),c=db.sessions[day].caravans[0];c.authorization={status:'revoked'};assert.equal(cv.authorizedCount(c),0);assert.equal(cv.authorizationStatus(c),'revoked');assert.ok(cv.gateRows(db.sessions[day],day,at).every(r=>!r.authorized&&!r.eligible));});
+
+test('November 20 G09 accommodates Exercito 20 plus Adsa 22 while each list keeps its own payment authorization',()=>{
+ let db=fixture();db.sessions[day].groups.find(g=>g.id==='G09').capacityOverride=42;
+ const armyId=randomUUID(),adsaId=randomUUID();
+ for(const [id,name,count] of [[armyId,'Exército de Adoradoras',20],[adsaId,'Adsa Planalto',22]])db=run(db,'caravanSave',{id,name,city:'Planalto',responsible:'Não informado',group:'G09',members:members(count)});
+ db=run(db,'caravanAuthorize',{id:armyId,method:'pix_igreja',reference:'Pagamento anterior confirmado'});
+ assert.equal(ops.groupSizeFor(day,db.sessions[day].groups[8]),42);
+ const rows=cv.gateRows(db.sessions[day],day,at);assert.equal(rows.length,42);assert.equal(rows.filter(r=>r.authorized).length,20);assert.equal(rows.filter(r=>r.caravanId===adsaId&&r.eligible).length,0);
+ assert.throws(()=>run(db,'caravanSave',{id:randomUUID(),name:'Excesso',city:'Planalto',responsible:'Responsável',group:'G09',members:members(1)}),/42 vagas/);
+ assert.equal(ops.groupSizeFor('2026-11-21',{id:'G09',capacityOverride:42}),35);assert.equal(ops.groupSizeFor(day,{id:'G09',capacityOverride:43}),35);
+ const catalog={id_event:'798621',tickets:rules.ENTRIES.map(e=>({title:e.category,prices:[{id_ticket:e.entryId,id_ticket_price:e.priceId}]}))};assert.equal(stock.calculate({session:day,state:db.sessions[day],catalog,attendees:[],queriedAt:at}).protectedCaravanPlaces,159);
+ db=run(db,'caravanAuthorize',{id:adsaId,method:'pix_igreja',reference:'Somente em simulação local do teste'});
+ for(const c of db.sessions[day].caravans){for(const m of c.members){db=run(db,'caravanAdmit',{code:m.code},'portaria');assert.equal(db.sessions[day].people.at(-1).group,null);db=run(db,'assign',{ids:[m.code],group:'G09'},'coordenacao');}}
+ assert.equal(db.sessions[day].groups[8].members.length,42);assert.equal(new Set(db.sessions[day].people.map(p=>p.id)).size,42);
+ db=run(db,'deliver',{ids:db.sessions[day].groups[8].members,expectedGroup:'G09'},'coordenacao');db=run(db,'close',{group:'G09'},'telao');assert.equal(db.sessions[day].groups[8].status,'closed');
+});
