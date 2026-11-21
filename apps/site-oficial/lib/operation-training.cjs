@@ -44,10 +44,11 @@ function nextGroupId(s){
  if(!Number.isSafeInteger(number))throw Error('Não foi possível gerar o próximo grupo.');
  return 'G'+String(number).padStart(2,'0');
 }
-const GROUP_COMMANDS=['close','reopen','call','arrive','start','safe','finish'];
+const GROUP_COMMANDS=['close','reopen','call','manualCall','arrive','start','safe','finish'];
 function isGroupCommand(action){return GROUP_COMMANDS.includes(action);}
 function canRevalidate(action,arg){
- if(action==='assign')return true;
+ if(action==='assign'||action==='addGroup')return true;
+ if(action==='caravanAdmit')return /^CAR-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(arg?.code||''));
  if(action==='confirmArrival')return /^MGT-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(arg.id||''));
  if(action==='deliver')return typeof arg.expectedGroup==='string'&&!!arg.expectedGroup;
  if(isGroupCommand(action))return typeof arg.group==='string'&&!!arg.group&&typeof arg.expectedGroupVersion==='string'&&/^[0-9a-f]{64}$/.test(arg.expectedGroupVersion);

@@ -67,7 +67,7 @@ function projectedVersion(f,role,id){
 for(const rehearsal of [false,true]){
  const label=rehearsal?'Ensaio':'Operação real';
  for(const [action,status,role] of [
-  ['close','forming','telao'],['reopen','closed','telao'],['call','closed','telao'],
+  ['close','forming','telao'],['reopen','closed','telao'],['call','closed','telao'],['manualCall','forming','telao'],
   ['arrive','called','apoio'],['start','waiting','apoio'],['safe','circuit','apoio'],['finish','safe','apoio']
  ])test(label+': '+action+' tolera chegada na Portaria e atualização de outro grupo',async()=>{
   const f=apiFixture(rehearsal);f.state.session.groups[0].status=status;

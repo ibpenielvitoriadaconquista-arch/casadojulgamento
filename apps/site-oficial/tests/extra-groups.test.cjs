@@ -45,11 +45,10 @@ function apiFixture(){
  }
  return {state,call};
 }
-test('two coordinators cannot duplicate group numbers; repeated request is idempotent, new revision adds next group',async()=>{
+test('two coordinators add unique group numbers despite unrelated revisions; retries never create extra groups',async()=>{
  const f=apiFixture(),a='11111111-1111-4111-8111-111111111111',b='22222222-2222-4222-8222-222222222222';
- const r=await Promise.all([f.call(0,a),f.call(0,b)]);assert.deepEqual(r.map(x=>x.code).sort(),[200,409]);assert.equal(f.state.session.groups.at(-1).id,'G31');assert.equal(f.state.writes,1);
- assert.equal((await f.call(0,a)).code,200);assert.equal(f.state.writes,1);
- assert.equal((await f.call(1,b)).code,200);assert.equal(f.state.session.groups.at(-1).id,'G32');assert.equal(f.state.logs.size,2);
+ const r=await Promise.all([f.call(0,a),f.call(0,b)]);assert.deepEqual(r.map(x=>x.code).sort(),[200,200]);assert.equal(f.state.session.groups.at(-1).id,'G32');assert.equal(f.state.writes,2);assert.equal(new Set(f.state.session.groups.map(g=>g.id)).size,32);
+ assert.equal((await f.call(0,a)).code,200);assert.equal((await f.call(0,b)).code,200);assert.equal(f.state.writes,2);assert.equal(f.state.logs.size,2);
  for(const role of ['portaria','apoio','caixa','telao','caravanas'])assert.equal((await f.call(2,'33333333-3333-4333-8333-333333333333',role)).code,422);
  assert.equal(f.state.writes,2);
 });

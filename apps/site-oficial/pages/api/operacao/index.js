@@ -8,10 +8,11 @@ import tickets from '../../../lib/entry-tickets.cjs';
 export const config={api:{bodyParser:{sizeLimit:'16kb'}}};
 export default async function handler(req,res){
  res.setHeader('Cache-Control','no-store');
+ const timing={started:Date.now(),authMs:0,lockMs:0,transactionMs:0};
  try{
   if(!['GET','POST'].includes(req.method))throw fail(405,'Método não permitido.');
   if(req.method==='POST')sameOrigin(req);
-  const user=await actor(req,res),input=req.method==='GET'?req.query:req.body;
+  const authStarted=Date.now(),user=await actor(req,res),input=req.method==='GET'?req.query:req.body;timing.authMs=Date.now()-authStarted;
   const session=input?.session,role=input?.role;
   if(!ops.SESSIONS.some(s=>s.id===session)||!Object.hasOwn(ops.ROLES,role))throw fail(400,'Sessão ou posto inválido.');
   if(user.role!=='geral'&&role!==user.role)throw fail(403,'Este posto não pertence ao seu acesso.');
@@ -24,9 +25,10 @@ export default async function handler(req,res){
   const {action,arg={},revision,requestId}=input;
   if(!Number.isSafeInteger(revision)||typeof requestId!=='string'||!/^[0-9a-f-]{36}$/i.test(requestId))throw fail(400,'Comando inválido.');
   const hash=createHash('sha256').update(JSON.stringify({session,role,action,arg,revision})).digest('hex');
+  const transactionStarted=Date.now();
   const result=await transaction(async client=>{
    // Serialize every mutation of a session, including the future Even3 arrival worker.
-   const r=await client.query('SELECT state,revision FROM peniel_ops.session_state WHERE session_date=$1 FOR UPDATE',[session]);
+   const lockStarted=Date.now(),r=await client.query('SELECT state,revision FROM peniel_ops.session_state WHERE session_date=$1 FOR UPDATE',[session]);timing.lockMs=Date.now()-lockStarted;
    if(!r.rows[0])throw fail(503,'Sessão não preparada.');
    const prev=await client.query('SELECT payload_hash,message FROM peniel_ops.command_log WHERE session_date=$1 AND actor_id=$2 AND request_id=$3',[session,user.user_id,requestId]);
    if(prev.rows[0]){
@@ -46,6 +48,12 @@ export default async function handler(req,res){
    await client.query('INSERT INTO peniel_ops.command_log(session_date,actor_id,request_id,payload_hash,action,message,revision) VALUES($1,$2,$3,$4,$5,$6,$7)',[session,user.user_id,requestId,hash,action,next.message,next.db.revision]);
    return next;
   });
+  timing.transactionMs=Date.now()-transactionStarted;
+  if(action==='caravanAdmit')return res.json({message:result.message,caravanGate:live.caravanGateView(result.db,session)});
   return res.json({...result,db:live.project(result.db,role)});
  }catch(e){if(!e.status)console.error('official_operation_api_failure',{code:String(e.code||e.name||'unknown').slice(0,60),method:req.method});return res.status(e.status||503).json({error:e.status?e.message:'Servidor da operação não conseguiu consultar o banco. Nenhuma confirmação foi recebida; tente novamente.',...(e.groupLimit?{groupLimit:e.groupLimit}:{}),...(e.db?{db:e.db}:{})});}
+ finally{
+  const ms=Date.now()-timing.started;
+  if(req.method==='POST'&&ms>=1500)console.warn('operation_command_slow',{action:typeof req.body?.action==='string'?req.body.action.slice(0,30):'unknown',ms,authMs:timing.authMs,lockMs:timing.lockMs,transactionMs:timing.transactionMs});
+ }
 }

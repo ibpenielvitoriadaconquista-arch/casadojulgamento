@@ -1,25 +1,34 @@
 import {useEffect,useRef,useState} from 'react';
 import caravans from '../lib/caravans.cjs';
+import gateClient from '../lib/caravan-gate-client.cjs';
 
 export default function CaravanGate({session,role='portaria',cashier=false}){
- const [data,setData]=useState(null),[search,setSearch]=useState(''),[error,setError]=useState(''),[notice,setNotice]=useState(''),[busy,setBusy]=useState(false),[online,setOnline]=useState(false),[expanded,setExpanded]=useState({});
- const working=useRef(false),sequence=useRef(0);
+ const [data,setData]=useState(null),[search,setSearch]=useState(''),[error,setError]=useState(''),[notice,setNotice]=useState(''),[busy,setBusy]=useState(false),[online,setOnline]=useState(false),[expanded,setExpanded]=useState({}),[pendingCode,setPendingCode]=useState(null);
+ const working=useRef(false),sequence=useRef(0),attempts=useRef(new Map()),lastAttempt=useRef(null);
  useEffect(()=>{
-  setData(null);setOnline(false);setSearch('');setExpanded({});setError('');setNotice('');
+  setData(null);setOnline(false);setSearch('');setExpanded({});setError('');setNotice('');setPendingCode(null);lastAttempt.current=null;attempts.current.clear();
   if(!caravans.enabled(session))return;
   let stopped=false,loading=false;
   async function load(){if(working.current||loading)return;loading=true;const seq=++sequence.current;
-   try{const r=await fetch('/api/operacao/caravanas?session='+session,{cache:'no-store',signal:AbortSignal.timeout(10000)}),d=await r.json();if(!r.ok)throw Error(d.error);if(!stopped&&seq===sequence.current){setData(d);setOnline(true);}}
+   try{const d=await gateClient.read({session});if(!stopped&&seq===sequence.current){setData(d);setOnline(true);const found=d.members.find(m=>m.code===lastAttempt.current&&m.admitted);if(found){attempts.current.delete(found.code);lastAttempt.current=null;setError('');setNotice(found.name+': entrada confirmada no sistema. Encaminhar à Coordenação.');}}}
    catch(e){if(!stopped&&seq===sequence.current){setOnline(false);setError(e.message||'Sem conexão. Não libere entradas.');}}finally{loading=false;}}
   load();const timer=setInterval(load,4000);return()=>{stopped=true;++sequence.current;clearInterval(timer);};
  },[session]);
  async function run(action,arg){
-  if(working.current||!online||!data)return;working.current=true;++sequence.current;setBusy(true);setError('');setNotice('');
+  if(working.current||!online||!data)return;working.current=true;++sequence.current;setBusy(true);setPendingCode(action==='caravanAdmit'?arg.code:null);setError('');setNotice('');
   try{
+   if(action==='caravanAdmit'){
+    let command=attempts.current.get(arg.code);
+    if(!command){command={session,role,action,arg,revision:data.revision,requestId:crypto.randomUUID()};attempts.current.set(arg.code,command);}
+    lastAttempt.current=arg.code;
+    const result=await gateClient.send({command});if(result.data)setData(result.data);setOnline(result.online);
+    if(result.confirmed){attempts.current.delete(arg.code);lastAttempt.current=null;setNotice(result.message);}else setError(result.error);
+    return;
+   }
    const r=await fetch('/api/operacao',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({session,role,action,arg,revision:data.revision,requestId:crypto.randomUUID()}),signal:AbortSignal.timeout(12000)}),d=await r.json();if(!r.ok)throw Error(d.error);setNotice(d.message);
    const fresh=await fetch('/api/operacao/caravanas?session='+session,{cache:'no-store',signal:AbortSignal.timeout(10000)}),updated=await fresh.json();if(!fresh.ok)throw Error(updated.error);setData(updated);
   }catch(e){setError(e.message||'Resposta não confirmada. Confira a lista antes de repetir.');setOnline(false);}
-  finally{working.current=false;setBusy(false);}
+  finally{working.current=false;setBusy(false);setPendingCode(null);}
  }
  function authorize(c){const method=window.prompt('Recebimento confirmado: dinheiro, pix_igreja, cortesia ou revogar');if(!method)return;const reference=window.prompt('Referência do recebimento ou justificativa da autorização:');if(reference?.trim())run('caravanAuthorize',{id:c.caravanId,method:method.trim().toLowerCase(),reference});}
  if(!caravans.enabled(session))return <p>Selecione uma apresentação ou o Lote 1 de testes para consultar caravanas.</p>;
@@ -30,7 +39,7 @@ export default function CaravanGate({session,role='portaria',cashier=false}){
  const lists=[...new Map(allMembers.map(m=>[m.caravanId,m])).values()];
  const pendingLists=data?.pendingLists||[];
  const groups=[...new Set(allMembers.map(m=>m.group))].sort().map(id=>({id,people:allMembers.filter(m=>m.group===id)}));
- function person(m){return <article key={m.code} className={'arrival-row '+(m.admitted?'arrived':'')}><div className="arrival-info"><h3>{m.name}</h3><p className="arrival-origin">{m.caravanName} · {m.city}</p><p className={m.admitted?'success':'warning'}>{m.admitted?'Entrada registrada':!m.authorized?'Aguardando autorização':!m.eligible?'Fora da data autorizada':m.training?'Treinamento liberado hoje':'Autorizado · aguardando chegada'}</p><details><summary>Mais informações</summary><p>Grupo {m.group} · {m.date.split('-').reverse().join('/')}<br/>{m.phone?'Telefone: '+m.phone:'Contato: '+(m.contact||'não informado')}<br/>Responsável: {m.responsible}</p></details></div>{!cashier&&(m.admitted?<span className="arrived-badge">✓ Já entrou</span>:<button className="admit-button" type="button" disabled={busy||!online||!m.eligible} aria-label={'Registrar entrada e enviar à Coordenação: '+m.name} onClick={()=>{if(window.confirm('Conferiu '+m.name+' da caravana '+m.caravanName+'? Registrar somente a entrada desta pessoa?'))run('caravanAdmit',{code:m.code});}}><b>Registrar entrada</b><span>Enviar à Coordenação</span></button>)}</article>;}
+ function person(m){return <article key={m.code} className={'arrival-row '+(m.admitted?'arrived':'')}><div className="arrival-info"><h3>{m.name}</h3><p className="arrival-origin">{m.caravanName} · {m.city}</p><p className={m.admitted?'success':'warning'}>{m.admitted?'Entrada registrada':!m.authorized?'Aguardando autorização':!m.eligible?'Fora da data autorizada':m.training?'Treinamento liberado hoje':'Autorizado · aguardando chegada'}</p><details><summary>Mais informações</summary><p>Grupo {m.group} · {m.date.split('-').reverse().join('/')}<br/>{m.phone?'Telefone: '+m.phone:'Contato: '+(m.contact||'não informado')}<br/>Responsável: {m.responsible}</p></details></div>{!cashier&&(m.admitted?<span className="arrived-badge">✓ Já entrou</span>:<button className="admit-button" type="button" disabled={busy||!online||!m.eligible} aria-label={'Registrar entrada e enviar à Coordenação: '+m.name} onClick={()=>{if(window.confirm('Conferiu '+m.name+' da caravana '+m.caravanName+'? Registrar somente a entrada desta pessoa?'))run('caravanAdmit',{code:m.code});}}><b>{pendingCode===m.code?'Registrando…':'Registrar entrada'}</b><span>{pendingCode===m.code?'Aguarde a confirmação':'Enviar à Coordenação'}</span></button>)}</article>;}
  return <section className="caravan-desk"><h2>{cashier?'Autorização de caravanas':'Entrada de caravanas'}</h2>
   <p>Abra o grupo ou busque pelo nome. Confira cada pessoa presente e registre sua chegada individualmente. O grupo reservado da caravana será mantido para a Coordenação.</p>
   {!online&&<p role="status">Aguardando sincronização. Entradas bloqueadas.</p>}{error&&<p role="alert" className="warning">{error}</p>}{notice&&<p role="status" className="success">{notice}</p>}

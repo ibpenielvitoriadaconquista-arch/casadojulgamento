@@ -108,4 +108,8 @@ function project(state, role) {
   if(role==='portaria') for(const s of Object.values(next.sessions)){s.history=[];s.lastAssignment=null;}
   return next;
 }
-module.exports={command,admit,project,groupVersion};
+function caravanGateView(state,session,now){
+ const s=state.sessions[session];
+ return {revision:Number(state.revision),members:caravans.gateRows(s,session,now),pendingLists:caravans.list(s).filter(c=>caravans.unnamedCount(c)>0).map(c=>({id:c.id,name:c.name,group:c.group,pending:caravans.unnamedCount(c)}))};
+}
+module.exports={command,admit,project,groupVersion,caravanGateView};

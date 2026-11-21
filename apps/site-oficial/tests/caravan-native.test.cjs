@@ -63,7 +63,7 @@ test('two concurrent gate requests persist one native arrival and audit the real
   const res={setHeader(){},status(n){this.code=n;return this;},json(body){this.body=body;this.code||=200;}};
   await handler({method:'POST',body:{session:day,role:'portaria',action:'caravanAdmit',arg:{code,actorId:'forged'},revision:initial.revision,requestId:'55555555-5555-4555-8555-555555555555'}},res);return res;
  }
- const results=await Promise.all([call('gate-a'),call('gate-b')]);assert.deepEqual(results.map(r=>r.code).sort(),[200,409]);assert.equal(writes,1);assert.equal(row.state.people.length,1);assert.equal(row.state.people[0].admittedBy,'gate-a');
+ const results=await Promise.all([call('gate-a'),call('gate-b')]);assert.deepEqual(results.map(r=>r.code).sort(),[200,422]);assert.match(results.find(r=>r.code===422).body.error,/já entrou/);assert.equal(writes,1);assert.equal(row.state.people.length,1);assert.equal(row.state.people[0].admittedBy,'gate-a');
 });
 test('dedicated gate query is authenticated and reveals no records to other roles',async()=>{
  const source=fs.readFileSync(path.join(__dirname,'../pages/api/operacao/caravanas.js'),'utf8').replace(/^import .*;\n/gm,'').replace('export default async function handler','return async function handler');
