@@ -222,3 +222,28 @@ test('November 20 Telão renders the existing occupied cards plus a fourth selec
  const html=renderToStaticMarkup(React.createElement(CircuitOperator,{session:live.project(f.db,'telao').sessions[f.day],day:f.day,disabled:false,confirm(){},publicHref:'/operacao/telao?sessao='+f.day}));
  assert.equal((html.match(/class="op-circuit-slot /g)||[]).length,4);assert.equal((html.match(/op-circuit-slot is-empty/g)||[]).length,1);assert.match(html,/op-circuit-slots-four/);assert.match(html,/id="op-slot-group-3"/);assert.match(html,/\+ Chamar grupo · G05/);assert.doesNotMatch(html,/Nome privado|nov20-G/);assert.deepEqual(f.db,before);
 });
+
+function november21InProgress(){
+ const f=november20InProgress(),day21='2026-11-21';f.db.sessions[day21]=structuredClone(f.db.sessions[f.day]);return {db:f.db,day:day21};
+}
+test('November 21 adds the fourth slot and permits an out-of-order G08 call while preserving the three occupied groups',()=>{
+ const f=november21InProgress(),before=structuredClone(f.db),s=f.db.sessions[f.day],at='2026-11-21T22:00:00Z';
+ assert.equal(ops.circuitLimitFor(f.day),4);assert.deepEqual(ops.circuitSlots(s,f.day).map(g=>g?.id||null),['G02','G03','G01',null]);assert.deepEqual(f.db,before);
+ const version=live.groupVersion(s,'G08');
+ let next=live.command(f.db,f.day,'telao','call',{group:'G08',slot:3,expectedGroupVersion:version},at).db;
+ for(const id of ['G01','G02','G03'])assert.deepEqual(next.sessions[f.day].groups.find(g=>g.id===id),s.groups.find(g=>g.id===id));
+ assert.deepEqual(next.sessions[f.day].people,s.people);assert.equal(next.sessions[f.day].groups[4].status,'closed');
+ assert.deepEqual(ops.circuitSlots(next.sessions[f.day],f.day).map(g=>g.id),['G02','G03','G01','G08']);
+ assert.throws(()=>live.command(next,f.day,'telao','call',{group:'G05'},at),/quatro vagas/);
+ next=live.command(next,f.day,'apoio','arrive',{group:'G08'},at).db;next=live.command(next,f.day,'apoio','start',{group:'G08',physicallySafe:true},at).db;
+ assert.throws(()=>live.command(next,f.day,'telao','call',{group:'G05'},at),/quatro vagas/);
+ next=live.command(next,f.day,'apoio','safe',{group:'G08'},at).db;next=live.command(next,f.day,'apoio','finish',{group:'G02'},at).db;
+ assert.deepEqual(ops.circuitSlots(next.sessions[f.day],f.day).map(g=>g?.id||null),[null,'G03','G01','G08']);
+ next=live.command(next,f.day,'telao','call',{group:'G05',slot:0},at).db;assert.equal(next.sessions[f.day].groups[4].status,'called');
+ assert.deepEqual(next.sessions['2026-11-20'],before.sessions['2026-11-20']);assert.equal(ops.circuitLimitFor('2026-11-13'),3);
+});
+test('November 21 Telão renders a fourth card with the selector and no participant identities or state mutation',()=>{
+ const f=november21InProgress(),before=structuredClone(f.db),{CircuitOperator}=panels();
+ const html=renderToStaticMarkup(React.createElement(CircuitOperator,{session:live.project(f.db,'telao').sessions[f.day],day:f.day,disabled:false,confirm(){},publicHref:'/operacao/telao?sessao='+f.day}));
+ assert.equal((html.match(/class="op-circuit-slot /g)||[]).length,4);assert.equal((html.match(/op-circuit-slot is-empty/g)||[]).length,1);assert.match(html,/op-circuit-slots-four/);assert.match(html,/id="op-slot-group-3"/);assert.match(html,/value="G08"/);assert.doesNotMatch(html,/Nome privado|nov20-G/);assert.deepEqual(f.db,before);
+});

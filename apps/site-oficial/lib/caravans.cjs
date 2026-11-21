@@ -16,6 +16,7 @@ const unnamedCount=c=>expectedCount(c)-c.members.length;
 const pendingCount=(s,group)=>list(s).filter(c=>c.group===group).reduce((n,c)=>n+unnamedCount(c),0);
 const allocatedCount=(s,group,extra=[])=>new Set([...(s.groups.find(g=>g.id===group)?.members||[]),...list(s).filter(c=>c.group===group).flatMap(c=>c.members.map(m=>m.code)),...extra]).size+pendingCount(s,group)+(s.groups.find(g=>g.id===group)?.generalMemberCount||0);
 const generalVacancies=(s,day,g)=>reserved(s,day,g.id)?0:Math.max(0,groupSizeFor(day,g)-allocatedCount(s,g.id));
+const memberLimitFor=(day,g)=>day==='2026-11-21'&&g?.id==='G04'&&g.capacityOverride===36?36:capacityFor(day).groupSize;
 const memberAuthorization=(c,m)=>c.authorization?.status==='revoked'?c.authorization:Object.hasOwn(m,'authorization')?m.authorization:c.authorization;
 const memberAuthorized=(c,m)=>memberAuthorization(c,m)?.status==='authorized';
 const authorizedCount=c=>c.members.filter(m=>memberAuthorized(c,m)).length;
@@ -38,7 +39,6 @@ function compatible(s,day,p,group){
 }
 function handle(s,day,action,arg,now){
  if(!enabled(day))throw Error('Selecione uma apresentação de novembro ou a sessão Lote 1 de testes.');
- const limit=capacityFor(day).groupSize;
  s.caravans??=[];
  if(action==='caravanTraining'){
   const c=s.caravans.find(c=>c.id===arg.id);
@@ -54,6 +54,7 @@ function handle(s,day,action,arg,now){
   if(!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(arg.id||'')))throw Error('Identificador da caravana inválido.');
   const group=s.groups.find(g=>g.id===arg.group);
   if(!group||!acceptsCaravan(s,day,group.id)||group.status!=='forming')throw Error('Escolha um grupo de caravana reservado ou misto em formação.');
+  const limit=memberLimitFor(day,group);
   const expected=arg.expectedCount??arg.members?.length;
   if(!Array.isArray(arg.members)||!Number.isSafeInteger(expected)||expected<1||expected<arg.members.length||expected>limit)throw Error(`Cadastre entre 1 e ${limit} integrantes previstos por lista. Informe os nomes disponíveis sem criar participantes fictícios.`);
   let members=arg.members.map(m=>({code:String(m.code||'').trim(),name:text(m.name,'o nome do integrante',150),phone:phone(m.phone),source:native(m.code)?'native':'even3'}));
@@ -139,4 +140,4 @@ function gateRows(s,day,now=new Date().toISOString()){
   return {authorizedCount:authorizedCount(c),memberCount:c.members.length,code:m.code,name:m.name,phone:m.phone||'',contact:c.contact||'',responsible:c.responsible,caravanId:c.id,caravanName:c.name,city:c.city,date:day,group:c.group,training:!!training,authorized:memberAuthorized(c,m),admitted:!!p,arrivedAt:p?.arrivedAt||null,eligible:!p&&(day===bahiaDay(now)||training)&&memberAuthorized(c,m)};
  }));
 }
-module.exports={publicClosed,DAYS,GROUPS,groupsFor,mixed,enabled,reserved,acceptsCaravan,list,expectedCount,unnamedCount,pendingCount,allocatedCount,generalVacancies,identity,compatible,handle,memberAuthorization,memberAuthorized,authorizedCount,authorizationStatus,native,bahiaDay,gateRows};
+module.exports={publicClosed,DAYS,GROUPS,groupsFor,mixed,enabled,reserved,acceptsCaravan,list,expectedCount,unnamedCount,pendingCount,allocatedCount,generalVacancies,memberLimitFor,identity,compatible,handle,memberAuthorization,memberAuthorized,authorizedCount,authorizationStatus,native,bahiaDay,gateRows};

@@ -94,6 +94,17 @@ test('previous dates retain their exclusive groups and do not gain mixed assignm
  for(const [date,groups] of Object.entries(dates)){assert.deepEqual(cv.groupsFor(date),groups);assert.equal(cv.mixed(date,'G01'),false);assert.equal(cv.mixed(date,'G07'),false);}
 });
 
+test('November 21 Cordeiros G04 permits its authorized 36-person roster and counts the extra place without automatically admitting anyone',()=>{
+ let db=planned();const s=db.sessions[day],g=s.groups[3];g.capacityOverride=36;
+ const c=s.caravans.find(c=>c.group==='G04');c.authorization={status:'authorized',method:'confirmacao_gestao',paymentConfirmed:true};
+ const addition=members(1)[0];addition.authorization={status:'authorized',paymentConfirmed:true};c.members.push(addition);
+ db=run(db,'caravanSave',{...c,expectedCount:36});const after=db.sessions[day].caravans.find(x=>x.id===c.id);
+ assert.equal(ops.groupSizeFor(day,g),36);assert.equal(cv.memberLimitFor(day,g),36);assert.equal(after.members.length,36);assert.equal(cv.authorizedCount(after),36);assert.equal(db.sessions[day].people.length,0);
+ assert.equal(stock.calculate({session:day,state:db.sessions[day],catalog,attendees:[],queriedAt:at}).protectedCaravanPlaces,150);
+ assert.throws(()=>run(db,'caravanSave',{...after,members:[...after.members,...members(1)],expectedCount:37}),/36 integrantes/);
+ assert.equal(cv.memberLimitFor(day,{id:'G04'}),35);assert.equal(cv.memberLimitFor('2026-11-20',g),35);assert.equal(ops.groupSizeFor('2026-11-20',g),35);assert.equal(ops.groupSizeFor(day,{id:'G03',capacityOverride:36}),35);
+});
+
 test('approving a pending G01 request reuses its reserved identities and preserves any unnamed place without automatically admitting anyone',async()=>{
  const fs=require('node:fs'),source=fs.readFileSync(require('node:path').join(__dirname,'../pages/api/operacao/caravana-solicitacoes.js'),'utf8').replace(/^import .*;\n/gm,'').replace('export const config=','const config=').replace('export default async function handler','return async function handler');
  const db=save(save(fixture(),'G01',17),'G01',15,16),c=db.sessions[day].caravans[1],codes=c.members.map(m=>m.code),row={state:db.sessions[day],revision:4};let imported=false;
