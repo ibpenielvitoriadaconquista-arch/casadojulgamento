@@ -21,7 +21,7 @@ export default async function handler(req,res){
   if(req.method!=='POST')throw fail(405,'Método não permitido.');sameOrigin(req);
   if(!['geral','caravanas'].includes(user.role))throw fail(403,'Somente Gestão pode confirmar o recebimento e importar.');
   const {id,group,method,reference,confirmed}=req.body||{};
-  if(!Number.isSafeInteger(Number(id))||!['G03','G04','G05','G06','G07','G08','G09'].includes(group)||!['dinheiro','pix_igreja','cortesia'].includes(method)||confirmed!==true||String(reference||'').trim().length<10||String(reference).length>200)throw fail(400,'Confira grupo, recebimento, referência e confirmação.');
+  if(!Number.isSafeInteger(Number(id))||!['G01','G03','G04','G05','G06','G07','G08','G09'].includes(group)||!['dinheiro','pix_igreja','cortesia'].includes(method)||confirmed!==true||String(reference||'').trim().length<10||String(reference).length>200)throw fail(400,'Confira grupo, recebimento, referência e confirmação.');
   if(user.role==='caravanas'&&method==='cortesia')throw fail(403,'Somente Gestão autoriza cortesias.');
   const result=await transaction(async db=>{
    const row=(await db.query('SELECT * FROM peniel_ops.caravan_requests WHERE id=$1 FOR UPDATE',[id])).rows[0];
@@ -35,7 +35,7 @@ export default async function handler(req,res){
    const caravanId=existing?.id||randomUUID(),members=existing?.members||data.members.map(m=>({...m,code:'CAR-'+randomUUID()}));
    let dbState={schema:5,revision:Number(current.revision),sessions:{[session]:current.state}};
    try{
-    dbState=live.command(dbState,session,user.role,'caravanSave',{...data,id:caravanId,group,members,actorId:user.user_id}).db;
+    dbState=live.command(dbState,session,user.role,'caravanSave',{...data,id:caravanId,group,members,expectedCount:existing?.expectedCount??members.length,actorId:user.user_id}).db;
     dbState=live.command(dbState,session,user.role,'caravanAuthorize',{id:caravanId,method,reference:String(reference).trim(),actorId:user.user_id}).db;
    }catch(e){throw fail(409,e.message);}
    await db.query('UPDATE peniel_ops.session_state SET state=$2::jsonb,revision=$3,updated_at=now() WHERE session_date=$1',[session,JSON.stringify(dbState.sessions[session]),dbState.revision]);

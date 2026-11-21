@@ -13,12 +13,14 @@ function calculate({session,attendees,catalog,state,queriedAt}){
   if(p.confirmed===true)confirmed.add(code);else unconfirmed++;
  }
  const cap=capacityFor(session),reservedGroups=caravans.groupsFor(session).filter(g=>caravans.reserved(state,session,g));
- const codesInCaravans=new Set(caravans.list(state).filter(c=>reservedGroups.includes(c.group)).flatMap(c=>c.members.map(m=>m.code)));
+ const mixedLists=caravans.list(state).filter(c=>caravans.mixed(session,c.group));
+ const codesInCaravans=new Set(caravans.list(state).filter(c=>reservedGroups.includes(c.group)||caravans.mixed(session,c.group)).flatMap(c=>c.members.map(m=>m.code)));
  const overlap=[...confirmed].filter(c=>codesInCaravans.has(c)).length;
- const protectedCaravanPlaces=Math.max(0,reservedGroups.reduce((count,id)=>count+groupSizeFor(session,state.groups?.find(g=>g.id===id)),0)-overlap);
+ const mixedPlaces=mixedLists.reduce((n,c)=>n+caravans.expectedCount(c),0);
+ const protectedCaravanPlaces=Math.max(0,reservedGroups.reduce((count,id)=>count+groupSizeFor(session,state.groups?.find(g=>g.id===id)),0)+mixedPlaces-overlap);
  const additionalAdmitted=new Set(state.people.filter(p=>!confirmed.has(p.id)&&!caravans.native(p.id)&&!codesInCaravans.has(p.id)).map(p=>p.id)).size;
  const committed=confirmed.size+protectedCaravanPlaces+additionalAdmitted;
- return {session,queriedAt,source:'Even3 API · consulta completa atual',capacity:cap.total,confirmed:confirmed.size,unconfirmed,protectedCaravanPlaces,reservedGroups,additionalAdmitted,available:Math.max(0,cap.total-committed),overCapacity:committed>cap.total,caravanLists:caravans.list(state).length,estimate:true};
+ return {session,queriedAt,source:'Even3 API · consulta completa atual',capacity:cap.total,confirmed:confirmed.size,unconfirmed,protectedCaravanPlaces,reservedGroups,mixedPlaces,additionalAdmitted,available:Math.max(0,cap.total-committed),overCapacity:committed>cap.total,caravanLists:caravans.list(state).length,estimate:true};
 }
 function createService({query,even3,now=()=>new Date().toISOString()}){
  async function read(session){

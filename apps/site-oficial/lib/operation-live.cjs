@@ -40,9 +40,23 @@ function command(state, session, role, action, arg, now) {
     current.history.unshift({at,role:ops.ROLES[role],action,text:message});current.history=current.history.slice(0,500);
     next.revision++;return {db:next,message};
   }
+  let reservationNote='';
   if(caravans.enabled(session)&&['assign','move'].includes(action)){
     const ids=action==='assign'?(arg.ids||[]):[arg.id];
     for(const id of ids){const p=s.people.find(p=>p.id===id);if(p&&!caravans.compatible(s,session,p,arg.group))throw Error('Integrantes de caravana devem ir ao seu grupo reservado. Os grupos reservados são exclusivos para caravanas.');}
+    const g=s.groups.find(g=>g.id===arg.group);
+    if(g?.status==='forming'&&caravans.mixed(session,g.id)&&ids.length&&ids.every(id=>s.people.some(p=>p.id===id))){
+      const total=caravans.allocatedCount(s,g.id,ids),limit=ops.groupSizeFor(session,g);
+      if(total>limit){
+        const confirmation=arg.groupLimitConfirmation;
+        if(confirmation?.group!==g.id||confirmation.limit!==limit||confirmation.total!==total){
+          throw Object.assign(Error(g.id+' terá '+total+' lugares comprometidos, incluindo reservas de caravanas. O limite é '+limit+'. Confirme para continuar.'),{groupLimit:{group:g.id,limit,total,includesReservations:true}});
+        }
+        const added=ids.filter(id=>!g.members.includes(id)).length;
+        arg={...arg,groupLimitConfirmation:{group:g.id,limit,total:g.members.length+added}};
+        reservationNote=' Exceção confirmada considerando reservas de caravanas: '+total+'/'+limit+' lugares comprometidos.';
+      }
+    }
   }
   if(caravans.enabled(session)&&action==='close'){
     const g=s.groups.find(g=>g.id===arg.group);
@@ -51,7 +65,9 @@ function command(state, session, role, action, arg, now) {
     if(missingCount&&!String(arg.caravanMissingReason||'').trim())throw Error('Faltam '+missingCount+' integrantes previstos. Aguarde, adie a chamada ou informe o motivo para fechar sem eles.');
   }
   if(action==='start'&&ops.active(s).some(g=>g.status==='circuit'))throw Error('O grupo anterior precisa confirmar o ponto seguro.');
-  return ops.apply(state, session, role, action, arg, now);
+  const result=ops.apply(state, session, role, action, arg, now);
+  if(reservationNote){result.message+=reservationNote;result.db.sessions[session].history[0].text+=reservationNote;}
+  return result;
 }
 // Internal adapter only: call AFTER verifying the Even3 activity, registration and entitlement.
 function admit(state, session, arrival, now=new Date().toISOString()) {
@@ -74,7 +90,7 @@ function project(state, role) {
   if(role==='caravanas')for(const [day,s] of Object.entries(next.sessions)){
     const codes=new Set(caravans.list(s).flatMap(c=>c.members.map(m=>m.code)));
     s.people=s.people.filter(p=>codes.has(p.id)).map(p=>({id:p.id,name:p.name,group:p.group,arrivedAt:p.arrivedAt}));
-    s.groups=s.groups.filter(g=>caravans.groupsFor(day).includes(g.id)).map(g=>({...g,guide:null}));
+    s.groups=s.groups.filter(g=>caravans.groupsFor(day).includes(g.id)).map(g=>({...g,guide:null,generalMemberCount:g.members.filter(id=>!codes.has(id)).length,members:g.members.filter(id=>codes.has(id))}));
     s.history=[];s.lastAssignment=null;
   }
   if(role==='apoio') for(const s of Object.values(next.sessions)) {
