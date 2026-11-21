@@ -78,3 +78,20 @@ test('CJ-000 can repeat only in team training and produces distinct unassigned p
  assert.equal(training.inspect(state,'CJ-000',day,'2026-11-12T23:00:00Z').eligible,false);
  state.closedAt=at;assert.equal((await service.lookup('CJ-000',day)).eligible,false);
 });
+
+test('CJ-201 through CJ-210 admit after the original 200 are used, preserving history and official sessions',async()=>{
+ const session=training.TEAM_SESSION,today='2026-11-21',at=today+'T20:00:00Z';let state=ops.freshSession(session),revision=169,tail=Promise.resolve();
+ state.trainingTickets=Array.from({length:210},(_,i)=>({code:'CJ-'+String(i+1).padStart(3,'0'),name:'Participante teste '+String(i+1).padStart(3,'0'),enabled:true,paymentStatus:'simulated_confirmed',day:i<200?'2026-11-11':today,...(i<200?{usedAt:'2026-11-11T22:00:00Z',usedBy:'original-training'}:{})}));
+ state.people=state.trainingTickets.slice(0,200).map(t=>({id:t.code,name:t.name,group:null,paperAt:null,arrivedAt:t.usedAt,training:true}));
+ state.history=[{action:'old-training',text:'Histórico preservado'}];const original=structuredClone(state),official=ops.freshSession(today),officialBefore=structuredClone(official);
+ const query=async(sql,args)=>{assert.equal(args[0],session);if(sql.startsWith('SELECT'))return {rows:[{state:structuredClone(state),revision}]};if(sql.startsWith('UPDATE')){state=JSON.parse(args[1]);revision=args[2];return {rows:[]};}throw Error(sql);};
+ const transaction=fn=>{const job=tail.then(()=>fn({query}));tail=job.catch(()=>{});return job;};
+ const service=training.createService({query,transaction,now:()=>at});
+ assert.equal(training.parse('CJ201'),'CJ-201');assert.equal(training.parse('cj210'),'CJ-210');
+ assert.equal(ops.capacityFor(session).total,210);assert.equal(ops.capacityFor(today).total,750);
+ for(const ticket of state.trainingTickets.slice(200)){assert.equal((await service.lookup(ticket.code,session)).eligible,true);await assert.rejects(service.lookup(ticket.code,today),/somente/);}
+ await Promise.all(state.trainingTickets.slice(200).map(t=>service.admit(t.code,session,{role:'portaria',user_id:'new-training'})));
+ assert.equal(state.people.length,210);assert.equal(new Set(state.people.map(p=>p.id)).size,210);assert.deepEqual(state.trainingTickets.slice(0,200),original.trainingTickets.slice(0,200));assert.deepEqual(state.people.slice(0,200),original.people);assert.deepEqual(state.history.at(-1),original.history[0]);assert.deepEqual(official,officialBefore);
+ assert.ok(state.people.slice(200).every(p=>p.group===null&&p.paperAt===null&&p.training===true));
+ await assert.rejects(service.admit('CJ-201',session,{role:'portaria',user_id:'retry'}),/já utilizado/);
+});

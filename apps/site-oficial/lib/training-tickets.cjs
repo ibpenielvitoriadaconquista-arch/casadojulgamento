@@ -5,7 +5,7 @@ const allowedSession=(code,session)=>session===(/^CJ-[0-9]{3}$/.test(code)?TEAM_
 function parse(raw){
  if(typeof raw!=='string'||raw.length>512)return null;
  const value=raw.normalize('NFKC').trim().replace(/^`|`$/g,'').replace(/[\u2010-\u2015\u2212]/g,'-').replace(/\s/g,'').toUpperCase();
- if(/^CJ-[0-9]{3}$/.test(value))return value;
+ const team=/^CJ-?([0-9]{3})$/.exec(value);if(team)return 'CJ-'+team[1];
  const match=/^CDJTESTE-?([0-9]{4})-?([0-9]{3})$/.exec(value);
  return match?'CDJTESTE-'+match[1]+'-'+match[2]:null;
 }
