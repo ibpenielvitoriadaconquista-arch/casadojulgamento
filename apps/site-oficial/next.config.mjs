@@ -4,6 +4,9 @@ export default {
   outputFileTracingIncludes: {
     '/api/video-convite': ['./assets/video_chunks/**/*']
   },
+  async rewrites() {
+    return [{source:'/prestacao-de-contas',destination:'/api/prestacao-de-contas'}];
+  },
   async headers() {
     const common = [
       { key: 'X-Content-Type-Options', value: 'nosniff' },
@@ -19,7 +22,9 @@ export default {
       {source:'/:path*',headers:common},
       {source:'/operacao/portaria',headers:scannerHeaders},
       {source:'/operacao/geral',headers:scannerHeaders},
-      {source:'/operacao/caixa',headers:scannerHeaders}
+      {source:'/operacao/caixa',headers:scannerHeaders},
+      {source:'/prestacao-de-contas',headers:[{key:'X-Robots-Tag',value:'noindex, nofollow, noarchive'}]},
+      {source:'/api/prestacao-de-contas',headers:[{key:'X-Robots-Tag',value:'noindex, nofollow, noarchive'}]}
     ];
   }
 };
